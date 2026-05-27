@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Navbar from "@/app/components/layout/Navbar";
-import "../app/globals.css";
+import "./globals.css"; // Import direct în același folder
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,20 +15,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="scroll-smooth bg-[#0a0d14] text-white">
-      {/* overflow-x-hidden pe body oprește garantat orice scroll orizontal */}
+    <html
+      lang="en"
+      className="bg-[#0a0d14] text-white"
+      data-scroll-behavior="smooth"
+    >
       <body
         className={`${inter.className} antialiased px-4 md:px-8 lg:px-12 relative min-h-screen overflow-x-hidden w-full flex flex-col`}
       >
-        {/* CONTAINERUL SALVATOR: Izolează bulele și le taie marginile care ieșeau în dreapta */}
+        {/* Fundalul fluid global */}
         <div className="absolute inset-0 max-w-full overflow-hidden pointer-events-none z-0">
           <div className="absolute top-[-5%] left-[-10%] w-[260px] sm:w-[500px] h-[260px] sm:h-[500px] rounded-full bg-cyan-500/10 blur-[60px] sm:blur-[120px] animate-float-1" />
           <div className="absolute top-[35%] right-[-5%] w-[280px] sm:w-[600px] h-[280px] sm:h-[600px] rounded-full bg-purple-600/10 blur-[80px] sm:blur-[150px] animate-float-2" />
         </div>
 
-        {/* Conținutul aplicației, perfect aliniat și protejat de z-index */}
         <div className="relative z-10 w-full flex flex-col flex-grow">
-          <Navbar />
           {children}
         </div>
       </body>
