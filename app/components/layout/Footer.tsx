@@ -31,7 +31,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="w-full max-w-5xl mx-auto pt-12 pb-8 border-t border-white/[0.08] mt-12 space-y-12">
+    <footer className="w-full max-w-5xl mx-auto pt-12 pb-8 border-t border-white/[0.2] mt-6 space-y-12">
       {/* TOP REGION: Grid de legături cu contrast ridicat */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center md:text-left">
         {/* Brand Info */}
@@ -73,7 +73,7 @@ export default function Footer() {
       </div>
 
       {/* BOTTOM REGION: Disclaimer clar și Certificări */}
-      <div className="pt-8 border-t border-white/[0.06] flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="pt-8 border-t border-white/[0.2] flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Copyright clar */}
         <div className="flex flex-col items-center md:items-start space-y-1.5">
           <p className="text-[10px] text-gray-300 font-bold">

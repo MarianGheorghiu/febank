@@ -11,7 +11,7 @@ import {
 
 export default function CTA() {
   return (
-    <section className="w-full max-w-5xl mx-auto pt-2 pb-16">
+    <section id="contact" className="w-full max-w-5xl mx-auto pt-2 pb-2">
       {/* Master Container din Sticlă Fluidă Densă */}
       <div className="relative rounded-3xl bg-gradient-to-b from-white/[0.09] to-white/[0.01] backdrop-blur-2xl border border-white/[0.15] p-6 sm:p-10 md:p-12 shadow-[0_25px_60px_rgba(0,0,0,0.6)] overflow-hidden group grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
         {/* Efecte de lumini ambientale interioare */}

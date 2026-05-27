@@ -15,7 +15,7 @@ export default function Security() {
     // Strângem și aici pt-2 pentru a păstra fluiditatea ritmului paginii, fără gap-uri goale
     <section
       id="security"
-      className="w-full max-w-5xl mx-auto pt-2 pb-24 grid grid-cols-1 md:grid-cols-2 gap-12 items-center"
+      className="w-full max-w-5xl mx-auto pt-6 pb-24 grid grid-cols-1 md:grid-cols-2 gap-12 items-center"
     >
       {/* COLOANA STÂNGA: Titlu Premium, Tech Spec și Pilonii de Încredere */}
       <div className="flex flex-col items-center text-center md:items-start md:text-left space-y-6 md:space-y-8 z-10">

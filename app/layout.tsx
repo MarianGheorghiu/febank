@@ -17,7 +17,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className="bg-[#0a0d14] text-white"
+      className="bg-[#0a0d14] scroll-smooth text-white"
       data-scroll-behavior="smooth"
     >
       <body

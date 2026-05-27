@@ -11,11 +11,12 @@ const Navbar = () => {
     { name: "Features", href: "#features" },
     { name: "Analytics", href: "#stats" },
     { name: "Security", href: "#security" },
+    { name: "Contact", href: "#contact" },
   ];
 
   return (
     // Folosește exact aceleași clase de padding ca body-ul din layout
-    <nav className="fixed top-6 left-0 right-0 z-50 px-4 md:px-8 lg:px-12">
+    <nav className="fixed top-2 left-0 right-0 z-50 px-4 md:px-8 lg:px-12">
       {/* Containerul Liquid Glass Premium */}
       <div className="max-w-5xl mx-auto bg-gradient-to-b from-white/[0.09] to-white/[0.02] backdrop-blur-xl border border-white/[0.15] shadow-[0_12px_40px_rgba(0,0,0,0.5)] rounded-2xl md:rounded-full px-6 py-3 transition-all duration-300">
         <div className="flex items-center justify-between">

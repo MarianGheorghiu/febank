@@ -56,7 +56,7 @@ export default function Stats() {
   return (
     <section
       id="stats"
-      className="w-full max-w-5xl mx-auto pt-2 pb-24 space-y-12"
+      className="w-full max-w-5xl mx-auto pt-10 pb-24 space-y-12"
     >
       {/* Header Epic cu Gradient Unificat */}
       <div className="flex flex-col items-center text-center max-w-2xl mx-auto space-y-4">
