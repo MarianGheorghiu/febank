@@ -18,11 +18,13 @@ import GlassCard from "@/app/components/ui/GlassCard";
 import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import LoadingOverlay from "@/app/components/ui/LoadingOverlay"; // Importăm componenta globală de loading
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,9 +32,11 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
-    // Simulăm latența de rețea/backend de 2.5 secunde
     setTimeout(() => {
       setIsLoading(false);
+
+      // Redirecționare SPA către dashboard
+      router.push("/dashboard");
     }, 2500);
   };
 

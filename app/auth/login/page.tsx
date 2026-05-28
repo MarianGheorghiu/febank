@@ -15,10 +15,12 @@ import GlassCard from "@/app/components/ui/GlassCard";
 import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import LoadingOverlay from "@/app/components/ui/LoadingOverlay";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +28,11 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    // Simulăm latența backend-ului (ex: 2.5 secunde)
     setTimeout(() => {
       setIsLoading(false);
+
+      // Redirecționare SPA către dashboard
+      router.push("/dashboard");
     }, 2500);
   };
 
