@@ -8,9 +8,10 @@ import {
   ShieldAlert,
   Users,
   Server,
-  Activity,
 } from "lucide-react";
 import GlassCard from "@/app/components/ui/GlassCard";
+import { showMbankToast } from "../lib/toast";
+import { useRouter } from "next/navigation";
 
 // 1. VIEW PENTRU CLIENT (Definit direct aici ca să evităm erori de import)
 function ClientDashboard({ name }: { name: string }) {
@@ -132,13 +133,42 @@ export default function DashboardPage() {
     role: "client" | "admin";
   } | null>(null);
 
+  const router = useRouter();
+
   useEffect(() => {
     // Simulam preluarea datelor userului
     setUser({
       name: "Alexandru Rădulescu",
       role: "client", // Schimbă în "admin" pentru a testa panoul de admin
     });
-  }, []);
+    // 1. După 2 secunde, simulăm o notificare de la un prieten
+    const socialTimeout = setTimeout(() => {
+      showMbankToast({
+        category: "social",
+        title: "Split Bill Received",
+        description:
+          "Matei Dan requested $24.50 USD for 'Private Dinner & Drinks'.",
+        router: router,
+      });
+    }, 2000);
+
+    // 2. După 5 secunde, simulăm o alertă de securitate urgentă de la bancă
+    const bankTimeout = setTimeout(() => {
+      showMbankToast({
+        category: "institutional",
+        title: "New Terminal Authorized",
+        description:
+          "A secure session was opened from an unrecognized IP in Frankfurt, DE.",
+        isUrgent: true,
+        router: router,
+      });
+    }, 5000);
+
+    return () => {
+      clearTimeout(socialTimeout);
+      clearTimeout(bankTimeout);
+    };
+  }, [router]);
 
   if (!user) {
     return (

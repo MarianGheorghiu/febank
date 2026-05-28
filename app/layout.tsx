@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import NotificationProvider from "./components/ui/NotificationProvider";
 
 // Adăugăm display: "swap" pentru a asigura încărcarea fluidă a textului
 const inter = Inter({
@@ -41,6 +42,9 @@ export default function RootLayout({
         <div className="relative z-10 w-full flex flex-col flex-grow">
           {children}
         </div>
+
+        {/* CONTAINERUL GLOBAL DE POPUP TOASTS 👇 */}
+        <NotificationProvider />
       </body>
     </html>
   );
