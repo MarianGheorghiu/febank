@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MBank | Next-Gen Liquid Fintech",
+  title: "MBank | Next-Gen Fintech",
   description: "Next-generation digital banking with liquid glass interface.",
 };
 

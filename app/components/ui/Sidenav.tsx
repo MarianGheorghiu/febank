@@ -209,7 +209,7 @@ export default function Sidenav({ user }: { user: UserProps }) {
 
       {/* DESKTOP SIDENAV */}
       <aside
-        className={`hidden md:flex flex-col fixed top-0 left-0 h-screen transition-all duration-300 z-30 border-r border-white/[0.08] bg-[#030712]/60 backdrop-blur-xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] ${
+        className={`hidden md:flex flex-col sticky top-0 h-screen shrink-0 transition-all duration-300 z-30 border-r border-white/[0.08] bg-[#030712]/60 backdrop-blur-xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] ${
           isCollapsed ? "w-20" : "w-64"
         }`}
       >
