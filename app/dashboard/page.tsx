@@ -30,6 +30,7 @@ import {
 import MarketNewsTable from "../components/ui/MarketNewsTable";
 import TransfersTable from "../components/ui/TransfersTable";
 import { ActionButton } from "../components/ui/ActionButton";
+import PageHeader from "../components/ui/PageHeader";
 
 // Încărcăm modalul DOAR când e nevoie (nu va fi inclus în bundle-ul inițial al paginii)
 const TransferModal = dynamic(
@@ -48,40 +49,9 @@ function ClientDashboard() {
   return (
     <div className="space-y-6 animate-fade-in w-full">
       {/* HEADER RECONSTRUIT COMPLET: ULTRA RESPONSIVE */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-5 border-b border-white/5 pb-5 w-full">
-        {/* SECȚIUNE STATUT NOD & SESIUNE */}
-        <div className="space-y-2 w-full md:w-auto">
-          <div className="flex items-center gap-2 text-xs font-mono tracking-widest text-cyan-400 uppercase font-black">
-            <Terminal size={14} className="animate-pulse" />
-            Secure Node Connected
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-gray-400 w-full">
-            <div className="flex items-center justify-between sm:justify-start gap-2 bg-zinc-900/40 sm:bg-transparent p-2.5 sm:p-0 rounded-xl border border-white/5 sm:border-0">
-              <span className="text-zinc-500 font-bold font-mono text-[11px]">
-                SESSION ID:
-              </span>
-              <span className="font-mono text-cyan-300 bg-cyan-950/60 sm:bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-500/20 sm:border-cyan-500/10 text-[11px] sm:text-xs">
-                MB-894X-2026
-              </span>
-            </div>
-
-            <div className="hidden sm:block text-zinc-700">•</div>
-
-            <div className="flex items-center justify-between sm:justify-start gap-2 bg-zinc-900/40 sm:bg-transparent p-2.5 sm:p-0 rounded-xl border border-white/5 sm:border-0">
-              <span className="text-zinc-500 font-bold font-mono text-[11px]">
-                SYSTEM DATE:
-              </span>
-              <span className="font-mono text-zinc-300 text-[11px] sm:text-xs">
-                29 May 2026
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* PANOU ACȚIUNI */}
-        <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-3 w-full md:w-auto z-20">
-          {/* Desgchide modalul pe deposit */}
+      <div className="p-6">
+        <PageHeader>
+          {/* Tot ce pui aici va fi injectat automat în partea dreaptă */}
           <ActionButton
             variant="cyan"
             icon={<Plus size={15} />}
@@ -90,7 +60,6 @@ function ClientDashboard() {
             ADD MONEY
           </ActionButton>
 
-          {/* Deschide modalul pe withdraw */}
           <ActionButton
             variant="rose"
             icon={<Minus size={15} />}
@@ -99,7 +68,6 @@ function ClientDashboard() {
             WITHDRAW
           </ActionButton>
 
-          {/* Astea pot rămâne cu redirect spre paginile lor dedicate, fiind acțiuni mai complexe */}
           <ActionButton
             variant="amber"
             icon={<Coins size={15} />}
@@ -107,6 +75,7 @@ function ClientDashboard() {
           >
             MAKE A LOAN
           </ActionButton>
+
           <ActionButton
             variant="purple"
             icon={<ArrowLeftRight size={15} />}
@@ -115,15 +84,14 @@ function ClientDashboard() {
             TRANSFER
           </ActionButton>
 
-          {/* Separator & Status Core */}
           <div className="hidden sm:block h-5 w-[1px] bg-white/10 mx-1" />
           <div className="bg-zinc-950/60 border border-white/5 px-4 py-3 sm:px-2.5 sm:py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-[10px] font-bold text-zinc-100 font-mono w-full sm:w-auto">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             V2.4
           </div>
-        </div>
+        </PageHeader>
 
-        {/* Modalul Randat Dinamic */}
+        {/* Modalul rămâne și el la nivel de pagină */}
         <TransferModal
           isOpen={modalType !== null}
           onClose={() => setModalType(null)}
