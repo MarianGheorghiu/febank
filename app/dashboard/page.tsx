@@ -14,6 +14,7 @@ import {
   Minus,
   ArrowLeftRight,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import MetricCard from "@/app/components/ui/MetricCard";
 import MultiCurrencyCard from "@/app/components/ui/MultiCurrencyCard";
 import DashboardChart from "@/app/components/ui/DashboardChart";
@@ -28,9 +29,21 @@ import {
 } from "@/app/lib/mockData";
 import MarketNewsTable from "../components/ui/MarketNewsTable";
 import TransfersTable from "../components/ui/TransfersTable";
+import { ActionButton } from "../components/ui/ActionButton";
+
+// Încărcăm modalul DOAR când e nevoie (nu va fi inclus în bundle-ul inițial al paginii)
+const TransferModal = dynamic(
+  () => import("@/app/components/ui/TransferModal"),
+  {
+    ssr: false, // Nu avem nevoie de el pe server
+  },
+);
 
 function ClientDashboard() {
   const router = useRouter();
+  const [modalType, setModalType] = useState<
+    "deposit" | "withdraw" | "transfer" | null
+  >(null);
 
   return (
     <div className="space-y-6 animate-fade-in w-full">
@@ -66,53 +79,56 @@ function ClientDashboard() {
           </div>
         </div>
 
-        {/* PANOU ACȚIUNI: GRILĂ PE MOBIL, FLEX PE DESKTOP */}
+        {/* PANOU ACȚIUNI */}
         <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-3 w-full md:w-auto z-20">
-          {/* Button 1: Add Money */}
-          <button
-            onClick={() => router.push("/dashboard/transfers?action=deposit")}
-            className="flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2.5 text-xs sm:text-[11px] font-black font-mono tracking-wide text-cyan-400 bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-400/40 rounded-xl transition-all active:scale-[0.98] sm:active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.02)] cursor-pointer w-full sm:w-auto"
+          {/* Desgchide modalul pe deposit */}
+          <ActionButton
+            variant="cyan"
+            icon={<Plus size={15} />}
+            onClick={() => setModalType("deposit")}
           >
-            <Plus size={15} />
             ADD MONEY
-          </button>
+          </ActionButton>
 
-          {/* Button 2: Withdraw */}
-          <button
-            onClick={() => router.push("/dashboard/transfers?action=withdraw")}
-            className="flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2.5 text-xs sm:text-[11px] font-black font-mono tracking-wide text-rose-400 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 hover:border-rose-400/40 rounded-xl transition-all active:scale-[0.98] sm:active:scale-95 shadow-[0_0_15px_rgba(244,63,94,0.02)] cursor-pointer w-full sm:w-auto"
+          {/* Deschide modalul pe withdraw */}
+          <ActionButton
+            variant="rose"
+            icon={<Minus size={15} />}
+            onClick={() => setModalType("withdraw")}
           >
-            <Minus size={15} />
             WITHDRAW
-          </button>
+          </ActionButton>
 
-          {/* Button 3: Make a Loan */}
-          <button
+          {/* Astea pot rămâne cu redirect spre paginile lor dedicate, fiind acțiuni mai complexe */}
+          <ActionButton
+            variant="amber"
+            icon={<Coins size={15} />}
             onClick={() => router.push("/dashboard/loans?action=apply")}
-            className="flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2.5 text-xs sm:text-[11px] font-black font-mono tracking-wide text-amber-400 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-400/40 rounded-xl transition-all active:scale-[0.98] sm:active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.02)] cursor-pointer w-full sm:w-auto"
           >
-            <Coins size={15} />
             MAKE A LOAN
-          </button>
-
-          {/* Button: Transfer */}
-          <button
-            onClick={() => router.push("/dashboard/transfers")}
-            className="flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2.5 text-xs sm:text-[11px] font-black font-mono tracking-wide text-amber-400 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-400/40 rounded-xl transition-all active:scale-[0.98] sm:active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.02)] cursor-pointer w-full sm:w-auto"
+          </ActionButton>
+          <ActionButton
+            variant="purple"
+            icon={<ArrowLeftRight size={15} />}
+            onClick={() => setModalType("transfer")}
           >
-            <ArrowLeftRight size={15} />
             TRANSFER
-          </button>
+          </ActionButton>
 
-          {/* Separator Vizual Adaptiv */}
+          {/* Separator & Status Core */}
           <div className="hidden sm:block h-5 w-[1px] bg-white/10 mx-1" />
-
-          {/* Sistem Status Core Ledger */}
-          <div className="bg-zinc-950/60 border border-white/5 px-4 py-3 sm:px-2.5 sm:py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-[10px] font-bold text-zinc-100 sm:text-zinc-200 font-mono shadow-inner w-full sm:w-auto">
+          <div className="bg-zinc-950/60 border border-white/5 px-4 py-3 sm:px-2.5 sm:py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-[10px] font-bold text-zinc-100 font-mono w-full sm:w-auto">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             V2.4
           </div>
         </div>
+
+        {/* Modalul Randat Dinamic */}
+        <TransferModal
+          isOpen={modalType !== null}
+          onClose={() => setModalType(null)}
+          type={modalType}
+        />
       </div>
 
       {/* METRICS GRID */}
