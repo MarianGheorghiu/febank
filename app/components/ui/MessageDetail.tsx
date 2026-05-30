@@ -1,4 +1,3 @@
-// app/components/ui/MessageDetail.tsx
 import { Message } from "./types";
 import {
   ShieldCheck,
@@ -8,15 +7,24 @@ import {
   X,
   CheckCircle,
 } from "lucide-react";
+import MessageReplyComposer from "./MessageReplyComposer";
 
 interface MessageDetailProps {
   message: Message | null;
-  onClose: () => void; // Funcție unificată de închidere (Desktop + Mobil)
+  isReplying: boolean;
+  setIsReplying: (val: boolean) => void;
+  onClose: () => void;
+  onDeleteMessage: (id: string) => void;
+  onTriggerReplySubmit: (text: string) => void;
 }
 
 export default function MessageDetail({
   message,
+  isReplying,
+  setIsReplying,
   onClose,
+  onDeleteMessage,
+  onTriggerReplySubmit,
 }: MessageDetailProps) {
   if (!message) {
     return (
@@ -29,17 +37,16 @@ export default function MessageDetail({
     );
   }
 
-  const isBank = message.type === "bank";
+  const isDeletedFolder = message.folder === "deleted";
 
   return (
     <div className="flex flex-col h-full border border-blue-500/[0.05] rounded-2xl bg-gradient-to-b from-[#04091a] to-[#02050f] relative overflow-hidden">
       {/* ACTION BAR INTEGRAT */}
-      <div className="p-3 border-b border-white/[0.03] flex items-center justify-between bg-zinc-950/30 flex-shrink-0 gap-4">
-        {/* SENDER INFO */}
+      <div className="p-3 border-b border-b-white/[0.03] flex items-center justify-between bg-zinc-950/30 flex-shrink-0 gap-4">
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={onClose}
-            className="block lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition"
+            className="cursor-pointer block lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition"
           >
             <ArrowLeft size={16} />
           </button>
@@ -53,31 +60,30 @@ export default function MessageDetail({
           </div>
         </div>
 
-        {/* UTILITY CONTROL BOARD (Reply, Delete, Close) */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button
-            onClick={() =>
-              console.log(
-                `Initialize encrypted routing reply to: ${message.id}`,
-              )
-            }
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-950/40 hover:bg-blue-900/40 border border-blue-500/20 text-blue-400 font-mono text-[10px] font-bold transition"
-          >
-            <CornerUpLeft size={13} />
-            <span>REPLY</span>
-          </button>
+          {!isDeletedFolder && !message.replyPayload && (
+            <button
+              onClick={() => setIsReplying(true)}
+              className="cursor-pointer inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-blue-950/40 hover:bg-blue-900/40 border border-blue-500/20 text-blue-400 font-mono text-[10px] font-bold transition"
+            >
+              <CornerUpLeft size={13} className="shrink-0" />
+              <span className="leading-none transform translate-y-[0.5px]">
+                REPLY
+              </span>
+            </button>
+          )}
 
           <button
-            onClick={() => console.log(`Purge data token: ${message.id}`)}
-            className="p-1.5 rounded-lg border border-white/[0.03] text-zinc-500 hover:text-rose-400 hover:bg-rose-950/20 transition"
-            title="Delete Message"
+            onClick={() => onDeleteMessage(message.id)}
+            className="cursor-pointer p-1.5 h-8 w-8 flex items-center justify-center rounded-lg border border-white/[0.03] text-zinc-500 hover:text-rose-400 hover:bg-rose-950/20 transition"
+            title={isDeletedFolder ? "Purge Permanently" : "Move to Trash"}
           >
             <Trash2 size={14} />
           </button>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg border border-white/[0.03] text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition"
+            className="cursor-pointer p-1.5 h-8 w-8 flex items-center justify-center rounded-lg border border-white/[0.03] text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition"
             title="Close Stream"
           >
             <X size={14} />
@@ -112,13 +118,36 @@ export default function MessageDetail({
                 {message.meta.amount}
               </span>
             </div>
-            <button className="flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-mono text-[11px] font-bold rounded-lg transition">
+            <button className="cursor-pointer inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-mono text-[11px] font-bold rounded-lg transition shadow-[0_0_15px_rgba(37,99,235,0.4)]">
               <CheckCircle size={13} />
               EXECUTE
             </button>
           </div>
         )}
+
+        {/* THREAD SYSTEM: SECURE REPLY HISTORIC VIEW */}
+        {message.replyPayload && (
+          <div className="mt-6 pt-4 border-t border-dashed border-blue-500/20 space-y-2 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-950/20 border border-emerald-500/10 px-2 py-1 rounded-md">
+              <span>Outgoing Secure Response Logged</span>
+              <span className="text-zinc-500">
+                {message.replyPayload.timestamp}
+              </span>
+            </div>
+            <div className="p-4 rounded-xl bg-zinc-950/60 border border-emerald-500/10 text-xs text-zinc-300 italic font-sans leading-relaxed whitespace-pre-line">
+              {message.replyPayload.body}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* COMPOSER IN LINEA */}
+      {isReplying && (
+        <MessageReplyComposer
+          onSendReply={onTriggerReplySubmit}
+          onCancel={() => setIsReplying(false)}
+        />
+      )}
     </div>
   );
 }

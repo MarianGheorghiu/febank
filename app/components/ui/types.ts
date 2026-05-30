@@ -1,14 +1,20 @@
+export type MessageType = "bank" | "friend";
+export type MessageFolder = "inbox" | "deleted" | "replied";
+
 export interface Message {
   id: string;
-  type: "bank" | "friend";
+  type: MessageType;
+  folder: MessageFolder;
   senderName: string;
-  avatarUrl?: string;
   title: string;
   previewText: string;
   timestamp: string;
   isUnread: boolean;
   meta?: {
-    amount?: string; // Specific pentru tranzacții bancare sau cereri de bani P2P
-    cryptoTag?: string;
+    amount?: string;
+  };
+  replyPayload?: {
+    body: string;
+    timestamp: string;
   };
 }

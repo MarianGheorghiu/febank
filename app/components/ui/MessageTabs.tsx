@@ -19,7 +19,7 @@ export default function MessageTabs({
   ];
 
   return (
-    <div className="flex border-b border-white/[0.04] p-1 gap-2 overflow-x-auto no-scrollbar flex-shrink-0 w-full">
+    <div className="flex ml-[5px] border-b border-white/[0.04] p-1 gap-2 overflow-x-auto no-scrollbar flex-shrink-0 w-full">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (

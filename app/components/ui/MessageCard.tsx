@@ -1,17 +1,20 @@
-// app/components/ui/MessageCard.tsx
-import { ShieldCheck, ArrowUpRight } from "lucide-react";
+import { ShieldCheck, ArrowUpRight, Check } from "lucide-react";
 import { Message } from "./types";
 
 interface MessageCardProps {
   message: Message;
   onClick: (id: string) => void;
   isActive: boolean;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
 }
 
 export default function MessageCard({
   message,
   onClick,
   isActive,
+  isSelected,
+  onToggleSelect,
 }: MessageCardProps) {
   const isBank = message.type === "bank";
 
@@ -21,10 +24,26 @@ export default function MessageCard({
       className={`group relative flex items-start gap-3 p-3 rounded-xl border transition-all duration-150 cursor-pointer backdrop-blur-md
         ${
           isActive
-            ? "bg-blue-950/30 border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+            ? "bg-blue-950/40 border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.15)]"
             : "bg-zinc-950/20 border-white/[0.02] hover:border-white/[0.06] hover:bg-white/[0.01]"
         }`}
     >
+      {/* OUTLOOK HOVER STYLE CHECKBOX CONTAINER - ZERO LAYOUT JUMP */}
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleSelect(message.id);
+        }}
+        className={`cursor-pointer flex-shrink-0 mt-1.5 w-4 h-4 rounded border flex items-center justify-center transition-all duration-150
+          ${
+            isSelected
+              ? "bg-blue-500 border-blue-400 text-white shadow-[0_0_8px_rgba(59,130,246,0.5)] opacity-100"
+              : "border-white/20 bg-zinc-900 opacity-0 group-hover:opacity-100 hover:border-blue-400"
+          }`}
+      >
+        {isSelected && <Check size={10} strokeWidth={3} />}
+      </div>
+
       {/* AVATAR COMPACT */}
       <div className="flex-shrink-0">
         {isBank ? (
@@ -51,7 +70,6 @@ export default function MessageCard({
           </span>
         </div>
 
-        {/* LOGICĂ BOLD: Dacă e necitit e text-white font-black, altfel e mai stins */}
         <h4
           className={`text-xs tracking-tight truncate transition-colors duration-150
           ${message.isUnread ? "font-black text-white" : "font-medium text-zinc-400"} 
