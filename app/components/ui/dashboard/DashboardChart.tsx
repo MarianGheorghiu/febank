@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import GlassCard from "./GlassCard";
+import GlassCard from "../GlassCard";
 
 type TimePeriod = "1W" | "1M" | "3M" | "6M" | "1Y";
 

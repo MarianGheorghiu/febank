@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import GlassCard from "./GlassCard";
+import { useState, useRef, useEffect } from "react";
+import GlassCard from "../GlassCard";
 import {
   ArrowUpRight,
   ArrowDownLeft,

@@ -17,7 +17,7 @@ import {
 import dynamic from "next/dynamic";
 import MetricCard from "@/app/components/ui/MetricCard";
 import MultiCurrencyCard from "@/app/components/ui/MultiCurrencyCard";
-import DashboardChart from "@/app/components/ui/DashboardChart";
+import DashboardChart from "@/app/components/ui//dashboard/DashboardChart";
 import GlassCard from "@/app/components/ui/GlassCard";
 import { showMbankToast } from "../lib/toast";
 import { useRouter } from "next/navigation";
@@ -27,14 +27,14 @@ import {
   stocksHistory,
   expensesHistory,
 } from "@/app/lib/mockData";
-import MarketNewsTable from "../components/ui/MarketNewsTable";
-import TransfersTable from "../components/ui/TransfersTable";
-import { ActionButton } from "../components/ui/ActionButton";
+import MarketNewsTable from "../components/ui/dashboard/MarketNewsTable";
+import TransfersTable from "../components/ui/dashboard/TransfersTable";
+import { ActionButton } from "../components/ui/dashboard/ActionButton";
 import PageHeader from "../components/ui/PageHeader";
 
 // Încărcăm modalul DOAR când e nevoie (nu va fi inclus în bundle-ul inițial al paginii)
 const TransferModal = dynamic(
-  () => import("@/app/components/ui/TransferModal"),
+  () => import("@/app/components/ui/dashboard/TransferModal"),
   {
     ssr: false, // Nu avem nevoie de el pe server
   },

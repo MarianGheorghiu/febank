@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from "react";
 import PageHeader from "@/app/components/ui/PageHeader";
-import MessageTabs from "@/app/components/ui/MessageTabs";
-import MessageCard from "@/app/components/ui/MessageCard";
-import MessageDetail from "@/app/components/ui/MessageDetail";
+import MessageTabs from "@/app/components/ui/messageCenter/MessageTabs";
+import MessageCard from "@/app/components/ui/messageCenter/MessageCard";
+import MessageDetail from "@/app/components/ui/messageCenter/MessageDetail";
 import {
   Mail,
   Bell,

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import GlassCard from "./GlassCard";
+import GlassCard from "../GlassCard";
 import { Globe, Activity, TrendingUp, TrendingDown } from "lucide-react";
 import { marketAssetsData, MarketAsset } from "@/app/lib/mockData";
 
