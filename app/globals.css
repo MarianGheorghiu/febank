@@ -76,3 +76,47 @@
     margin: 0 !important;
   }
 }
+
+/* app/globals.css */
+
+/* Firefox Fallback (mai limitat în styling, dar îl păstrăm curat) */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.4) transparent;
+}
+
+/* Webkit (Chrome, Edge, Safari) - Efect Liquid Premium */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px; /* Lățimea invizibilă a track-ului */
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent; /* Complet invizibil ca să plutească */
+  margin-block: 8px; /* Îi dă un spațiu sus și jos, să nu lovească marginile containerului */
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  /* Gradient fluid de la transparent la albastru și înapoi la transparent */
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.05) 0%,
+    rgba(59, 130, 246, 0.4) 50%,
+    rgba(59, 130, 246, 0.05) 100%
+  );
+  border-radius: 100vh; /* Complet rotund la capete */
+  /* Hack-ul magic: dăm un border transparent și "strângem" background-ul în interior */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  /* La hover devine mai aprins și mai "plin" vizual (scădem grosimea border-ului) */
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.1) 0%,
+    rgba(59, 130, 246, 0.7) 50%,
+    rgba(59, 130, 246, 0.1) 100%
+  );
+  border-width: 1px;
+  background-clip: padding-box;
+}

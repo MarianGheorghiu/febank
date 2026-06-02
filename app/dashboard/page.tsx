@@ -9,7 +9,6 @@ import {
   Server,
   Coins,
   Briefcase,
-  Terminal,
   Plus,
   Minus,
   ArrowLeftRight,
