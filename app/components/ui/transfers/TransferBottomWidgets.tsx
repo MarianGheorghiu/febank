@@ -1,7 +1,6 @@
 // app/components/ui/transfers/TransferBottomWidgets.tsx
 "use client";
 
-import React from "react";
 import {
   ShieldAlert,
   Activity,
