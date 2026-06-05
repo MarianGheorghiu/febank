@@ -34,7 +34,7 @@ export default function CryptoManagement({
   );
 
   return (
-    <div className="relative bg-[#0a1024] border border-cyan-500/40 sm:backdrop-blur-xl rounded-xl p-5 transition-all duration-300 group hover:border-cyan-500/80 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] flex flex-col h-full overflow-hidden">
+    <div className="relative border border-cyan-500/30  bg-[#0a1024] sm:backdrop-blur-xl rounded-xl p-5 transition-all duration-300 group hover:border-cyan-500/80 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] flex flex-col h-full overflow-hidden">
       {/* Neon Glow Cyberpunk (Strict Cyan/Blue) */}
       <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 

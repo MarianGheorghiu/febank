@@ -30,7 +30,7 @@ export default function AccountManagement({
 
   return (
     <>
-      <div className="relative bg-[#0a1024] border border-emerald-500/20 sm:backdrop-blur-xl rounded-xl p-5 transition-all duration-300 group hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] flex flex-col h-full overflow-hidden">
+      <div className="relative border border-cyan-500/30  bg-[#0a1024] sm:backdrop-blur-xl rounded-xl p-5 transition-all duration-300 group hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] flex flex-col h-full overflow-hidden">
         {/* Neon Glow Efekt la Hover */}
         <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600/10 to-blue-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
@@ -52,7 +52,7 @@ export default function AccountManagement({
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/20 hover:border-emerald-500/40 transition-all font-mono font-bold text-[10px] tracking-wider uppercase active:scale-95"
+              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/20 hover:border-emerald-500/40 transition-all font-mono font-bold text-[10px] tracking-wider uppercase active:scale-95"
             >
               <Plus size={14} />
               <span className="hidden sm:inline">Add new</span>

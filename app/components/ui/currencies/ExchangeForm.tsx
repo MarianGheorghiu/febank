@@ -124,7 +124,7 @@ export default function ExchangeForm() {
 
   return (
     // Păstrat structura exterioară neschimbată (w-full, h-full, p-4 sm:p-5)
-    <div className="relative bg-[#0a1024] border border-blue-500/20 sm:backdrop-blur-xl rounded-xl p-4 sm:p-5 flex flex-col w-full h-full transition-all duration-300 group hover:border-blue-500/40 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+    <div className="relative border border-cyan-500/30  bg-[#0a1024] sm:backdrop-blur-xl rounded-xl p-4 sm:p-5 flex flex-col w-full h-full transition-all duration-300 group hover:border-blue-500/40 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]">
       <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/10 to-cyan-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col h-full justify-between">

@@ -13,7 +13,7 @@ export default function StockManagement({ stocks }: { stocks: StockAsset[] }) {
   );
 
   return (
-    <div className="relative bg-[#0a1024] border border-amber-500/20 sm:backdrop-blur-xl rounded-xl p-5 transition-all duration-300 group hover:border-amber-500/40 hover:shadow-[0_0_30px_rgba(251,191,36,0.15)] flex flex-col h-full overflow-hidden">
+    <div className="relative border border-cyan-500/30  bg-[#0a1024] sm:backdrop-blur-xl rounded-xl p-5 transition-all duration-300 group hover:border-amber-500/40 hover:shadow-[0_0_30px_rgba(251,191,36,0.15)] flex flex-col h-full overflow-hidden">
       {/* Neon Glow Cyberpunk (Strict Amber/Orange) */}
       <div className="absolute -inset-1 bg-gradient-to-r from-amber-600/10 to-orange-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 

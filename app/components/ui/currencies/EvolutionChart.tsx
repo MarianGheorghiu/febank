@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Clock } from "lucide-react";
+import { Clock, TrendingUp, Sparkles } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -118,17 +118,26 @@ export default function EvolutionChart() {
 
   return (
     <div
-      className="relative bg-[#0a1024] border rounded-xl flex flex-col h-full overflow-hidden transition-all duration-300 group"
+      className="relative bg-[#0a1024] border border-cyan-500/30 sm:backdrop-blur-xl rounded-xl transition-all duration-300 group flex flex-col h-full overflow-hidden font-mono text-xs"
       style={{
         borderColor: `${currentTheme.color}30`,
-        boxShadow: `0 0 40px ${currentTheme.color}03`,
+        boxShadow: `0 0 30px ${currentTheme.color}05`,
       }}
     >
-      <div className="relative z-10 flex flex-col h-full justify-between">
-        {/* HEADER CONTROL */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 pb-3 border-b border-blue-500/10 shrink-0 bg-[#02040f]/50 gap-3">
+      {/* EFFECT GLOW PE HOVER */}
+      <div
+        className="absolute -inset-1 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        style={{
+          background: `linear-gradient(to right, ${currentTheme.color}15, #3b82f610)`,
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col h-full">
+        {/* HEADER PRINCIPAL - PĂSTRAT LAYOUT-UL ORIGINAL */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 pb-3 border-b border-blue-500/10 shrink-0 gap-3">
+          {/* SELECTOR ASSET CLASS (STÂNGA) */}
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5 bg-[#02040f] p-0.5 rounded-lg border border-blue-500/10">
+            <div className="flex items-center gap-1.5 bg-[#01030a] p-1 rounded-lg border border-white/[0.05]">
               {(["FIAT", "CRYPTO", "STOCKS"] as AssetClass[]).map((type) => (
                 <button
                   key={type}
@@ -136,16 +145,17 @@ export default function EvolutionChart() {
                     setActiveAsset(type);
                     setHoveredPoint(null);
                   }}
-                  className={`px-3 py-1 font-mono text-[9px] font-black tracking-wider uppercase rounded transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 font-mono text-[10px] font-black tracking-widest uppercase rounded transition-all cursor-pointer ${
                     activeAsset === type
-                      ? "text-white"
-                      : "text-slate-400 hover:text-white"
+                      ? "text-white border"
+                      : "text-slate-400 hover:text-white bg-[#02040f] border border-transparent"
                   }`}
                   style={
                     activeAsset === type
                       ? {
                           backgroundColor: `${ASSET_CONFIGS[type].color}20`,
-                          boxShadow: `inset 0 0 10px ${ASSET_CONFIGS[type].color}30`,
+                          borderColor: `${ASSET_CONFIGS[type].color}60`,
+                          boxShadow: `0 0 8px ${ASSET_CONFIGS[type].color}25`,
                         }
                       : {}
                   }
@@ -154,37 +164,61 @@ export default function EvolutionChart() {
                 </button>
               ))}
             </div>
-            <span className="text-[8px] font-mono font-bold tracking-widest text-slate-400 uppercase px-1">
+            {/* ETICHETĂ ȘI LIVE DATA FEED (ORIGINALĂ) */}
+            <span className="text-[9px] font-mono font-bold tracking-widest text-slate-400 uppercase px-1 flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {currentTheme.label} //{" "}
-              <span className="text-white">{displayedLabel}</span>
+              <span className="text-white font-black">{displayedLabel}</span>
             </span>
           </div>
 
+          {/* PARTEA CU VALOARE (DREAPTA - AȘA CUM ERA ACOLO) */}
           <div className="flex flex-col sm:items-end font-mono">
+            <div
+              className="px-2.5 py-1 rounded-lg bg-[#02040f] border text-white transition-colors duration-200"
+              style={{ borderColor: `${currentTheme.color}20` }}
+            >
+              <span
+                className="text-2xl font-black tracking-tight transition-colors duration-150"
+                style={{ color: currentTheme.color }}
+              >
+                {currentTheme.unit === "$" ? "$" : ""}
+                {displayedValue.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                })}
+                {currentTheme.unit === "RON" ? " RON" : ""}
+              </span>
+            </div>
             <span
-              className="text-xl font-black tracking-tight transition-colors duration-150"
+              className="text-[9px] font-bold text-white flex items-center gap-1 mt-1 tracking-wider uppercase"
               style={{ color: currentTheme.color }}
             >
-              {currentTheme.unit === "$" ? "$" : ""}
-              {displayedValue.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-              })}
-              {currentTheme.unit === "RON" ? " RON" : ""}
-            </span>
-            <span className="text-[8px] font-bold text-white flex items-center gap-1 mt-0.5 tracking-wider uppercase">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />{" "}
-              LIVE DATA
+              <Sparkles size={10} /> {displayedLabel}
             </span>
           </div>
         </div>
 
-        {/* SUB-HEADER */}
-        <div className="flex justify-between items-center px-4 py-2 bg-[#02040f]/20 border-b border-blue-500/5 shrink-0">
-          <div className="flex items-center gap-1 text-[9px] font-mono text-white font-bold tracking-widest">
-            <Clock size={10} className="text-blue-400" />
-            <span>METRIC PERIOD</span>
+        {/* SUB-HEADER PENTRU TIMELINE - PĂSTRAT LAYOUT-UL ORIGINAL */}
+        <div className="flex justify-between items-center px-4 py-2.5 bg-[#02040f]/40 border-b border-blue-500/10 shrink-0">
+          <div className="flex items-center gap-1.5 text-[10px] font-mono text-white font-bold tracking-widest">
+            <div
+              className="p-1.5 rounded-lg bg-[#02040f] border text-cyan-400"
+              style={{
+                borderColor: `${currentTheme.color}15`,
+                color: currentTheme.color,
+              }}
+            >
+              <Clock size={12} />
+            </div>
+            <span className="text-white uppercase font-black">
+              METRIC PERIOD
+            </span>
           </div>
-          <div className="flex gap-1">
+          {/* SELECTOR TIMELINE (DREAPTA SUB-HEADER) */}
+          <div
+            className="flex items-center gap-1 bg-[#01030a] border p-1 rounded-lg"
+            style={{ borderColor: `${currentTheme.color}25` }}
+          >
             {(["1D", "1W", "1M", "1Y", "ALL"] as Timeframe[]).map((tf) => (
               <button
                 key={tf}
@@ -192,11 +226,21 @@ export default function EvolutionChart() {
                   setTimeframe(tf);
                   setHoveredPoint(null);
                 }}
-                className={`px-2 py-0.5 font-mono text-[9px] font-bold rounded cursor-pointer transition-colors ${
+                className={`px-3 py-1.5 rounded font-mono text-[9px] font-black tracking-widest transition-all cursor-pointer ${
                   timeframe === tf
-                    ? "bg-blue-500/20 border border-blue-500/40 text-cyan-400 font-black"
-                    : "text-slate-400 hover:text-white border border-transparent"
+                    ? "text-white border"
+                    : "bg-[#02040f] text-white hover:text-cyan-400 hover:bg-zinc-950 border border-white/[0.05]"
                 }`}
+                style={
+                  timeframe === tf
+                    ? {
+                        backgroundColor: `${currentTheme.color}20`,
+                        borderColor: `${currentTheme.color}60`,
+                        color: currentTheme.color,
+                        boxShadow: `0 0 8px ${currentTheme.color}25`,
+                      }
+                    : {}
+                }
               >
                 {tf}
               </button>
@@ -204,116 +248,118 @@ export default function EvolutionChart() {
           </div>
         </div>
 
-        {/* CORP GRAFIC SECURED */}
-        <div className="flex-1 min-h-0 w-full relative bg-[#02040f]/10">
-          <div className="absolute inset-0 pt-4 pb-2 pr-4 pl-1">
-            {!isMounted ? (
-              <div className="flex items-center justify-center h-full w-full text-[10px] font-mono text-slate-500">
-                INITIALIZING CHART...
-              </div>
-            ) : (
-              /* MODIFIED: Added minWidth and minHeight props to bypass Recharts calculation warnings */
-              <ResponsiveContainer
-                width="100%"
-                height="100%"
-                minWidth={0}
-                minHeight={0}
+        {/* CORP GRAFIC SECURED - INTEGRAT EFECTUL DE HOVER ȘI STYLING GRAFIC */}
+        <div className="flex-1 min-h-0 w-full relative bg-[#02040f]/10 p-3 pt-5">
+          {!isMounted ? (
+            <div className="flex items-center justify-center h-full w-full text-[10px] font-mono text-slate-500">
+              INITIALIZING CHART...
+            </div>
+          ) : (
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+              minHeight={0}
+            >
+              <AreaChart
+                data={chartData}
+                margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
+                // EFECTUL DE HOVER ADĂUGAT
+                onMouseMove={(e: any) => {
+                  if (e?.activePayload?.[0]) {
+                    setHoveredPoint({
+                      name: e.activePayload[0].payload.name,
+                      valoare: e.activePayload[0].value as number,
+                    });
+                  }
+                }}
+                onMouseLeave={() => setHoveredPoint(null)}
               >
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 10, right: 25, left: 10, bottom: 5 }}
-                  onMouseMove={(e: any) => {
-                    if (e?.activePayload?.[0]) {
-                      setHoveredPoint({
-                        name: e.activePayload[0].payload.name,
-                        valoare: e.activePayload[0].value as number,
-                      });
-                    }
+                <defs>
+                  <linearGradient
+                    id={`glowGradient-${activeAsset}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="5%"
+                      stopColor={currentTheme.color}
+                      stopOpacity={0.35}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor={currentTheme.color}
+                      stopOpacity={0.0}
+                    />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={`${currentTheme.color}08`}
+                  vertical={false}
+                />
+
+                <XAxis
+                  dataKey="name"
+                  stroke="#ffffff"
+                  fontSize={9}
+                  tick={{ fill: "#ffffff", fontWeight: "bold" }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={xAxisInterval}
+                />
+
+                <YAxis
+                  stroke="#ffffff"
+                  fontSize={9}
+                  tick={{ fill: "#ffffff", fontWeight: "bold" }}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={["auto", "auto"]}
+                  tickFormatter={(val) =>
+                    val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val
+                  }
+                />
+
+                {/* TOOLTIP CUSTOM PENTRU A PĂSTRA STILUL CYBERPUNK */}
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#02040f",
+                    borderColor: `${currentTheme.color}50`,
+                    borderRadius: "6px",
+                    color: "#fff",
+                    fontFamily: "monospace",
+                    fontSize: "10px",
                   }}
-                  onMouseLeave={() => setHoveredPoint(null)}
-                >
-                  <defs>
-                    <linearGradient
-                      id={`glowGradient-${activeAsset}`}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="5%"
-                        stopColor={currentTheme.color}
-                        stopOpacity={0.2}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor={currentTheme.color}
-                        stopOpacity={0.0}
-                      />
-                    </linearGradient>
-                  </defs>
+                  itemStyle={{ color: "#fff" }}
+                  cursor={{
+                    stroke: `${currentTheme.color}40`,
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                  }}
+                />
 
-                  <CartesianGrid
-                    stroke="rgba(255, 255, 255, 0.02)"
-                    strokeDasharray="2 4"
-                    vertical={false}
-                  />
-
-                  <XAxis
-                    dataKey="name"
-                    stroke="#ffffff"
-                    fontSize={9}
-                    tickLine={false}
-                    axisLine={false}
-                    fontFamily="monospace"
-                    height={20}
-                    interval={xAxisInterval}
-                    tickMargin={8}
-                    style={{ fill: "#ffffff", fontWeight: "600", opacity: 0.8 }}
-                  />
-
-                  <YAxis
-                    stroke="#ffffff"
-                    fontSize={9}
-                    tickLine={false}
-                    axisLine={false}
-                    fontFamily="monospace"
-                    width={55}
-                    tickMargin={6}
-                    domain={["dataMin - 100", "dataMax + 100"]}
-                    tickFormatter={(val) =>
-                      val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val
-                    }
-                    style={{ fill: "#ffffff", fontWeight: "600", opacity: 0.8 }}
-                  />
-
-                  <Tooltip
-                    content={() => <></>}
-                    cursor={{
-                      stroke: `${currentTheme.color}40`,
-                      strokeWidth: 1,
-                      strokeDasharray: "3 3",
-                    }}
-                  />
-
-                  <Area
-                    type="monotone"
-                    dataKey="valoare"
-                    stroke={currentTheme.color}
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill={`url(#glowGradient-${activeAsset})`}
-                    activeDot={{
-                      r: 4,
-                      stroke: "#02040f",
-                      strokeWidth: 2,
-                      fill: currentTheme.color,
-                    }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+                <Area
+                  type="monotone"
+                  dataKey="valoare"
+                  stroke={currentTheme.color}
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill={`url(#glowGradient-${activeAsset})`}
+                  // EFECTUL DE PUNCT ACTIV PE HOVER
+                  activeDot={{
+                    r: 4,
+                    stroke: "#02040f",
+                    strokeWidth: 2,
+                    fill: currentTheme.color,
+                  }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     </div>
