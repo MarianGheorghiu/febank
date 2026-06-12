@@ -16,7 +16,7 @@ import {
 import dynamic from "next/dynamic";
 import MetricCard from "@/app/components/ui/MetricCard";
 import MultiCurrencyCard from "@/app/components/ui/MultiCurrencyCard";
-import DashboardChart from "@/app/components/ui//dashboard/DashboardChart";
+import DashboardChart from "@/app/components/ui/dashboard/DashboardChart";
 import GlassCard from "@/app/components/ui/GlassCard";
 import { showMbankToast } from "../lib/toast";
 import { useRouter } from "next/navigation";
@@ -31,12 +31,10 @@ import TransfersTable from "../components/ui/dashboard/TransfersTable";
 import { ActionButton } from "../components/ui/dashboard/ActionButton";
 import PageHeader from "../components/ui/PageHeader";
 
-// Încărcăm modalul DOAR când e nevoie (nu va fi inclus în bundle-ul inițial al paginii)
+// Încărcare dinamică modal
 const TransferModal = dynamic(
   () => import("@/app/components/ui/dashboard/TransferModal"),
-  {
-    ssr: false, // Nu avem nevoie de el pe server
-  },
+  { ssr: false },
 );
 
 function ClientDashboard() {
@@ -46,11 +44,10 @@ function ClientDashboard() {
   >(null);
 
   return (
-    <div className="space-y-6 animate-fade-in w-full">
-      {/* HEADER RECONSTRUIT COMPLET: ULTRA RESPONSIVE */}
-      <div className="p-6">
+    <div className="space-y-4 animate-fade-in w-full p-0">
+      {/* SCOS PADDING-UL P6 DE AICI - Acum header-ul se aliniază perfect la margini */}
+      <div className="w-full">
         <PageHeader>
-          {/* Tot ce pui aici va fi injectat automat în partea dreaptă */}
           <ActionButton
             variant="cyan"
             icon={<Plus size={15} />}
@@ -90,7 +87,6 @@ function ClientDashboard() {
           </div>
         </PageHeader>
 
-        {/* Modalul rămâne și el la nivel de pagină */}
         <TransferModal
           isOpen={modalType !== null}
           onClose={() => setModalType(null)}
@@ -98,8 +94,8 @@ function ClientDashboard() {
         />
       </div>
 
-      {/* METRICS GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      {/* METRICS GRID - Spațiere eficientă full width */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 w-full">
         <MetricCard
           title="Total Liquidity"
           value="$142,350.80"
@@ -158,8 +154,8 @@ function ClientDashboard() {
         <MultiCurrencyCard />
       </div>
 
-      {/* CHARTS LAYER ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* CHARTS ROW - Aliniat la fix */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
         <DashboardChart
           title="Crypto Node Velocity"
           datasets={cryptoHistory}
@@ -178,8 +174,9 @@ function ClientDashboard() {
           variant="expenses"
         />
       </div>
-      {/* 4. NOUL LAYER: DATA & CORE TRANSACTIONS GRID */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 w-full">
+
+      {/* TABLES ROW */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full">
         <MarketNewsTable />
         <TransfersTable />
       </div>
@@ -189,11 +186,11 @@ function ClientDashboard() {
 
 function AdminDashboard({ name }: { name: string }) {
   return (
-    <div className="space-y-6 animate-fade-in w-full">
-      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+    <div className="space-y-4 animate-fade-in w-full p-0">
+      <div className="flex items-center justify-between border-b border-white/5 pb-3 w-full">
         <div>
           <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase text-red-400 flex items-center gap-3">
-            <ShieldAlert size={24} /> System Root Access
+            <ShieldAlert size={22} /> System Root Access
           </h1>
           <p className="text-[11px] font-mono text-zinc-400 tracking-wide mt-1">
             Operator ID: {name.toUpperCase()} • Global Core Ledger
@@ -201,8 +198,8 @@ function AdminDashboard({ name }: { name: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <GlassCard className="!p-6 space-y-4 border-l-2 border-red-500/50 bg-slate-950/20">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+        <GlassCard className="!p-5 space-y-3 border-l-2 border-red-500/50 bg-slate-950/20">
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold uppercase text-zinc-400 tracking-wider">
               Active Corporate Nodes
@@ -210,7 +207,7 @@ function AdminDashboard({ name }: { name: string }) {
             <Users size={18} className="text-red-400" />
           </div>
           <div>
-            <h3 className="text-3xl font-black tracking-tight font-mono">
+            <h3 className="text-2xl sm:text-3xl font-black tracking-tight font-mono">
               1,240
             </h3>
             <p className="text-[11px] text-zinc-400 font-medium mt-1">
@@ -219,7 +216,7 @@ function AdminDashboard({ name }: { name: string }) {
           </div>
         </GlassCard>
 
-        <GlassCard className="!p-6 space-y-4 bg-slate-950/20">
+        <GlassCard className="!p-5 space-y-3 bg-slate-950/20">
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold uppercase text-zinc-400 tracking-wider">
               Network Liquidity Status
@@ -227,7 +224,7 @@ function AdminDashboard({ name }: { name: string }) {
             <Server size={18} className="text-emerald-400" />
           </div>
           <div>
-            <h3 className="text-3xl font-black text-emerald-400 tracking-tight font-mono">
+            <h3 className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight font-mono">
               99.98%
             </h3>
             <p className="text-[11px] text-zinc-400 font-medium mt-1">

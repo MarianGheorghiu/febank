@@ -111,7 +111,7 @@ export default function CardsPage() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#010307] text-white antialiased p-3 sm:p-4 flex flex-col gap-3.5 overflow-x-hidden">
+    <div className="w-full min-h-screen bg-[#010307] text-white antialiased p-0 flex flex-col gap-3.5 overflow-x-hidden">
       {/* HEADER ZONE - FULLY RESPONSIVE */}
       <div className="w-full shrink-0">
         <PageHeader systemDate="08 Jun 2026" statusText="Cards System Active">

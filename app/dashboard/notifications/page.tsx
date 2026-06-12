@@ -190,8 +190,7 @@ export default function MessageCenter() {
   }, [selectedMessageId, messages]);
 
   return (
-    /* ECONOMISIRE SPAȚIU: Schimbat din p-2 md:p-4 în px-1.5 py-2 pentru zero irosire de spațiu pe laterale */
-    <div className="px-1.5 py-2 space-y-3 h-[calc(100vh-50px)] flex flex-col bg-[#02050e] text-white overflow-hidden w-full antialiased">
+    <div className="p-0 space-y-3 h-[calc(100vh-50px)] flex flex-col bg-[#02050e] text-white overflow-hidden w-full antialiased">
       {/* HEADER CONTROLS */}
       <div
         className={`${selectedMessageId ? "hidden lg:block" : "block"} flex-shrink-0`}

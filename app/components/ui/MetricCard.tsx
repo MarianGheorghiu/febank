@@ -4,58 +4,73 @@
 import React from "react";
 import Link from "next/link";
 import { LucideIcon } from "lucide-react";
-import GlassCard from "./GlassCard";
 
 interface MetricCardProps {
   title: string;
   value: string | number;
-  subtext?: React.ReactNode;
   icon: LucideIcon;
   iconColor?: string;
   glowColor?: string;
+  subtext?: React.ReactNode;
   href?: string;
 }
 
 export default function MetricCard({
   title,
   value,
-  subtext,
   icon: Icon,
   iconColor = "text-blue-400",
-  glowColor = "hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(30,64,175,0.2)]",
+  glowColor = "hover:border-blue-500/30 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)]",
+  subtext,
   href,
 }: MetricCardProps) {
   const CardContent = (
-    <GlassCard
-      className={`!p-6 space-y-4 transition-all duration-300 hover:scale-[1.01] cursor-pointer group border border-white/5 bg-slate-950/20 backdrop-blur-xl ${glowColor}`}
+    <div
+      className={`relative bg-[#0a1024] border border-blue-500/20 sm:backdrop-blur-xl rounded-xl p-3.5 sm:p-4 transition-all duration-300 group ${glowColor} flex flex-col justify-between h-full min-h-[100px] overflow-hidden`}
     >
-      <div className="flex justify-between items-center">
-        <span className="text-[11px] font-bold uppercase text-gray-400 tracking-widest group-hover:text-gray-200 transition-colors">
+      {/* Background Hover Glow - Efectul premium la hover */}
+      <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/10 to-cyan-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 pointer-events-none" />
+
+      {/* HEADER: Titlu și Iconiță */}
+      <div className="relative z-10 flex items-center justify-between mb-2">
+        <h3 className="text-[11px] font-bold font-mono text-blue-300/80 uppercase tracking-widest">
           {title}
-        </span>
-        <div className="p-2 rounded-xl bg-white/5 group-hover:bg-white/10 transition-colors border border-white/5">
+        </h3>
+        <div
+          className={`p-1.5 rounded-lg bg-[#02040f] border border-blue-500/10 transition-colors group-hover:border-blue-500/30 ${iconColor}`}
+        >
           <Icon
-            size={18}
-            className={`${iconColor} group-hover:scale-110 transition-transform`}
+            size={14}
+            className="group-hover:scale-105 transition-transform"
           />
         </div>
       </div>
-      <div>
-        <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white font-mono">
+
+      {/* BODY: Valoare și Subtext */}
+      <div className="relative z-10 mt-auto">
+        <p className="text-xl sm:text-2xl font-black text-white tracking-tight mb-1 font-mono">
           {value}
-        </h3>
-        {subtext && <div className="mt-2 text-[11px]">{subtext}</div>}
+        </p>
+        {subtext && (
+          <div className="text-[10px] sm:text-[11px] text-gray-400/80 leading-normal">
+            {subtext}
+          </div>
+        )}
       </div>
-    </GlassCard>
+    </div>
   );
 
+  // Dacă are link, aplicăm comportamentul de click + un subtil efect de apăsare (active:scale)
   if (href) {
     return (
-      <Link href={href} className="block w-full">
+      <Link
+        href={href}
+        className="block h-full cursor-pointer active:scale-[0.99] transition-transform"
+      >
         {CardContent}
       </Link>
     );
   }
 
-  return CardContent;
+  return <div className="h-full">{CardContent}</div>;
 }
