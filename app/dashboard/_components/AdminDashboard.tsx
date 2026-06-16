@@ -19,7 +19,7 @@ import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
 import PageHeader from "@/app/components/ui/PageHeader";
 
 // IMPORTĂM NOUA COMPONENTĂ DE ANALIZĂ
-import AdminCommandCenter from "../../../app/components/ui/admin/AdminCommandCenter";
+import AdminCommandCenter from "@/app/components/ui/admin/AdminCommandCenter";
 
 interface AdminDashboardProps {
     name: string;
@@ -84,11 +84,6 @@ export default function AdminDashboard({ name }: AdminDashboardProps) {
                         </ActionButton>
 
                         <div className="hidden md:block h-4 w-[1px] bg-white/20 mx-1" />
-
-                        <div className="bg-zinc-950 border border-zinc-800 px-2 py-1 rounded-md flex items-center justify-center gap-1.5 text-[10px] font-bold text-zinc-400 font-mono w-full sm:w-auto uppercase tracking-wider">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            ROOT_TTY // {name}
-                        </div>
                     </div>
                 </PageHeader>
             </div>
@@ -155,7 +150,7 @@ export default function AdminDashboard({ name }: AdminDashboardProps) {
             </div>
 
             {/* 3. COMMAND CENTER INTERACTIV (Loguri + Grafice + Tabelul de Actiuni) */}
-            <div className="w-full mt-2">
+            <div className="w-full">
                 <AdminCommandCenter />
             </div>
         </div>

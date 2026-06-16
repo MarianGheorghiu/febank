@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -23,7 +23,6 @@ import {
     ChevronRight,
     ShieldAlert,
     Clock,
-    UserCheck,
     Bell,
     Fingerprint,
     Percent,
@@ -31,6 +30,8 @@ import {
     FileText,
     Sliders,
     ActivityIcon,
+    Gem,
+    Megaphone,
 } from "lucide-react";
 
 interface UserProps {
@@ -111,35 +112,28 @@ export default function Sidenav({ user }: { user: UserProps }) {
     ];
 
     const adminNavItems = [
+        // --- CORE OPERATIONS ---
         {
             name: "Admin Control",
-            href: "/dashboard/admin",
+            href: "/dashboard",
             icon: <ShieldAlert size={18} />,
         },
         {
-            name: "System Health",
-            href: "/dashboard/admin/system-health",
-            icon: <ActivityIcon size={18} />,
-        },
-        {
-            name: "User Management & KYC",
+            name: "User Management",
             href: "/dashboard/admin/users",
             icon: <Users size={18} />,
         },
         {
-            name: "Fraud & Risk Control",
-            href: "/dashboard/admin/fraud-control",
-            icon: <Fingerprint size={18} />,
+            name: "Disputes",
+            href: "/dashboard/admin/disputes",
+            icon: <LifeBuoy size={18} />,
         },
+
+        // --- FINANCIAL ENGINES ---
         {
-            name: "Ledger & Transactions",
+            name: "Transactions",
             href: "/dashboard/admin/transactions",
             icon: <ArrowLeftRight size={18} />,
-        },
-        {
-            name: "Liquidity & Crypto Pools",
-            href: "/dashboard/admin/liquidity",
-            icon: <Coins size={18} />,
         },
         {
             name: "Rates & Fee Engine",
@@ -147,17 +141,60 @@ export default function Sidenav({ user }: { user: UserProps }) {
             icon: <Percent size={18} />,
         },
         {
-            name: "Support & Disputes",
-            href: "/dashboard/admin/support",
-            icon: <LifeBuoy size={18} />,
+            name: "Card Issuing",
+            href: "/dashboard/admin/cards",
+            icon: <CreditCard size={18} />,
+        }, // NOU
+
+        // --- MARKETS & LIQUIDITY ---
+        {
+            name: "Crypto Pools",
+            href: "/dashboard/admin/liquidity",
+            icon: <Coins size={18} />,
         },
         {
-            name: "Compliance & Audit Logs",
-            href: "/dashboard/admin/compliance",
+            name: "Stock & Markets",
+            href: "/dashboard/admin/stocks",
+            icon: <TrendingUp size={18} />,
+        }, // NOU
+
+        // --- RISK & COMPLIANCE ---
+        {
+            name: "Risk Control",
+            href: "/dashboard/admin/fraud-control",
+            icon: <Fingerprint size={18} />,
+        },
+        {
+            name: "Audit Logs",
+            href: "/dashboard/admin/audit-logs",
             icon: <FileText size={18} />,
         },
+
+        // --- GROWTH & BUSINESS ---
         {
-            name: "Feature Flags & Config",
+            name: "Subscriptions",
+            href: "/dashboard/admin/subscriptions",
+            icon: <Gem size={18} />,
+        }, // NOU
+        {
+            name: "Referrals",
+            href: "/dashboard/admin/marketing",
+            icon: <Megaphone size={18} />,
+        }, // NOU
+        {
+            name: "Business Analytics",
+            href: "/dashboard/admin/analytics",
+            icon: <BarChart3 size={18} />,
+        }, // NOU
+
+        // --- DEVOPS & CONFIG ---
+        {
+            name: "System Health",
+            href: "/dashboard/admin/system-health",
+            icon: <ActivityIcon size={18} />,
+        },
+        {
+            name: "Flags & Config",
             href: "/dashboard/admin/config",
             icon: <Sliders size={18} />,
         },
