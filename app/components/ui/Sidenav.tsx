@@ -123,11 +123,6 @@ export default function Sidenav({ user }: { user: UserProps }) {
             href: "/dashboard/admin/users",
             icon: <Users size={18} />,
         },
-        {
-            name: "Disputes",
-            href: "/dashboard/admin/disputes",
-            icon: <LifeBuoy size={18} />,
-        },
 
         // --- FINANCIAL ENGINES ---
         {
