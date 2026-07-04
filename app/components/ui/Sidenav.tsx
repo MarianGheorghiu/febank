@@ -132,7 +132,7 @@ export default function Sidenav({ user }: { user: UserProps }) {
         },
         {
             name: "Rates & Fee Engine",
-            href: "/dashboard/admin/rates-fees",
+            href: "/dashboard/admin/rates",
             icon: <Percent size={18} />,
         },
         {
