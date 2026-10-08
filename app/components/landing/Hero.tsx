@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_LANDING_HERO } from "@/app/lib/mock/summaries";
 
 import {
   ArrowRight,
@@ -63,7 +64,7 @@ export default function Hero() {
               ST
             </div>
             <div className="w-9 h-9 rounded-full bg-white/10 border-2 border-[#0a0d14] flex items-center justify-center backdrop-blur-md text-[10px] font-bold text-cyan-400">
-              +1k
+              {MOCK_LANDING_HERO.traders}
             </div>
           </div>
 
@@ -78,11 +79,11 @@ export default function Hero() {
                 />
               ))}
               <span className="text-xs font-bold text-white ml-1">
-                5.0 Rating
+                {MOCK_LANDING_HERO.rating}
               </span>
             </div>
             <p className="text-[11px] text-gray-500 font-medium mt-0.5 tracking-wide text-center md:text-left">
-              Trusted by 10,000+ global traders and elite investors.
+              {MOCK_LANDING_HERO.trust}
             </p>
           </div>
         </div>
@@ -109,7 +110,7 @@ export default function Hero() {
 
           <div className="mt-8 flex flex-col">
             <span className="text-sm font-medium tracking-[0.2em] text-gray-200">
-              •••• •••• •••• 8824
+              {MOCK_LANDING_HERO.cardNumber}
             </span>
           </div>
 
@@ -127,7 +128,7 @@ export default function Hero() {
                 Expiry
               </span>
               <span className="text-[10px] font-bold text-gray-300 tracking-wide mt-0.5">
-                12/30
+                {MOCK_LANDING_HERO.expiry}
               </span>
             </div>
           </div>
@@ -142,7 +143,7 @@ export default function Hero() {
             <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
               Live Yield
             </span>
-            <span className="text-xs font-black text-emerald-400">+24.81%</span>
+            <span className="text-xs font-black text-emerald-400">{MOCK_LANDING_HERO.gain}</span>
           </div>
         </div>
 

@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_ADMIN_SUMMARY } from "@/app/lib/mock/summaries";
 
 import { useRouter } from "next/navigation";
 import {
@@ -92,15 +93,15 @@ export default function AdminDashboard({ name }: AdminDashboardProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 w-full shrink-0">
                 <MetricCard
                     title="24H Transaction Volume"
-                    value="$4,284,592.00"
+                    value={MOCK_ADMIN_SUMMARY.volume}
                     icon={LineChart}
                     iconColor="text-blue-400"
                     glowColor="hover:border-blue-500/20"
                     subtext={
                         <span className="text-zinc-400 font-mono text-[10px]">
-                            142,394 TXNs |{" "}
+                            {MOCK_ADMIN_SUMMARY.transactionCount}{" "}
                             <span className="text-emerald-400">
-                                99.98% Success
+                                {MOCK_ADMIN_SUMMARY.successRate}
                             </span>
                         </span>
                     }
@@ -108,42 +109,42 @@ export default function AdminDashboard({ name }: AdminDashboardProps) {
 
                 <MetricCard
                     title="AML & Fraud Engine"
-                    value="14 Active Flags"
+                    value={MOCK_ADMIN_SUMMARY.activeFlags}
                     icon={ShieldAlert}
                     iconColor="text-rose-400"
                     glowColor="hover:border-rose-500/20"
                     subtext={
                         <span className="text-zinc-400 font-mono text-[10px]">
                             <span className="text-rose-400 font-bold">
-                                3 CRITICAL
+                                {MOCK_ADMIN_SUMMARY.criticalFlags}
                             </span>{" "}
-                            | $124k Blocked
+                            {MOCK_ADMIN_SUMMARY.blockedValue}
                         </span>
                     }
                 />
 
                 <MetricCard
                     title="Core Database I/O"
-                    value="14,240 OPS"
+                    value={MOCK_ADMIN_SUMMARY.databaseOps}
                     icon={Database}
                     iconColor="text-amber-400"
                     glowColor="hover:border-amber-500/20"
                     subtext={
                         <span className="text-zinc-400 font-mono text-[10px]">
-                            Read: 12.1k/s | Write: 2.14k/s
+                            {MOCK_ADMIN_SUMMARY.databaseThroughput}
                         </span>
                     }
                 />
 
                 <MetricCard
                     title="Production Cluster"
-                    value="Node 1-4 Active"
+                    value={MOCK_ADMIN_SUMMARY.cluster}
                     icon={Server}
                     iconColor="text-emerald-400"
                     glowColor="hover:border-emerald-500/20"
                     subtext={
                         <span className="text-zinc-400 font-mono text-[10px]">
-                            CPU: 42% | RAM: 68% | Latency: 12ms
+                            {MOCK_ADMIN_SUMMARY.resources}
                         </span>
                     }
                 />

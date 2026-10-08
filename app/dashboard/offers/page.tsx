@@ -1,10 +1,11 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import React, { useState } from "react";
 import PageHeader from "@/app/components/ui/PageHeader";
 
 // Core mock schema dataset mapping
-import { mockPremiumOffers } from "@/app/lib/mockOffers";
+import { mockPremiumOffers } from "@/app/lib/mock/offers";
 
 // Neon Tokyo components list
 import LifestyleTravelConsole from "@/app/components/ui/offers/LifestyleTravelConsole";
@@ -129,7 +130,7 @@ export default function PremiumOffersPage() {
 
       {/* HEADER NODES SYSTEM */}
       <div className="w-full shrink-0 m-0 p-0 overflow-hidden border-b border-cyan-500/10">
-        <PageHeader systemDate="09 Jun 2026" statusText="Elite Core Synced">
+        <PageHeader systemDate={MOCK_PAGE_DATES.offers} statusText="Elite Core Synced">
           <div className="flex flex-wrap items-center justify-between gap-4 mt-3 lg:mt-0 w-full font-mono">
             <div className="flex flex-col">
               <span className="text-[10px] uppercase tracking-widest text-cyan-400 font-bold">

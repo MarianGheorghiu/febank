@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Layers, Edit3, ShieldAlert } from "lucide-react";
-import { SubscriptionMatrixRow } from "@/app/lib/admin/mockRates";
+import type { SubscriptionMatrixRow } from "@/app/lib/types/admin/rates";
 
 interface SubscriptionMatrixProps {
     matrixRows: SubscriptionMatrixRow[];

@@ -1,29 +1,8 @@
 "use client";
+import { MOCK_VC_FUNDS } from "@/app/lib/mock/loans/capital";
 
 import React, { useState } from "react";
 import { Radio, ShieldCheck, Check, EyeOff, UserCheck } from "lucide-react";
-
-interface VCFund {
-  name: string;
-  focus: string;
-  ticketRange: string;
-  matchScore: number;
-}
-
-const MOCK_VC_FUNDS: VCFund[] = [
-  {
-    name: "CYBER-VENTURES TOKYO",
-    focus: "B2B SAAS / TECH",
-    ticketRange: "$500K - $2M",
-    matchScore: 96,
-  },
-  {
-    name: "SHIBUYA SEED NETWORK",
-    focus: "FINTECH / WEALTH",
-    ticketRange: "$100K - $500K",
-    matchScore: 89,
-  },
-];
 
 export default function SmartCapitalMatching() {
   const [anonymous, setAnonymous] = useState(true);

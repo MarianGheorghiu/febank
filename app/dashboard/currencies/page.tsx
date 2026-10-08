@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import { Wallet, TrendingUp, Coins, ArrowLeftRight } from "lucide-react";
 import PageHeader from "@/app/components/ui/PageHeader";
@@ -12,7 +13,7 @@ import ExchangeForm from "@/app/components/ui/currencies/ExchangeForm";
 import EvolutionChart from "@/app/components/ui/currencies/EvolutionChart";
 
 // Date Mock
-import { MOCK_FIAT, MOCK_CRYPTO, MOCK_STOCKS } from "@/app/lib/mockCurrencies";
+import { MOCK_FIAT, MOCK_CRYPTO, MOCK_STOCKS } from "@/app/lib/mock/currencies";
 import TransferModal from "@/app/components/ui/dashboard/TransferModal";
 import { useState } from "react";
 
@@ -29,7 +30,7 @@ export default function CurrenciesPage() {
       {/* HEADER ZONE */}
       <div className="w-full shrink-0 m-0 p-0">
         <PageHeader
-          systemDate="04 Jun 2026"
+          systemDate={MOCK_PAGE_DATES.currencies}
           statusText="Currency Ledger Sync Active"
         >
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center p-1 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md w-full sm:w-auto gap-1 sm:gap-0 font-mono text-[11px]">

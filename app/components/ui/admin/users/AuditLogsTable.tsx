@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { Search, Server, ChevronDown, ShieldAlert, X } from "lucide-react";
-import { AuditLog } from "@/app/lib/admin/mockUsers";
+import type { AuditLog } from "@/app/lib/types/admin/users";
 
 interface AuditLogsTableProps {
     logs: AuditLog[];

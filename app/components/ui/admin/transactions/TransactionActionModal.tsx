@@ -10,7 +10,7 @@ import {
     Hash,
     HardDrive,
 } from "lucide-react";
-import { Transaction } from "@/app/lib/admin/mockTransactions";
+import type { Transaction } from "@/app/lib/types/admin/transactions";
 
 type ModalMode = "view" | "edit" | "block";
 

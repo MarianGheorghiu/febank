@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import React from "react";
 import PageHeader from "@/app/components/ui/PageHeader";
@@ -7,19 +8,14 @@ import UserProfile from "@/app/components/ui/security/UserProfile";
 import SecurityControls from "@/app/components/ui/security/SecurityControls";
 import SessionManager from "@/app/components/ui/security/SessionManager";
 import AuditLogs from "@/app/components/ui/security/AuditLogs";
-import {
-  initialSecurityStatus,
-  mockSessions,
-  mockAuditLogs,
-  mockUserProfile,
-} from "@/app/lib/securityMock";
+import { initialSecurityStatus, mockSessions, mockAuditLogs, mockUserProfile } from "@/app/lib/mock/security";
 
 export default function SecuritySettingsPage() {
   return (
     <div className="w-full min-h-screen flex flex-col bg-[#02040f] text-white antialiased font-mono m-0 p-0 overflow-x-hidden relative">
       {/* ULTRA-INLINE HEADER CONSOLE NODE (FLUSH EDGE) */}
       <div className="w-full shrink-0 border-b border-cyan-500/10 bg-[#02040f] m-0 p-0 overflow-hidden">
-        <PageHeader systemDate="12 JUN 2026" statusText="PROTECTED">
+        <PageHeader systemDate={MOCK_PAGE_DATES.settings} statusText="PROTECTED">
           <div className="flex flex-row items-center justify-between gap-4 w-full mt-3 lg:mt-0">
             {/* ALINIERE STÂNGA: Info Securitate / Mainframe (Compact) */}
             <div className="flex items-center gap-2 font-mono shrink-0">

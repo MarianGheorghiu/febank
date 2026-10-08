@@ -1,4 +1,6 @@
 "use client";
+import { chartData, MOCK_LANDING_METRICS } from "@/app/lib/mock/landing-stats";
+import { MOCK_LANDING_SUMMARY } from "@/app/lib/mock/summaries";
 
 import { useState } from "react";
 import {
@@ -12,44 +14,11 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
+const metricIcons = { Users, Clock, Coins, CheckCircle2 };
+
 export default function Stats() {
   const [activeTime, setActiveTime] = useState("24H");
   const timeframes = ["1H", "24H", "1W", "ALL"];
-
-  // Coordonate SVG dedicate pentru fiecare timeframe (Manevra vizuală)
-  const chartData: Record<
-    string,
-    { stroke: string; fill: string; dotX: number; dotY: number; peak: string }
-  > = {
-    "1H": {
-      stroke: "M 0 150 Q 120 130 200 60 T 380 110 T 500 35 T 600 70",
-      fill: "M 0 150 Q 120 130 200 60 T 380 110 T 500 35 T 600 70 L 600 200 L 0 200 Z",
-      dotX: 500,
-      dotY: 35,
-      peak: "$168.4K/sec",
-    },
-    "24H": {
-      stroke: "M 0 160 Q 100 120 180 140 T 360 80 T 480 50 T 600 20",
-      fill: "M 0 160 Q 100 120 180 140 T 360 80 T 480 50 T 600 20 L 600 200 L 0 200 Z",
-      dotX: 480,
-      dotY: 50,
-      peak: "$142.8K/sec",
-    },
-    "1W": {
-      stroke: "M 0 110 Q 140 170 220 120 T 400 55 T 520 90 T 600 30",
-      fill: "M 0 110 Q 140 170 220 120 T 400 55 T 520 90 T 600 30 L 600 200 L 0 200 Z",
-      dotX: 400,
-      dotY: 55,
-      peak: "$195.1K/sec",
-    },
-    ALL: {
-      stroke: "M 0 180 Q 90 140 200 100 T 350 130 T 490 65 T 600 45",
-      fill: "M 0 180 Q 90 140 200 100 T 350 130 T 490 65 T 600 45 L 600 200 L 0 200 Z",
-      dotX: 490,
-      dotY: 65,
-      peak: "$210.5K/sec",
-    },
-  };
 
   const currentChart = chartData[activeTime];
 
@@ -88,10 +57,10 @@ export default function Stats() {
               </span>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-2xl sm:text-3xl font-black text-white">
-                  $4,819,240,115
+                  {MOCK_LANDING_SUMMARY.volume}
                 </h3>
                 <span className="text-xs font-mono font-bold text-emerald-400 flex items-center bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                  <ArrowUpRight size={12} /> +18.4%
+                  <ArrowUpRight size={12} /> {MOCK_LANDING_SUMMARY.growth}
                 </span>
               </div>
             </div>
@@ -183,7 +152,7 @@ export default function Stats() {
                   Network Health
                 </span>
                 <span className="text-sm font-black text-white">
-                  99.999% Uptime
+                  {MOCK_LANDING_SUMMARY.uptime}
                 </span>
               </div>
             </div>
@@ -197,7 +166,7 @@ export default function Stats() {
                   Global Nodes
                 </span>
                 <span className="text-sm font-black text-white">
-                  42 Active Corridors
+                  {MOCK_LANDING_SUMMARY.corridors}
                 </span>
               </div>
             </div>
@@ -211,7 +180,7 @@ export default function Stats() {
                   Settlement Cost
                 </span>
                 <span className="text-sm font-black text-amber-400">
-                  &lt; $0.001 Avg
+                  {MOCK_LANDING_SUMMARY.averageFee}
                 </span>
               </div>
             </div>
@@ -221,36 +190,9 @@ export default function Stats() {
 
       {/* CARDURI MINI-STATS ULTRA PREMIUM */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Total Accounts",
-            value: "148,290",
-            sub: "+12.4% MoM",
-            icon: <Users size={14} />,
-            color: "text-cyan-400",
-          },
-          {
-            label: "Clearing Latency",
-            value: "340 ms",
-            sub: "Ultra-Fast Engine",
-            icon: <Clock size={14} />,
-            color: "text-purple-400",
-          },
-          {
-            label: "Liquidity Depth",
-            value: "$1.2B",
-            sub: "Tier-1 Backed",
-            icon: <Coins size={14} />,
-            color: "text-amber-400",
-          },
-          {
-            label: "System Audits",
-            value: "Passed",
-            sub: "100% Compliant",
-            icon: <CheckCircle2 size={14} />,
-            color: "text-emerald-400",
-          },
-        ].map((item, idx) => (
+        {MOCK_LANDING_METRICS.map((item, idx) => {
+          const Icon = metricIcons[item.icon];
+          return (
           <div
             key={idx}
             className="bg-gradient-to-b from-white/[0.12] to-white/[0.02] backdrop-blur-xl border border-white/[0.18] rounded-2xl p-5 flex flex-col justify-between shadow-[0_10px_30px_rgba(0,0,0,0.3)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] group hover:border-white/30 transition-all duration-300 transform hover:-translate-y-1"
@@ -262,7 +204,7 @@ export default function Stats() {
               <div
                 className={`${item.color} opacity-80 group-hover:scale-110 transition-transform`}
               >
-                {item.icon}
+                <Icon size={14} />
               </div>
             </div>
             <div className="mt-4">
@@ -274,7 +216,8 @@ export default function Stats() {
               </span>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

@@ -11,7 +11,7 @@ import {
   X,
   Search,
 } from "lucide-react";
-import { LoungeAccess, ExclusiveEvent } from "@/app/lib/mockOffers";
+import type { LoungeAccess, ExclusiveEvent } from "@/app/lib/types/offers";
 
 interface Props {
   lounge: LoungeAccess;

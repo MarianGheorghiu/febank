@@ -1,4 +1,6 @@
 "use client";
+import { MOCK_BUSINESS_PRICING } from "@/app/lib/mock/loans/business-pricing";
+import { MOCK_E_FAKTURA } from "@/app/lib/mock/loans/invoices";
 
 import React, { useState } from "react";
 import {
@@ -14,54 +16,14 @@ import {
 
 type SubModule = "REVENUE_BASED" | "FACTORING";
 
-interface InvoiceB2B {
-  id: string;
-  invoiceIndex: string;
-  debtor: string;
-  amount: number;
-  advanceAllowed: number; // 90%
-  dueDate: string;
-  status: "SYNCED" | "FUNDED";
-}
-
-const MOCK_E_FAKTURA: InvoiceB2B[] = [
-  {
-    id: "inv-01",
-    invoiceIndex: "RO-2026-991",
-    debtor: "DANTE INTERNATIONAL SA",
-    amount: 45000,
-    advanceAllowed: 40500,
-    dueDate: "2026-07-15",
-    status: "SYNCED",
-  },
-  {
-    id: "inv-02",
-    invoiceIndex: "RO-2026-992",
-    debtor: "ENDAVA ROMANIA SRL",
-    amount: 120000,
-    advanceAllowed: 108000,
-    dueDate: "2026-08-01",
-    status: "SYNCED",
-  },
-  {
-    id: "inv-03",
-    invoiceIndex: "RO-2026-840",
-    debtor: "ORANGE ROMANIA SA",
-    amount: 32000,
-    advanceAllowed: 28800,
-    dueDate: "2026-06-25",
-    status: "FUNDED",
-  },
-];
-
 export default function BusinessLiquidityMatrix() {
   const [activeTab, setActiveTab] = useState<SubModule>("REVENUE_BASED");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
 
   // RBF States
-  const [rbfCapital, setRbfCapital] = useState(150000);
-  const [dailyPercentage, setDailyPercentage] = useState(8);
+  const [rbfCapital, setRbfCapital] = useState(MOCK_BUSINESS_PRICING.liquidity.initialCapital);
+  const [dailyPercentage, setDailyPercentage] = useState(MOCK_BUSINESS_PRICING.liquidity.initialDailyPercentage);
 
   const filteredInvoices = MOCK_E_FAKTURA.filter(
     (inv) =>
@@ -141,9 +103,9 @@ export default function BusinessLiquidityMatrix() {
                   </div>
                   <input
                     type="range"
-                    min={10000}
-                    max={500000}
-                    step={10000}
+                    min={MOCK_BUSINESS_PRICING.liquidity.minCapital}
+                    max={MOCK_BUSINESS_PRICING.liquidity.maxCapital}
+                    step={MOCK_BUSINESS_PRICING.liquidity.capitalStep}
                     value={rbfCapital}
                     onChange={(e) => setRbfCapital(Number(e.target.value))}
                     className="w-full accent-cyan-400 h-1 bg-cyan-950 rounded-lg appearance-none cursor-pointer"
@@ -161,8 +123,8 @@ export default function BusinessLiquidityMatrix() {
                   </div>
                   <input
                     type="range"
-                    min={4}
-                    max={20}
+                    min={MOCK_BUSINESS_PRICING.liquidity.minDailyPercentage}
+                    max={MOCK_BUSINESS_PRICING.liquidity.maxDailyPercentage}
                     step={1}
                     value={dailyPercentage}
                     onChange={(e) => setDailyPercentage(Number(e.target.value))}
@@ -175,7 +137,7 @@ export default function BusinessLiquidityMatrix() {
                 <div className="flex justify-between">
                   <span className="text-slate-500">FACTOR RATE COMISION:</span>
                   <span className="text-white font-bold">
-                    {dailyPercentage > 10 ? "1.06x" : "1.09x"}
+                    {dailyPercentage > MOCK_BUSINESS_PRICING.liquidity.threshold ? `${MOCK_BUSINESS_PRICING.liquidity.lowFactor}x` : `${MOCK_BUSINESS_PRICING.liquidity.highFactor}x`}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -183,7 +145,7 @@ export default function BusinessLiquidityMatrix() {
                   <span className="text-cyan-400 font-black">
                     $
                     {Math.round(
-                      rbfCapital * (dailyPercentage > 10 ? 1.06 : 1.09),
+                      rbfCapital * (dailyPercentage > 10 ? MOCK_BUSINESS_PRICING.liquidity.lowFactor : MOCK_BUSINESS_PRICING.liquidity.highFactor),
                     ).toLocaleString()}
                   </span>
                 </div>
@@ -262,7 +224,7 @@ export default function BusinessLiquidityMatrix() {
                           ${inv.amount.toLocaleString()}
                         </span>
                         <span className="text-[8px] text-cyan-400/80">
-                          90% Adv: ${inv.advanceAllowed.toLocaleString()}
+                          {MOCK_BUSINESS_PRICING.factoringAdvancePercent}% Adv: ${inv.advanceAllowed.toLocaleString()}
                         </span>
                       </div>
                       <div
@@ -278,7 +240,7 @@ export default function BusinessLiquidityMatrix() {
                           ? "COLLECTED"
                           : isSelected
                             ? "SELECTED"
-                            : "UNLOCK 90%"}
+                            : `UNLOCK ${MOCK_BUSINESS_PRICING.factoringAdvancePercent}%`}
                       </div>
                     </div>
                   </div>

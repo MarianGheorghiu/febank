@@ -9,7 +9,7 @@ import {
     Radio,
     Sliders,
 } from "lucide-react";
-import { LiveFxPair, WeekendShieldConfig } from "@/app/lib/admin/mockRates";
+import type { LiveFxPair, WeekendShieldConfig } from "@/app/lib/types/admin/rates";
 
 interface RatesSpreadsPanelProps {
     fxPairs: LiveFxPair[];

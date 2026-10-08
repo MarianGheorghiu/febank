@@ -1,4 +1,6 @@
 "use client";
+import { createMockId } from "@/app/lib/mock/ids";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import React, { useState } from "react";
 import {
@@ -20,16 +22,8 @@ import RatesSpreadsPanel from "@/app/components/ui/admin/rates/RatesSpreadsPanel
 import SubscriptionMatrix from "@/app/components/ui/admin/rates/SubscriptionMatrix";
 import EngineSandbox from "@/app/components/ui/admin/rates/EngineSandbox";
 
-import {
-    mockFeeRules,
-    FeeRule,
-    mockFxPairs,
-    LiveFxPair,
-    mockWeekendShield,
-    WeekendShieldConfig,
-    mockSubscriptionMatrix,
-    SubscriptionMatrixRow,
-} from "@/app/lib/admin/mockRates";
+import { mockFeeRules, mockFxPairs, mockWeekendShield, mockSubscriptionMatrix } from "@/app/lib/mock/admin/rates";
+import type { FeeRule, LiveFxPair, WeekendShieldConfig, SubscriptionMatrixRow } from "@/app/lib/types/admin/rates";
 
 type ActiveTabType =
     | "FIAT_FEES"
@@ -99,7 +93,7 @@ export default function RatesFeeEngineDashboard() {
     const handleConfirmSave = (updatedFields: Partial<FeeRule>) => {
         if (modalMode === "create") {
             const newRule: FeeRule = {
-                id: `RULE-NEW-${Math.floor(100 + Math.random() * 900)}`,
+                id: createMockId("RULE-NEW"),
                 name: updatedFields.name || "Unnamed Rule Operand",
                 category: updatedFields.category || "PAY_IN",
                 channel: updatedFields.channel || "Manual System Injection",
@@ -146,7 +140,7 @@ export default function RatesFeeEngineDashboard() {
     return (
         <div className="w-full bg-[#020617] text-white p-0 m-0 overflow-x-hidden min-h-[500px]">
             <PageHeader
-                systemDate="24 Jun 2026"
+                systemDate={MOCK_PAGE_DATES.admin_rates}
                 statusText="Rates & Fee Engine Active"
             >
                 <div className="grid grid-cols-2 min-[420px]:grid-cols-4 sm:flex items-center p-1 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md w-full sm:w-auto gap-1 sm:gap-0">

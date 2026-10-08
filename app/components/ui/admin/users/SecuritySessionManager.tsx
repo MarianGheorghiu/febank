@@ -11,7 +11,7 @@ import {
     ShieldCheck,
     Search,
 } from "lucide-react";
-import { User, UserSession, AuditLog } from "@/app/lib/admin/mockUsers";
+import type { User, UserSession, AuditLog } from "@/app/lib/types/admin/users";
 
 interface SecuritySessionManagerProps {
     selectedUser: User | null;

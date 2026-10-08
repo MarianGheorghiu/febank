@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { TrendingUp, Plus, Search, X } from "lucide-react";
-import { StockAsset } from "@/app/lib/mockCurrencies";
+import type { StockAsset } from "@/app/lib/types/currencies";
 
 export default function StockManagement({ stocks }: { stocks: StockAsset[] }) {
   const [searchQuery, setSearchQuery] = useState("");

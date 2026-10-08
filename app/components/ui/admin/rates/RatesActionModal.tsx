@@ -12,7 +12,7 @@ import {
     Percent,
     ShieldCheck,
 } from "lucide-react";
-import { FeeRule } from "@/app/lib/admin/mockRates";
+import type { FeeRule } from "@/app/lib/types/admin/rates";
 
 type ModalMode = "view" | "edit" | "toggle" | "create";
 

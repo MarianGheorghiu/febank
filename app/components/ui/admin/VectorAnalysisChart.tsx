@@ -12,7 +12,7 @@ import {
     Line,
     ResponsiveContainer,
 } from "recharts";
-import { FlaggedEntity } from "@/app/lib/admin/mockDashboard";
+import type { FlaggedEntity } from "@/app/lib/types/admin/dashboard";
 
 interface VectorAnalysisChartProps {
     currentEntity: FlaggedEntity;

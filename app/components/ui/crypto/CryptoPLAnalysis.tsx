@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_BALANCES } from "@/app/lib/mock/balances";
 
 import React, { useState } from "react";
 import {
@@ -12,15 +13,15 @@ import {
   ReferenceLine,
 } from "recharts";
 import { TrendingUp, Scale, Activity } from "lucide-react";
-import { MOCK_DATA_STORE } from "@/app/lib/cryptoMock";
+import { MOCK_DATA_STORE } from "@/app/lib/mock/crypto";
 
 type Timeframe = "1D" | "1W" | "1M" | "1Y" | "ALL";
 
 export default function CryptoPLAnalysis() {
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>("1M");
 
-  const totalInvested = 62400;
-  const currentPortfolioValue = 104250;
+  const totalInvested = MOCK_BALANCES.cryptoInvestedUsd;
+  const currentPortfolioValue = MOCK_BALANCES.cryptoPortfolioUsd;
   const netProfitLoss = currentPortfolioValue - totalInvested;
   const plPercentage = ((netProfitLoss / totalInvested) * 100).toFixed(1);
   const estimatedTax = netProfitLoss * 0.1;

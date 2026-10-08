@@ -1,4 +1,5 @@
 "use client";
+import { auditLogs } from "@/app/lib/mock/admin/transaction-audit";
 
 import { useState, useMemo } from "react";
 import {
@@ -16,7 +17,7 @@ import {
     Activity,
     Wifi,
 } from "lucide-react";
-import { Transaction } from "@/app/lib/admin/mockTransactions";
+import type { Transaction } from "@/app/lib/types/admin/transactions";
 import { TransactionRow } from "./TransactionRow"; // Ajustează calea importului dacă e necesar
 
 interface TransactionsTableProps {
@@ -35,24 +36,6 @@ export default function TransactionsTable({
     >("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [rowsPerPage, setRowsPerPage] = useState(25);
-
-    const auditLogs = [
-        {
-            id: 1,
-            time: "14:28:01",
-            text: "SECURE_NODE // Access clearance confirmed for asset pipeline telemetry.",
-        },
-        {
-            id: 2,
-            time: "14:15:22",
-            text: "AML_ENGINE // Automated threshold check verified across external nodes.",
-        },
-        {
-            id: 3,
-            time: "13:55:10",
-            text: "CLEARING_HOUSE // System ledger synchronization event processed.",
-        },
-    ];
 
     const filteredTransactions = useMemo(() => {
         return transactions.filter((t) => {

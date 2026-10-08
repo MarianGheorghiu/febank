@@ -1,4 +1,6 @@
 "use client";
+import { simulateMockFees, MOCK_SIMULATION_FX_SPREAD_PERCENT } from "@/app/lib/mock/admin/simulation";
+import type { SimulationResult } from "@/app/lib/types/admin/simulation";
 
 import React, { useState } from "react";
 import {
@@ -10,24 +12,6 @@ import {
     FileText,
     ArrowRight,
 } from "lucide-react";
-
-interface SimulationResult {
-    baseAmount: number;
-    currency: string;
-    matchedRuleId: string;
-    allowanceExceeded: boolean;
-    isWeekendShieldTriggered: boolean;
-    breakdown: {
-        variableFee: number;
-        fixedFee: number;
-        fxSpreadFee: number;
-        weekendSurcharge: number;
-        rawTotal: number;
-    };
-    enforcedCap: "NONE" | "FLOOR_LIMIT_APPLIED" | "CEILING_LIMIT_APPLIED";
-    finalFeeCollected: number;
-    auditLogs: string[];
-}
 
 export default function EngineSandbox() {
     // Input parameters state
@@ -44,80 +28,7 @@ export default function EngineSandbox() {
     const runSimulation = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Algoritm de simulare determinist bazat pe regulile financiare
-        let isWeekend = dayType === "WEEKEND";
-        let isMetal = tier === "METAL";
-        let isPremium = tier === "PREMIUM";
-
-        let matchedRuleId = `RULE-${currency}-${actionType}-SIM`;
-        let allowanceExceeded =
-            amount > (isMetal ? 2000 : isPremium ? 500 : 100);
-
-        // Calcule matematice ipotetice bazate pe regulile fintech setate anterior
-        let pct =
-            actionType === "CRYPTO_BUY"
-                ? 1.95
-                : actionType === "FX_SWAP"
-                  ? 0.5
-                  : 1.4;
-        if (isMetal) pct -= 0.5;
-        if (isPremium) pct -= 0.2;
-
-        let variableFee = allowanceExceeded ? amount * (pct / 100) : 0;
-        let fixedFee = actionType === "CRYPTO_BUY" ? 1.0 : 0.25;
-        if (isMetal) fixedFee = 0;
-
-        let fxSpreadFee =
-            actionType === "FX_SWAP" || actionType === "CRYPTO_BUY"
-                ? amount * 0.004
-                : 0;
-        let weekendSurcharge = isWeekend ? amount * 0.01 : 0; // +1% Weekend Shield
-
-        let rawTotal = variableFee + fixedFee + fxSpreadFee + weekendSurcharge;
-
-        // Verificare Caps & Floors de siguranță
-        let enforcedCap: SimulationResult["enforcedCap"] = "NONE";
-        let finalFeeCollected = rawTotal;
-        let floorLimit = 0.5;
-        let ceilingLimit = 250.0;
-
-        if (finalFeeCollected < floorLimit && finalFeeCollected > 0) {
-            finalFeeCollected = floorLimit;
-            enforcedCap = "FLOOR_LIMIT_APPLIED";
-        } else if (finalFeeCollected > ceilingLimit) {
-            finalFeeCollected = ceilingLimit;
-            enforcedCap = "CEILING_LIMIT_APPLIED";
-        }
-
-        const logs = [
-            `[INIT] Se procesează payload-ul de simulare pentru suma de ${amount} ${currency}`,
-            `[MATCH] Identificat cluster regulă: ${matchedRuleId} bazat pe tipul acțiunii.`,
-            `[ALLOWANCE] Verificare gratuități plan ${tier}: ${allowanceExceeded ? "Limita lunară a fost depășită. Se aplică taxe brute." : "În limitele planului gratuit."}`,
-            isWeekend
-                ? `[SECURITY] Scutul de Weekend DETECTAT (+1.00% suplimentar adăugat).`
-                : `[SECURITY] Zi de tranzacționare standard. Piețele valutare sunt deschise.`,
-            enforcedCap !== "NONE"
-                ? `[CAP ENFORCEMENT] Alertă de siguranță activată: ${enforcedCap}. Valoarea brută de ${rawTotal.toFixed(2)} a fost ajustată.`
-                : `[CAP CHECK] Valorile de calcul se încadrează în limitele de siguranță înregistrate.`,
-        ];
-
-        setResult({
-            baseAmount: amount,
-            currency,
-            matchedRuleId,
-            allowanceExceeded,
-            isWeekendShieldTriggered: isWeekend,
-            breakdown: {
-                variableFee,
-                fixedFee,
-                fxSpreadFee,
-                weekendSurcharge,
-                rawTotal,
-            },
-            enforcedCap,
-            finalFeeCollected,
-            auditLogs: logs,
-        });
+        setResult(simulateMockFees(amount, currency, tier, dayType, actionType));
     };
 
     return (
@@ -319,7 +230,7 @@ export default function EngineSandbox() {
                                                 Liquidity FX Spread Markup
                                             </td>
                                             <td className="p-2.5 text-right text-zinc-400">
-                                                +0.40% Counterparty Spread
+                                                +{MOCK_SIMULATION_FX_SPREAD_PERCENT.toFixed(2)}% Counterparty Spread
                                             </td>
                                             <td className="p-2.5 text-right text-white font-bold">
                                                 {result.breakdown.fxSpreadFee.toFixed(

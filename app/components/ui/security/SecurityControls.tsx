@@ -9,7 +9,7 @@ import {
   Globe,
   ShieldCheck,
 } from "lucide-react";
-import { SecurityStatus } from "@/app/lib/securityMock";
+import type { SecurityStatus } from "@/app/lib/types/security";
 
 export default function SecurityControls({
   initialStatus,

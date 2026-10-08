@@ -11,7 +11,8 @@ import {
   CartesianGrid,
 } from "recharts";
 import { Activity } from "lucide-react";
-import { MOCK_MACRO_DATA, Timeframe } from "@/app/lib/mockAnalytics";
+import { MOCK_MACRO_DATA } from "@/app/lib/mock/analytics";
+import type { Timeframe } from "@/app/lib/types/analytics";
 
 export default function TotalPortfolioChart() {
   const [timeframe, setTimeframe] = useState<Timeframe>("1M");

@@ -14,7 +14,7 @@ import {
     Download,
     UserCheck,
 } from "lucide-react";
-import { User } from "@/app/lib/admin/mockUsers";
+import type { User } from "@/app/lib/types/admin/users";
 
 interface UsersTableProps {
     users: User[];

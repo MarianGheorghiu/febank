@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { Eye, EyeOff, Copy, Check, Snowflake, ShieldCheck } from "lucide-react";
-import { BankCardData } from "@/app/lib/mockCardData";
+import type { BankCardData } from "@/app/lib/types/cards";
 
 interface BankCardProps {
   card: BankCardData;

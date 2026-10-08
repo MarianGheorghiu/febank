@@ -1,17 +1,14 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
+import { createMockCard } from "@/app/lib/mock/cards";
 
 import { useState, useEffect } from "react";
 import { Plus, CreditCard } from "lucide-react";
 import PageHeader from "@/app/components/ui/PageHeader";
 import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
 
-import {
-  MOCK_CARDS,
-  MOCK_CARD_TRANSACTIONS,
-  BankCardData,
-  CardAllowedChannels,
-  CardTransaction,
-} from "@/app/lib/mockCardData";
+import { MOCK_CARDS, MOCK_CARD_TRANSACTIONS } from "@/app/lib/mock/cards";
+import type { BankCardData, CardAllowedChannels, CardTransaction } from "@/app/lib/types/cards";
 import BankCard from "@/app/components/ui/cards/BankCard";
 import SpendingControls from "@/app/components/ui/cards/SpendingControls";
 import TransactionHistory from "@/app/components/ui/cards/TransactionHistory";
@@ -88,24 +85,7 @@ export default function CardsPage() {
   };
 
   const handleConfirmOrder = (newCardPayload: Partial<BankCardData>) => {
-    const generatedCard: BankCardData = {
-      id: `card-${Date.now()}`,
-      type: newCardPayload.type || "virtual",
-      status: "active",
-      holderName: "NETRUNNER #0412",
-      pan: `4242 1337 9999 ${Math.floor(1000 + Math.random() * 8999)}`,
-      cvv: String(Math.floor(100 + Math.random() * 899)),
-      expiry: "12/30",
-      colorTheme: newCardPayload.colorTheme || "cyan",
-      monthlyLimit: 5000,
-      spentThisMonth: 0,
-      allowedChannels: {
-        atm: true,
-        online: true,
-        contactless: true,
-        international: true,
-      },
-    };
+    const generatedCard: BankCardData = createMockCard(newCardPayload);
     setCards((prev) => [...prev, generatedCard]);
     setSelectedCardId(generatedCard.id);
   };
@@ -114,7 +94,7 @@ export default function CardsPage() {
     <div className="w-full min-h-screen bg-[#010307] text-white antialiased p-0 flex flex-col gap-3.5 overflow-x-hidden">
       {/* HEADER ZONE - FULLY RESPONSIVE */}
       <div className="w-full shrink-0">
-        <PageHeader systemDate="08 Jun 2026" statusText="Cards System Active">
+        <PageHeader systemDate={MOCK_PAGE_DATES.cards} statusText="Cards System Active">
           <div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center sm:justify-between gap-2.5 mt-3 w-full">
             {/* Left elements aligned layout */}
             <div className="flex flex-wrap items-center gap-2">

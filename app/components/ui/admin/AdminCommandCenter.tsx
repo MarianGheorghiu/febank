@@ -5,7 +5,8 @@ import ApiTelemetryChart from "@/app/components/ui/admin/ApiTelemetryChart";
 import LiveAuditLogs from "@/app/components/ui/admin/LiveAuditLogs";
 import ThreatActionList from "@/app/components/ui/admin/ThreatActionList";
 import VectorAnalysisChart from "@/app/components/ui/admin/VectorAnalysisChart";
-import { FLAGGED_ENTITIES, RiskLevel } from "@/app/lib/admin/mockDashboard";
+import { FLAGGED_ENTITIES } from "@/app/lib/mock/admin/dashboard";
+import type { RiskLevel } from "@/app/lib/types/admin/dashboard";
 
 export default function AdminCommandCenter() {
     const [selectedId, setSelectedId] = useState<string>(

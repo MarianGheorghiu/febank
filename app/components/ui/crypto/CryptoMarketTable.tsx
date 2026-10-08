@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Search, Activity, Zap } from "lucide-react";
 import CryptoActionModal, { TradeType } from "./CryptoActionModal";
-import { MOCK_MARKET } from "@/app/lib/cryptoMock";
+import { MOCK_MARKET } from "@/app/lib/mock/crypto";
 
 // ==========================================
 // 1. NATIVE SVG SPARKLINE (CU HOVER EFFECT)

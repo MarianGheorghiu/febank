@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_CARD_LIMITS } from "@/app/lib/mock/cards";
 
 import React from "react";
 import {
@@ -9,7 +10,7 @@ import {
   CreditCard,
   Lock,
 } from "lucide-react";
-import { BankCardData, CardAllowedChannels } from "@/app/lib/mockCardData";
+import type { BankCardData, CardAllowedChannels } from "@/app/lib/types/cards";
 
 interface SpendingControlsProps {
   card: BankCardData;
@@ -118,9 +119,9 @@ export default function SpendingControls({
           <div className="flex flex-col gap-1 w-full">
             <input
               type="range"
-              min="1000"
-              max="20000"
-              step="1000"
+              min={MOCK_CARD_LIMITS.min}
+              max={MOCK_CARD_LIMITS.max}
+              step={MOCK_CARD_LIMITS.step}
               value={card.monthlyLimit}
               onChange={(e) => onUpdateLimit(card.id, parseInt(e.target.value))}
               className="w-full h-1 bg-[#02040f] border border-white/5 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus:outline-none transition-all
@@ -132,9 +133,9 @@ export default function SpendingControls({
                 [&::-webkit-slider-thumb]:shadow-[0_0_8px_#d946ef]"
             />
             <div className="flex justify-between text-[8px] text-white-500 font-bold tracking-widest uppercase mt-0.5">
-              <span>MIN $1,000</span>
-              <span className="text-white-600">STEP $1,000</span>
-              <span>MAX $20,000</span>
+              <span>MIN ${MOCK_CARD_LIMITS.min.toLocaleString("en-US")}</span>
+              <span className="text-white-600">STEP ${MOCK_CARD_LIMITS.step.toLocaleString("en-US")}</span>
+              <span>MAX ${MOCK_CARD_LIMITS.max.toLocaleString("en-US")}</span>
             </div>
           </div>
         </div>

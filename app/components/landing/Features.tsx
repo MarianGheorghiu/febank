@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_LANDING_FEATURES } from "@/app/lib/mock/summaries";
 
 import {
   ArrowUpRight,
@@ -56,7 +57,7 @@ export default function Features() {
               </div>
             </div>
             <span className="text-[9px] font-bold tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
-              0.01% Spreads
+              {MOCK_LANDING_FEATURES.spread}
             </span>
           </div>
 
@@ -70,7 +71,7 @@ export default function Features() {
                 </span>
               </div>
               <span className="font-mono font-bold text-emerald-400">
-                +$12,480.92 (Live)
+                {MOCK_LANDING_FEATURES.liveGain}
               </span>
             </div>
             {/* Grafic fals din bare CSS */}
@@ -105,7 +106,7 @@ export default function Features() {
               Algorithmic Yield
             </span>
             <span className="text-3xl font-black text-white group-hover:scale-105 transition-transform duration-500">
-              14.2% <span className="text-xs text-purple-400">APY</span>
+              {MOCK_LANDING_FEATURES.yield} <span className="text-xs text-purple-400">APY</span>
             </span>
             <span className="text-[10px] text-purple-300/70 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/10 mt-1">
               Compounding Every Block
@@ -147,7 +148,7 @@ export default function Features() {
             </div>
             <div className="text-center text-[11px] font-mono text-gray-500 group-hover:text-white transition-colors">
               Settlement Speed:{" "}
-              <span className="text-amber-400 font-bold">380ms</span>
+              <span className="text-amber-400 font-bold">{MOCK_LANDING_FEATURES.latency}</span>
             </div>
           </div>
 
@@ -205,7 +206,7 @@ export default function Features() {
               </span>
               <div className="flex justify-between items-center">
                 <span className="text-xs font-black text-white">
-                  $500M Lloyds Vault
+                  {MOCK_LANDING_FEATURES.insurance}
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
               </div>

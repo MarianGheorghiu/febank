@@ -1,8 +1,10 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import { useState } from "react";
 import { UserPlus, Plus } from "lucide-react";
-import { mockFriendStats, Friend, MOCK_FRIENDS } from "@/app/lib/mockFriends";
+import { mockFriendStats, MOCK_FRIENDS } from "@/app/lib/mock/friends";
+import type { Friend } from "@/app/lib/types/friends";
 import PageHeader from "@/app/components/ui/PageHeader";
 import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
 
@@ -114,7 +116,7 @@ export default function FriendsPage() {
       {/* HEADER ZONE */}
       <div className="w-full shrink-0">
         <PageHeader
-          systemDate="03 Jun 2026"
+          systemDate={MOCK_PAGE_DATES.friends}
           statusText="Social Ledger Sync Active"
         >
           <div className="grid grid-cols-2 sm:flex items-center p-1 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md w-full sm:w-auto gap-0">

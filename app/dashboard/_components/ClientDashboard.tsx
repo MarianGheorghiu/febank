@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_CLIENT_SUMMARY } from "@/app/lib/mock/summaries";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -23,11 +24,7 @@ import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
 import PageHeader from "@/app/components/ui/PageHeader";
 
 // Date statistice mockate
-import {
-    cryptoHistory,
-    stocksHistory,
-    expensesHistory,
-} from "@/app/lib/mockData";
+import { cryptoHistory, stocksHistory, expensesHistory } from "@/app/lib/mock/dashboard";
 
 // Încărcare dinamică modal
 const TransferModal = dynamic(
@@ -102,48 +99,48 @@ export default function ClientDashboard({ name }: ClientDashboardProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 w-full">
                 <MetricCard
                     title="Total Liquidity"
-                    value="$142,350.80"
+                    value={MOCK_CLIENT_SUMMARY.liquidity}
                     icon={Wallet}
                     iconColor="text-cyan-400"
                     glowColor="hover:border-cyan-500/30 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)]"
                     subtext={
                         <p className="text-emerald-400 font-bold flex items-center gap-1 font-sans">
-                            <span className="text-xs">↑</span> +4.2% this month
+                            <span className="text-xs">↑</span> {MOCK_CLIENT_SUMMARY.monthlyChange}
                         </p>
                     }
                 />
 
                 <MetricCard
                     title="Crypto Portfolio"
-                    value="2.405 BTC"
+                    value={MOCK_CLIENT_SUMMARY.cryptoBalance}
                     icon={TrendingUp}
                     iconColor="text-purple-400"
                     glowColor="hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)]"
                     href="/dashboard/crypto"
                     subtext={
                         <p className="text-purple-400 font-mono tracking-wider">
-                            ~ $164,200.00 USD
+                            {MOCK_CLIENT_SUMMARY.cryptoValue}
                         </p>
                     }
                 />
 
                 <MetricCard
                     title="Active Investments"
-                    value="$45,120.00"
+                    value={MOCK_CLIENT_SUMMARY.investments}
                     icon={Briefcase}
                     iconColor="text-blue-400"
                     glowColor="hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(37,99,235,0.15)]"
                     href="/dashboard/stocks"
                     subtext={
                         <p className="text-zinc-400 font-medium font-sans">
-                            12 Stocks & 3 Indexes
+                            {MOCK_CLIENT_SUMMARY.positions}
                         </p>
                     }
                 />
 
                 <MetricCard
                     title="Loans & Capital"
-                    value="$12,500.00"
+                    value={MOCK_CLIENT_SUMMARY.credit}
                     icon={Coins}
                     iconColor="text-amber-400"
                     glowColor="hover:border-amber-500/30 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]"

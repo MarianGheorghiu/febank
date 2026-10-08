@@ -1,3 +1,4 @@
+import { MOCK_HEADER_SESSION } from "@/app/lib/mock/page-dates";
 // app/components/ui/PageHeader.tsx
 import React from "react";
 import { Terminal } from "lucide-react"; // sau librăria de iconițe pe care o folosești
@@ -11,8 +12,8 @@ interface PageHeaderProps {
 
 export default function PageHeader({
   children,
-  sessionId = "MB-894X-2026",
-  systemDate = "29 May 2026",
+  sessionId = MOCK_HEADER_SESSION.id,
+  systemDate = MOCK_HEADER_SESSION.date,
   statusText = "Secure Node Connected",
 }: PageHeaderProps) {
   return (

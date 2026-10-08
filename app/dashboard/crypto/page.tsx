@@ -1,4 +1,6 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
+import { MOCK_CRYPTO_SUMMARY } from "@/app/lib/mock/summaries";
 
 import { ArrowLeftRight, Download } from "lucide-react";
 import PageHeader from "@/app/components/ui/PageHeader";
@@ -12,7 +14,7 @@ import CryptoPLAnalysis from "@/app/components/ui/crypto/CryptoPLAnalysis";
 import CryptoOperations from "@/app/components/ui/crypto/CryptoOperations";
 
 // Date Mock Crypto
-import { MOCK_CRYPTO } from "@/app/lib/mockCurrencies";
+import { MOCK_CRYPTO } from "@/app/lib/mock/currencies";
 
 import CryptoMarketTable from "@/app/components/ui/crypto/CryptoMarketTable";
 
@@ -24,7 +26,7 @@ export default function CryptoPage() {
     <div className="w-full flex flex-col bg-[#02050e] text-white antialiased">
       {/* HEADER ZONE */}
       <div className="w-full shrink-0 m-0 p-0 overflow-hidden">
-        <PageHeader systemDate="05 Jun 2026" statusText="Crypto Terminal Live">
+        <PageHeader systemDate={MOCK_PAGE_DATES.crypto} statusText="Crypto Terminal Live">
           {/* Am scos w-full de aici pentru a lăsa flexbox-ul să curgă natural */}
           <div className="flex flex-wrap items-center justify-center lg:justify-between gap-3 mt-3 lg:mt-0">
             {/* STÂNGA */}
@@ -41,7 +43,7 @@ export default function CryptoPage() {
                 <span className="truncate">
                   PORTFOLIO:{" "}
                   <span className="text-white font-black">
-                    10 Cryptos ($1,232,132.23)
+                    {MOCK_CRYPTO_SUMMARY.portfolio}
                   </span>
                 </span>
               </div>
@@ -51,7 +53,7 @@ export default function CryptoPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
                 <span className="truncate">
                   BTC PRICE:{" "}
-                  <span className="text-white font-black">$12,312,312</span>
+                  <span className="text-white font-black">{MOCK_CRYPTO_SUMMARY.btcPrice}</span>
                 </span>
               </div>
 

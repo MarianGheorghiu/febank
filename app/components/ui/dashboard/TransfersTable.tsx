@@ -11,11 +11,8 @@ import {
   X,
   Trash2,
 } from "lucide-react";
-import {
-  transfersHistoryData,
-  TransferPeriod,
-  TransferTransaction,
-} from "@/app/lib/mockData";
+import { transfersHistoryData } from "@/app/lib/mock/dashboard";
+import type { TransferPeriod, TransferTransaction } from "@/app/lib/types/dashboard";
 
 const periodOptions: { value: TransferPeriod; label: string }[] = [
   { value: "1D", label: "Today" },

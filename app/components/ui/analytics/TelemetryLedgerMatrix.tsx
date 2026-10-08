@@ -1,4 +1,7 @@
 "use client";
+import { MOCK_LEDGER_LOGS } from "@/app/lib/mock/analytics-ledger";
+import { LEDGER_DATA } from "@/app/lib/mock/analytics-ledger";
+
 
 import React, { useState, useMemo } from "react";
 import {
@@ -11,94 +14,6 @@ import {
 } from "lucide-react";
 
 type MatrixTab = "PERFORMANCE" | "RISK_METRICS" | "SYSTEM_LOGS";
-
-interface LedgerRow {
-  id: string;
-  asset: string;
-  symbol: string;
-  category: "crypto" | "stock" | "fiat";
-  allocation: number;
-  r7d: number;
-  r30d: number;
-  r1y: number;
-  volatility: string;
-  sharpe: number;
-  maxDrawdown: string;
-  status: "OPTIMAL" | "STABLE" | "HIGH_VOL" | "LIQUIDATING";
-}
-
-const LEDGER_DATA: LedgerRow[] = [
-  {
-    id: "btc",
-    asset: "Bitcoin",
-    symbol: "BTC",
-    category: "crypto",
-    allocation: 63.2,
-    r7d: 8.42,
-    r30d: 14.5,
-    r1y: 112.4,
-    volatility: "34.2%",
-    sharpe: 2.15,
-    maxDrawdown: "-18.4%",
-    status: "HIGH_VOL",
-  },
-  {
-    id: "eth",
-    asset: "Ethereum",
-    symbol: "ETH",
-    category: "crypto",
-    allocation: 12.1,
-    r7d: -2.1,
-    r30d: 5.85,
-    r1y: 64.2,
-    volatility: "41.5%",
-    sharpe: 1.85,
-    maxDrawdown: "-24.1%",
-    status: "HIGH_VOL",
-  },
-  {
-    id: "nvda",
-    asset: "Nvidia Corp",
-    symbol: "NVDA",
-    category: "stock",
-    allocation: 10.5,
-    r7d: 4.15,
-    r30d: 22.1,
-    r1y: 185.3,
-    volatility: "28.9%",
-    sharpe: 2.45,
-    maxDrawdown: "-12.5%",
-    status: "OPTIMAL",
-  },
-  {
-    id: "usd",
-    asset: "US Dollar",
-    symbol: "USD",
-    category: "fiat",
-    allocation: 17.1,
-    r7d: 0.0,
-    r30d: 0.0,
-    r1y: 0.0,
-    volatility: "0.2%",
-    sharpe: 0.0,
-    maxDrawdown: "0.0%",
-    status: "STABLE",
-  },
-  {
-    id: "aapl",
-    asset: "Apple Inc.",
-    symbol: "AAPL",
-    category: "stock",
-    allocation: 9.2,
-    r7d: 1.05,
-    r30d: -3.4,
-    r1y: 24.8,
-    volatility: "14.1%",
-    sharpe: 1.65,
-    maxDrawdown: "-8.2%",
-    status: "OPTIMAL",
-  },
-];
 
 const categoryColors = {
   crypto:
@@ -365,52 +280,24 @@ export default function TelemetryLedgerMatrix() {
         {activeTab === "SYSTEM_LOGS" && (
           <div className="p-4 bg-[#030611]/30 font-mono text-xs text-cyan-400/90 space-y-2 h-full overflow-y-auto">
             <div className="flex items-start gap-2 border-b border-white/[0.02] pb-1.5">
-              <span className="text-slate-500 shrink-0 select-none">
-                [10:12:35]
-              </span>
-              <span className="text-emerald-400 font-black shrink-0">
-                // [MATRIX_SYNC]
-              </span>
-              <span className="text-white tracking-wide">
-                Telemetry synchronization routine executed successfully.
-                Structural integrity optimal.
-              </span>
+              <span className="text-slate-500 shrink-0 select-none">{MOCK_LEDGER_LOGS[0].time}</span>
+              <span className="text-emerald-400 font-black shrink-0">{MOCK_LEDGER_LOGS[0].event}</span>
+              <span className="text-white tracking-wide">{MOCK_LEDGER_LOGS[0].message}</span>
             </div>
             <div className="flex items-start gap-2 border-b border-white/[0.02] pb-1.5">
-              <span className="text-slate-500 shrink-0 select-none">
-                [10:05:12]
-              </span>
-              <span className="text-emerald-400 font-black shrink-0">
-                // [DB_WRITE]
-              </span>
-              <span className="text-white tracking-wide">
-                BTC algorithmic history nodes verified and injected into
-                localized system pipeline.
-              </span>
+              <span className="text-slate-500 shrink-0 select-none">{MOCK_LEDGER_LOGS[1].time}</span>
+              <span className="text-emerald-400 font-black shrink-0">{MOCK_LEDGER_LOGS[1].event}</span>
+              <span className="text-white tracking-wide">{MOCK_LEDGER_LOGS[1].message}</span>
             </div>
             <div className="flex items-start gap-2 border-b border-white/[0.02] pb-1.5">
-              <span className="text-slate-500 shrink-0 select-none">
-                [10:01:45]
-              </span>
-              <span className="text-cyan-400 font-black shrink-0">
-                // [ENGINE_MET]
-              </span>
-              <span className="text-cyan-300 tracking-wide">
-                Rebalancing scheduler detected negligible drift (-0.45% Equity
-                allocation deviation).
-              </span>
+              <span className="text-slate-500 shrink-0 select-none">{MOCK_LEDGER_LOGS[2].time}</span>
+              <span className="text-cyan-400 font-black shrink-0">{MOCK_LEDGER_LOGS[2].event}</span>
+              <span className="text-cyan-300 tracking-wide">{MOCK_LEDGER_LOGS[2].message}</span>
             </div>
             <div className="flex items-start gap-2 border-b border-white/[0.02] pb-1.5">
-              <span className="text-slate-500 shrink-0 select-none">
-                [09:44:22]
-              </span>
-              <span className="text-purple-400 font-black shrink-0">
-                // [RISK_EVAL]
-              </span>
-              <span className="text-white tracking-wide">
-                Mathematical Sharpe calculation routine processed for NVDA asset
-                node -&gt; Alpha verified at 2.45.
-              </span>
+              <span className="text-slate-500 shrink-0 select-none">{MOCK_LEDGER_LOGS[3].time}</span>
+              <span className="text-purple-400 font-black shrink-0">{MOCK_LEDGER_LOGS[3].event}</span>
+              <span className="text-white tracking-wide">{MOCK_LEDGER_LOGS[3].message}</span>
             </div>
             <div className="animate-pulse text-cyan-500 font-black pt-1.5 flex items-center gap-1.5 text-[11px]">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 inline-block animate-ping"></span>

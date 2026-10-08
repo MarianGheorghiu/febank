@@ -1,14 +1,9 @@
 "use client";
+import { createMockSession, determineRole } from "@/app/lib/mock/auth";
+import type { UserProps } from "@/app/lib/types/auth";
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-interface UserProps {
-    name: string;
-    email: string;
-    clientCode: string;
-    role: "client" | "admin";
-}
 
 interface UserContextType {
     user: UserProps | null;
@@ -28,13 +23,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<UserProps | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
-
-    // Funcție utilitară care determină rolul pe baza adresei de email
-    const determineRole = (email: string): "admin" | "client" => {
-        const cleanEmail = email.toLowerCase().trim();
-        // Verifică dacă domeniul este admin.com sau conține structura specifică
-        return cleanEmail.endsWith("@admin.com") ? "admin" : "client";
-    };
 
     useEffect(() => {
         // Verificăm dacă există deja o sesiune activă la încărcarea paginii
@@ -56,20 +44,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const login = (email: string, name: string) => {
         setLoading(true);
-        const role = determineRole(email);
-
-        // Generăm un cod de client mock premium
-        const clientCode =
-            role === "admin"
-                ? "ROOT-CORE-X"
-                : `MB-${Math.floor(1000 + Math.random() * 9000)}-Y`;
-
-        const sessionUser: UserProps = {
-            name,
-            email,
-            clientCode,
-            role,
-        };
+        const sessionUser = createMockSession(email, name);
 
         localStorage.setItem("mbank_session", JSON.stringify(sessionUser));
         setUser(sessionUser);

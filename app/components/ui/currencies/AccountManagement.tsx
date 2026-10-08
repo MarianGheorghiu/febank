@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Wallet, Plus, Trash2, Search, X } from "lucide-react";
-import { FiatAccount } from "@/app/lib/mockCurrencies";
+import type { FiatAccount } from "@/app/lib/types/currencies";
 import AddFiatAccount from "./AddFiatAccount";
 
 export default function AccountManagement({

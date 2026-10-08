@@ -1,16 +1,12 @@
 "use client";
+import { createMockId } from "@/app/lib/mock/ids";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import React, { useState } from "react";
 import PageHeader from "@/app/components/ui/PageHeader";
 import { Download, ShieldCheck } from "lucide-react";
-import {
-    User,
-    initialUsers,
-    AuditLog,
-    initialLogs,
-    UserSession,
-    initialSessions,
-} from "@/app/lib/admin/mockUsers";
+import { initialUsers, initialLogs, initialSessions } from "@/app/lib/mock/admin/users";
+import type { User, AuditLog, UserSession } from "@/app/lib/types/admin/users";
 import UsersTable from "@/app/components/ui/admin/users/UsersTable";
 import UserActionModal from "@/app/components/ui/admin/users/UserActionModal";
 import AuditLogsTable from "@/app/components/ui/admin/users/AuditLogsTable";
@@ -33,7 +29,7 @@ export default function AdminUserManagementPage() {
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
     const generateTxId = () =>
-        `TX-${Math.floor(100000 + Math.random() * 900000)}`;
+        createMockId("TX");
 
     // MODIFICAT LOGIC: Când se dă click pe un log din tabelă
     const handleSelectLog = (log: AuditLog) => {
@@ -227,7 +223,7 @@ export default function AdminUserManagementPage() {
         <div className="w-full min-h-screen flex flex-col bg-[#02050e] text-white antialiased font-mono m-0 p-0 overflow-x-hidden relative">
             <div className="w-full shrink-0 border-b border-cyan-500/10 bg-[#02050e] m-0 p-0 overflow-hidden">
                 <PageHeader
-                    systemDate="18 JUN 2026"
+                    systemDate={MOCK_PAGE_DATES.admin_users}
                     statusText="SECURE_ROOT_LIVE"
                 >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full mt-2 sm:mt-0 p-0">

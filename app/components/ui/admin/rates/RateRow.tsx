@@ -9,7 +9,7 @@ import {
     ShieldCheck,
     UserCheck,
 } from "lucide-react";
-import { FeeRule } from "@/app/lib/admin/mockRates";
+import type { FeeRule } from "@/app/lib/types/admin/rates";
 
 interface RateRowProps {
     rule: FeeRule;

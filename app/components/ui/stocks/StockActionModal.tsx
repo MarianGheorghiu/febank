@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_BALANCES } from "@/app/lib/mock/balances";
 
 import React, { useState, useEffect } from "react";
 import { X, Wallet, Loader2, ArrowLeftRight, Info } from "lucide-react";
@@ -23,7 +24,7 @@ export default function StockActionModal({
   const [targetPrice, setTargetPrice] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  const mockAvailableCash = 14250.75;
+  const mockAvailableCash = MOCK_BALANCES.stockAvailableUsd;
   const ownedShares = stock?.shares || 0;
 
   useEffect(() => {

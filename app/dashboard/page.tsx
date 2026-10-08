@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_SPLIT_BILL_ALERT } from "@/app/lib/mock/messages";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -21,9 +22,9 @@ export default function DashboardPage() {
             const socialTimeout = setTimeout(() => {
                 showMbankToast({
                     category: "social",
-                    title: "Split Bill Received",
+                    title: MOCK_SPLIT_BILL_ALERT.title,
                     description:
-                        "Matei Dan requested $24.50 USD for 'Private Dinner & Drinks'.",
+                        MOCK_SPLIT_BILL_ALERT.description,
                     router: router,
                 });
             }, 2000);

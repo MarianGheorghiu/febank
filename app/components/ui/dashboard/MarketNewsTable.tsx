@@ -9,7 +9,8 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { marketAssetsData, MarketAsset } from "@/app/lib/mockData";
+import { marketAssetsData } from "@/app/lib/mock/dashboard";
+import type { MarketAsset } from "@/app/lib/types/dashboard";
 
 export default function MarketNewsTable() {
   const [searchQuery, setSearchQuery] = useState("");

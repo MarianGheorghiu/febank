@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import { useState, useMemo } from "react";
 import PageHeader from "@/app/components/ui/PageHeader";
@@ -17,8 +18,8 @@ import {
   ArchiveRestore,
   EyeOff,
 } from "lucide-react";
-import { Message, MessageFolder } from "@/app/components/ui/types";
-import { INITIAL_MESSAGES } from "@/app/lib/mockMessages";
+import { Message, MessageFolder } from "@/app/lib/types/messages";
+import { INITIAL_MESSAGES } from "@/app/lib/mock/messages";
 
 export default function MessageCenter() {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
@@ -195,7 +196,7 @@ export default function MessageCenter() {
       <div
         className={`${selectedMessageId ? "hidden lg:block" : "block"} flex-shrink-0`}
       >
-        <PageHeader systemDate="30 May 2026" statusText="Secure Node Connected">
+        <PageHeader systemDate={MOCK_PAGE_DATES.notifications} statusText="Secure Node Connected">
           <div className="flex flex-wrap items-center gap-1 bg-zinc-950/60 p-1 rounded-xl border border-white/[0.02] backdrop-blur-md w-full sm:w-auto">
             <div className="flex items-center gap-2 px-3 py-1.5 font-mono text-xs text-zinc-400 font-bold">
               <Layers size={14} className="text-zinc-500" />

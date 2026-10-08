@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import React, { useState } from "react";
 import {
@@ -14,11 +15,8 @@ import TransactionWidgets from "@/app/components/ui/admin/transactions/Transacti
 import TransactionsTable from "@/app/components/ui/admin/transactions/TransactionsTable";
 import TransactionActionModal from "@/app/components/ui/admin/transactions/TransactionActionModal";
 
-import {
-    mockTransactions,
-    mockAdminStats,
-    Transaction,
-} from "@/app/lib/admin/mockTransactions";
+import { mockTransactions, mockAdminStats } from "@/app/lib/mock/admin/transactions";
+import type { Transaction } from "@/app/lib/types/admin/transactions";
 
 export default function AdminTransactionsPage() {
     const [transactions, setTransactions] =
@@ -87,7 +85,7 @@ export default function AdminTransactionsPage() {
         <div className="w-full min-h-screen bg-[#020617] text-white flex flex-col p-0 m-0 overflow-x-hidden">
             {/* COMPONENTA DE HEADER */}
             <PageHeader
-                systemDate="18 Jun 2026"
+                systemDate={MOCK_PAGE_DATES.admin_transactions}
                 statusText="System Admin Mode Active"
             >
                 {/* COUNTERS GLOBALE PLATFORMĂ */}

@@ -1,4 +1,6 @@
 "use client";
+import { MOCK_BUSINESS_PRICING } from "@/app/lib/mock/loans/business-pricing";
+import { MOCK_REVENUE_STREAMS } from "@/app/lib/mock/loans/revenue";
 
 import React, { useState, useEffect } from "react";
 import {
@@ -11,45 +13,10 @@ import {
   Radio,
 } from "lucide-react";
 
-interface StreamConfig {
-  id: string;
-  platform: string;
-  mrr: number;
-  status: "CONNECTED" | "SYNCING" | "OFFLINE";
-  verifiedLimit: number;
-}
-
-const MOCK_REVENUE_STREAMS: StreamConfig[] = [
-  {
-    id: "str-1",
-    platform: "STRIPE CORE API",
-    mrr: 84000,
-    status: "CONNECTED",
-    verifiedLimit: 250000,
-  },
-  {
-    id: "str-2",
-    platform: "SHOPIFY GATEWAY",
-    mrr: 42000,
-    status: "CONNECTED",
-    verifiedLimit: 120000,
-  },
-  {
-    id: "str-3",
-    platform: "APP STORE CONNECT",
-    mrr: 19000,
-    status: "SYNCING",
-    verifiedLimit: 50000,
-  },
-];
-
 export default function RevenueFinancingDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStreams, setSelectedStreams] = useState<string[]>([
-    "str-1",
-    "str-2",
-  ]);
-  const [repaymentPercentage, setRepaymentPercentage] = useState(8); // 8% din vânzările zilnice
+  const [selectedStreams, setSelectedStreams] = useState<string[]>(MOCK_BUSINESS_PRICING.revenue.selectedStreams);
+  const [repaymentPercentage, setRepaymentPercentage] = useState(MOCK_BUSINESS_PRICING.revenue.initialRepaymentPercentage); // 8% din vânzările zilnice
 
   const filteredStreams = MOCK_REVENUE_STREAMS.filter((s) =>
     s.platform.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -74,7 +41,7 @@ export default function RevenueFinancingDashboard() {
   }, [selectedStreams]);
 
   // Logica de calcul RBF (Factor fee standard de 1.06x - 1.10x în funcție de risc)
-  const factorRate = repaymentPercentage > 10 ? 1.05 : 1.08;
+  const factorRate = repaymentPercentage > MOCK_BUSINESS_PRICING.revenue.threshold ? MOCK_BUSINESS_PRICING.revenue.lowFactor : MOCK_BUSINESS_PRICING.revenue.highFactor;
   const totalPaybackAmount = requestedCapital * factorRate;
   const totalFactorFee = totalPaybackAmount - requestedCapital;
 

@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_BUSINESS_HEALTH } from "@/app/lib/mock/summaries";
 
 import React, { useState } from "react";
 import { Percent, Shield, Check, Lock, Eye } from "lucide-react";
@@ -18,7 +19,7 @@ export default function BusinessHealthEngine() {
             Corporate Risk Optimizer
           </h2>
           <span className="text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-widest">
-            HEALTH: 92/100
+            {MOCK_BUSINESS_HEALTH.score}
           </span>
         </div>
 
@@ -40,7 +41,7 @@ export default function BusinessHealthEngine() {
               </div>
             </div>
             <span className="text-xs font-black text-cyan-400 ml-2 shrink-0">
-              -0.50% APR
+              {MOCK_BUSINESS_HEALTH.aprDiscount}
             </span>
           </div>
 
@@ -55,7 +56,7 @@ export default function BusinessHealthEngine() {
                   Cash Flow Primary Lock
                 </span>
                 <span className="text-[8px] text-slate-500 truncate uppercase">
-                  Route 60% of Monthly Gross Here
+                  {MOCK_BUSINESS_HEALTH.cashFlowRequirement}
                 </span>
               </div>
             </div>

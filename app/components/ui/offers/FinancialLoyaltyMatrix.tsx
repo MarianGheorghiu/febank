@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Percent, Sparkles, Lock, Search, X, Check } from "lucide-react";
-import { CashbackOffer, RestrictedAsset } from "@/app/lib/mockOffers";
+import type { CashbackOffer, RestrictedAsset } from "@/app/lib/types/offers";
 
 interface Props {
   cashbackOffers: CashbackOffer[];

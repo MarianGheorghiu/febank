@@ -10,11 +10,8 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
 } from "lucide-react";
-import {
-  MOCK_RECEIVED_REQUESTS,
-  MOCK_SENT_REQUESTS,
-  PendingRequest,
-} from "@/app/lib/mockFriends";
+import { MOCK_RECEIVED_REQUESTS, MOCK_SENT_REQUESTS } from "@/app/lib/mock/friends";
+import type { PendingRequest } from "@/app/lib/types/friends";
 
 export default function PendingRequests() {
   const [received, setReceived] = useState<PendingRequest[]>(

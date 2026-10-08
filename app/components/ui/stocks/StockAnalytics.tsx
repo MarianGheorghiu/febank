@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_STOCK_SUMMARY } from "@/app/lib/mock/summaries";
 
 import React, { useState } from "react";
 import {
@@ -14,10 +15,7 @@ import {
   Cell,
 } from "recharts";
 import { Activity, PieChart as PieIcon, Layers } from "lucide-react";
-import {
-  MOCK_STOCK_HISTORY,
-  MOCK_STOCK_ALLOCATION,
-} from "@/app/lib/mockStockData";
+import { MOCK_STOCK_HISTORY, MOCK_STOCK_ALLOCATION } from "@/app/lib/mock/stocks";
 
 type Timeframe = "1D" | "1W" | "1M" | "1Y" | "ALL";
 
@@ -234,7 +232,7 @@ export default function StockAnalytics() {
                       Total
                     </span>
                     <span className="text-cyan-400 font-black text-sm">
-                      $122k
+                      {MOCK_STOCK_SUMMARY.allocationTotalLabel}
                     </span>
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import { Message } from "../types";
+import { Message } from "@/app/lib/types/messages";
 import {
   ShieldCheck,
   ArrowLeft,

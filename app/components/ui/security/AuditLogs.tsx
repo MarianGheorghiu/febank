@@ -1,4 +1,5 @@
 "use client";
+import { createMockSecurityLog } from "@/app/lib/mock/security";
 
 import React, { useState } from "react";
 import {
@@ -10,7 +11,7 @@ import {
   ShieldAlert,
   Check,
 } from "lucide-react";
-import { AuditLog } from "@/app/lib/securityMock";
+import type { AuditLog } from "@/app/lib/types/security";
 
 export default function AuditLogs({
   initialLogs,
@@ -28,14 +29,7 @@ export default function AuditLogs({
   const triggerSync = () => {
     setSyncing(true);
     setTimeout(() => {
-      const liveLog: AuditLog = {
-        id: `log_${Date.now()}`,
-        timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
-        event: "SYS_MONITOR: SECURITY POLLING ENGINES SYNCED WITH CLUSTER CORE",
-        status: "SUCCESS",
-        ipAddress: "10.255.0.1",
-        subSystem: "NET_CORE",
-      };
+      const liveLog: AuditLog = createMockSecurityLog();
       setLogs((prev) => [liveLog, ...prev]);
       setSyncing(false);
     }, 500);

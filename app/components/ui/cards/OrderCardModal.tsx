@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { X, CreditCard, ChevronRight, CheckCircle, Check } from "lucide-react";
-import { CardType, BankCardData } from "@/app/lib/mockCardData";
+import type { CardType, BankCardData } from "@/app/lib/types/cards";
 
 interface OrderCardModalProps {
   isOpen: boolean;

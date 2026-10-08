@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo } from "react";
 import { ShieldAlert, ChevronRight, Search, Trash2, X } from "lucide-react";
-import { FLAGGED_ENTITIES, RiskLevel } from "@/app/lib/admin/mockDashboard";
+import { FLAGGED_ENTITIES } from "@/app/lib/mock/admin/dashboard";
+import type { RiskLevel } from "@/app/lib/types/admin/dashboard";
 
 interface ThreatActionListProps {
     selectedId: string;

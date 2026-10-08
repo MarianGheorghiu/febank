@@ -1,14 +1,9 @@
 "use client";
+import { assets } from "@/app/lib/mock/landing-ticker";
 
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 export default function Ticker() {
-  const assets = [
-    { name: "BTC/USD", price: "$67,420.50", change: "+3.42%", up: true },
-    { name: "ETH/USD", price: "$3,480.12", change: "+1.15%", up: true },
-    { name: "EUR/USD", price: "1.0842", change: "-0.22%", up: false },
-    { name: "GBP/USD", price: "1.2655", change: "+0.08%", up: true },
-  ];
 
   return (
     <div className="w-full max-w-5xl mx-auto py-3 bg-gradient-to-r from-white/[0.04] to-transparent backdrop-blur-md border-y border-white/[0.06] overflow-hidden rounded-xl">

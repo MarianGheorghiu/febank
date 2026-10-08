@@ -8,7 +8,7 @@ import {
     Ban,
     Download,
 } from "lucide-react";
-import { Transaction } from "@/app/lib/admin/mockTransactions"; // Asigură-te că path-ul este corect
+import type { Transaction } from "@/app/lib/types/admin/transactions"; // Asigură-te că path-ul este corect
 
 interface TransactionRowProps {
     tx: Transaction;

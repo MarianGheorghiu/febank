@@ -10,7 +10,7 @@ import {
   Check,
   Plus,
 } from "lucide-react";
-import { CollateralAsset, LombardLoan } from "@/app/lib/loans/types";
+import { CollateralAsset, LombardLoan } from "@/app/lib/types/loans/retail";
 import {
   calculateLTV,
   getLTVStatus,

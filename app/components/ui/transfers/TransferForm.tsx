@@ -17,11 +17,8 @@ import {
 } from "lucide-react";
 
 // Adăugăm importul din librăria centralizată de mock-uri
-import {
-  ASSETS_DB,
-  type TransferType as TransferCategory,
-  type RoutingMethod,
-} from "@/app/lib/mockTransfers";
+import { ASSETS_DB } from "@/app/lib/mock/transfers";
+import type { TransferType as TransferCategory, RoutingMethod } from "@/app/lib/types/transfers";
 
 export default function TransferForm() {
   const [category, setCategory] = useState<TransferCategory>("fiat");

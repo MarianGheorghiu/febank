@@ -1,8 +1,9 @@
 "use client";
+import { MOCK_BALANCES } from "@/app/lib/mock/balances";
 
 import React, { useState, useEffect } from "react";
 import { X, Wallet, ArrowLeftRight, Loader2, Phone, User } from "lucide-react";
-import { Friend } from "@/app/lib/mockFriends"; // Presupunând că ai tipul definit aici
+import type { Friend } from "@/app/lib/types/friends"; // Presupunând că ai tipul definit aici
 
 interface QuickFriendTransferModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ export default function QuickFriendTransferModal({
   const [amount, setAmount] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  const mockBalance = 48250.75;
+  const mockBalance = MOCK_BALANCES.transferAvailableUsd;
   const quickAmounts = [10, 20, 50, 100]; // Sume mai mici, specifice transferurilor rapide între prieteni
 
   // Resetăm starea la închidere/deschidere

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Coins, Fingerprint, Copy, Check, Search, X } from "lucide-react";
-import { CryptoAsset } from "@/app/lib/mockCurrencies";
+import type { CryptoAsset } from "@/app/lib/types/currencies";
 
 export default function CryptoManagement({
   cryptos,

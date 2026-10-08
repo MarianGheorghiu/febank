@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_ASSISTANT } from "@/app/lib/mock/summaries";
 
 import React from "react";
 import { Cpu, Navigation, Zap } from "lucide-react";
@@ -37,11 +38,10 @@ export default function IntelligentAssistantWidget({ onTriggerToast }: Props) {
         <div className="p-2.5 rounded-lg bg-[#02040f] border border-blue-500/10 text-[10px] space-y-1 my-1.5">
           <div className="flex justify-between text-slate-500 font-bold text-[8px] uppercase">
             <span>Algorithmic Recommendation</span>
-            <span className="text-cyan-400">94% Core Match</span>
+            <span className="text-cyan-400">{MOCK_ASSISTANT.match}</span>
           </div>
           <p className="text-white font-medium leading-tight uppercase">
-            Detected high velocity flight expenditures. Prioritizing Platinum
-            Global Travel Assurance.
+            {MOCK_ASSISTANT.recommendation}
           </p>
         </div>
 

@@ -12,7 +12,7 @@ import {
   Sparkles,
   RefreshCw,
 } from "lucide-react";
-import { CardTransaction } from "@/app/lib/mockCardData";
+import type { CardTransaction } from "@/app/lib/types/cards";
 
 interface TransactionHistoryProps {
   transactions: CardTransaction[];

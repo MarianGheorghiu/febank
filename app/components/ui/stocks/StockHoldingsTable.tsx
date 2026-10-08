@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Search, Briefcase, Activity, Zap } from "lucide-react";
-import { MOCK_STOCK_HOLDINGS, StockHolding } from "@/app/lib/mockStockData";
+import { MOCK_STOCK_HOLDINGS } from "@/app/lib/mock/stocks";
+import type { StockHolding } from "@/app/lib/types/stocks";
 import StockActionModal from "./StockActionModal";
 
 export default function StockHoldingsTable() {

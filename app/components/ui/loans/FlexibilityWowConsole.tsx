@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_LOAN_FLEXIBILITY } from "@/app/lib/mock/summaries";
 
 import React, { useState } from "react";
 import { ShieldAlert, Zap, Globe, RefreshCw, CheckCircle2 } from "lucide-react";
@@ -38,7 +39,7 @@ export default function FlexibilityWowConsole() {
                 One-Click Installment Skip
               </span>
               <span className="text-[8px] text-slate-500 uppercase">
-                1 Penalty-Free Pause Token Available Per Year
+                {MOCK_LOAN_FLEXIBILITY.pauseAllowance}
               </span>
             </div>
             <button

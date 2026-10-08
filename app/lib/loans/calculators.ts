@@ -1,4 +1,4 @@
-import { CollateralAsset, PricingDiscount, LoanRiskStatus } from "./types";
+import { CollateralAsset, PricingDiscount, LoanRiskStatus } from "@/app/lib/types/loans/retail";
 
 export const calculateLTV = (
   borrowedAmount: number,

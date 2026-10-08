@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Shield, ShieldCheck, Zap } from "lucide-react";
-import { BufferLine } from "@/app/lib/loans/types";
+import { BufferLine } from "@/app/lib/types/loans/retail";
 
 interface BufferLineWidgetProps {
   bufferData: BufferLine;

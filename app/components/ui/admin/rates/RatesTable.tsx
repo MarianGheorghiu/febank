@@ -15,7 +15,7 @@ import {
     ShieldCheck,
     Fingerprint,
 } from "lucide-react";
-import { FeeRule } from "@/app/lib/admin/mockRates";
+import type { FeeRule } from "@/app/lib/types/admin/rates";
 import { RateRow } from "./RateRow";
 
 interface RatesTableProps {

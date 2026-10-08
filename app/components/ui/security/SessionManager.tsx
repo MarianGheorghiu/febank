@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Monitor,
 } from "lucide-react";
-import { ActiveSession } from "@/app/lib/securityMock";
+import type { ActiveSession } from "@/app/lib/types/security";
 
 export default function SessionManager({
   initialSessions,

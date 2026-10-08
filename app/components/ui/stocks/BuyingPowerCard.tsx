@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_BALANCES } from "@/app/lib/mock/balances";
 
 import React, { useState, useEffect } from "react";
 import {
@@ -11,7 +12,7 @@ import {
   Loader2,
   ArrowRightLeft,
 } from "lucide-react";
-import { MOCK_STOCK_HOLDINGS } from "@/app/lib/mockStockData";
+import { MOCK_STOCK_HOLDINGS } from "@/app/lib/mock/stocks";
 
 // ==========================================
 // 1. MODAL PENTRU DEPUNERE / RETRAGERE
@@ -204,7 +205,7 @@ function FundsActionModal({
 // 2. COMPONENTA PRINCIPALĂ BUYING POWER
 // ==========================================
 export default function BuyingPowerCard() {
-  const cashBalance = 14250.75;
+  const cashBalance = MOCK_BALANCES.stockAvailableUsd;
   const [searchQuery, setSearchQuery] = useState("");
   const [modalAction, setModalAction] = useState<"DEPOSIT" | "WITHDRAW" | null>(
     null,

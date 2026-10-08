@@ -11,11 +11,8 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import {
-  MOCK_ASSETS_DATA,
-  Timeframe,
-  AssetCategory,
-} from "@/app/lib/mockAnalytics";
+import { MOCK_ASSETS_DATA } from "@/app/lib/mock/analytics";
+import type { Timeframe, AssetCategory } from "@/app/lib/types/analytics";
 
 export default function AssetMatrix() {
   const [category, setCategory] = useState<AssetCategory | "all">("all");

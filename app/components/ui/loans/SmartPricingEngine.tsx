@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Percent, Search, X, Check, Lock } from "lucide-react";
-import { SmartPricingEngine as PricingType } from "@/app/lib/loans/types";
+import { SmartPricingEngine as PricingType } from "@/app/lib/types/loans/retail";
 
 interface SmartPricingEngineProps {
   pricingData: PricingType;

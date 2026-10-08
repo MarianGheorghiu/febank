@@ -1,4 +1,6 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
+import { MOCK_STOCK_SUMMARY } from "@/app/lib/mock/summaries";
 
 import { useState } from "react";
 import { Download, Landmark, TrendingUp, BarChart3 } from "lucide-react";
@@ -27,7 +29,7 @@ export default function StocksPage() {
     <div className="w-full flex flex-col bg-[#02050e] text-white antialiased">
       {/* HEADER ZONE */}
       <div className="w-full shrink-0 m-0 p-0 overflow-hidden">
-        <PageHeader systemDate="08 Jun 2026" statusText="Equity Engine Active">
+        <PageHeader systemDate={MOCK_PAGE_DATES.stocks} statusText="Equity Engine Active">
           <div className="flex flex-wrap items-center justify-center lg:justify-between gap-3 mt-3 lg:mt-0">
             {/* STÂNGA (Breadcrumb/Titlu Modul) */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md text-cyan-400 font-mono text-[11px] font-bold max-w-full">
@@ -42,7 +44,7 @@ export default function StocksPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="truncate">
                   PORTFOLIO VALUE:{" "}
-                  <span className="text-white font-black">$248,510.42</span>
+                  <span className="text-white font-black">{MOCK_STOCK_SUMMARY.portfolio}</span>
                 </span>
               </div>
 
@@ -51,7 +53,7 @@ export default function StocksPage() {
                 <Landmark size={12} className="text-purple-400 shrink-0" />
                 <span className="truncate">
                   CASH INTEREST:{" "}
-                  <span className="text-white font-black">5.25% APY</span>
+                  <span className="text-white font-black">{MOCK_STOCK_SUMMARY.cashInterest}</span>
                 </span>
               </div>
 
@@ -59,7 +61,7 @@ export default function StocksPage() {
               <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md text-cyan-400 font-mono text-[11px] font-bold max-w-full">
                 <TrendingUp size={12} className="text-cyan-400 shrink-0" />
                 <span className="truncate">
-                  S&P 500: <span className="text-white font-black">+1.24%</span>
+                  S&P 500: <span className="text-white font-black">{MOCK_STOCK_SUMMARY.indexChange}</span>
                 </span>
               </div>
 

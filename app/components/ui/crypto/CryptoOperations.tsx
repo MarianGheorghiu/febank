@@ -1,14 +1,8 @@
 "use client";
+import { ASSET_PRICES } from "@/app/lib/mock/crypto-operations";
 
 import React, { useState, useEffect, useRef } from "react";
 import { Landmark, ChevronDown, Search } from "lucide-react";
-
-const ASSET_PRICES: Record<string, number> = {
-  EUR: 1.0,
-  RON: 0.2,
-  BTC: 87000.0,
-  ETH: 3200.0,
-};
 
 export default function CryptoOperations() {
   const [tradeType, setTradeType] = useState<"BUY" | "SELL">("BUY");

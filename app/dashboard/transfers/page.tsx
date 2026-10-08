@@ -1,4 +1,6 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
+import { MOCK_CLIENT_SUMMARY } from "@/app/lib/mock/summaries";
 
 import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
@@ -19,7 +21,8 @@ import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
 import TransferForm from "@/app/components/ui/transfers/TransferForm";
 import TransferTable from "@/app/components/ui/transfers/TransferTable";
 
-import { INITIAL_TRANSFERS, Transfer } from "@/app/lib/mockTransfers";
+import { INITIAL_TRANSFERS } from "@/app/lib/mock/transfers";
+import type { Transfer } from "@/app/lib/types/transfers";
 import InfoCard from "@/app/components/ui/transfers/InfoCard";
 import TransferBottomWidgets from "@/app/components/ui/transfers/TransferBottomWidgets";
 
@@ -48,7 +51,7 @@ export default function TransfersPage() {
     <div className="w-full flex flex-col bg-[#02050e] text-white antialiased">
       {/* HEADER ZONE */}
       <div className="w-full shrink-0">
-        <PageHeader systemDate="01 Jun 2026" statusText="Ledger Network Active">
+        <PageHeader systemDate={MOCK_PAGE_DATES.transfers} statusText="Ledger Network Active">
           <div className="grid grid-cols-2 min-[420px]:grid-cols-4 sm:flex items-center p-1 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md w-full sm:w-auto gap-1 sm:gap-0">
             <div className="flex items-center justify-center sm:justify-start gap-2 px-3 py-2 font-mono text-xs text-zinc-400 font-bold">
               <Layers size={14} className="text-blue-500/50" />
@@ -97,41 +100,41 @@ export default function TransfersPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
           <InfoCard
             title="Total Liquidity"
-            value="$142,350.80"
+            value={MOCK_CLIENT_SUMMARY.liquidity}
             icon={Wallet}
             iconColor="text-cyan-400"
             glowColor="hover:border-cyan-500/30 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)]"
             subtext={
               <p className="text-emerald-400 font-bold flex items-center gap-1 font-sans">
-                <span className="text-xs">↑</span> +4.2% this month
+                <span className="text-xs">↑</span> {MOCK_CLIENT_SUMMARY.monthlyChange}
               </p>
             }
           />
 
           <InfoCard
             title="Crypto Portfolio"
-            value="2.405 BTC"
+            value={MOCK_CLIENT_SUMMARY.cryptoBalance}
             icon={TrendingUp}
             iconColor="text-purple-400"
             glowColor="hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)]"
             href="/dashboard/crypto"
             subtext={
               <p className="text-purple-400 font-mono tracking-wider">
-                ~ $164,200.00 USD
+                {MOCK_CLIENT_SUMMARY.cryptoValue}
               </p>
             }
           />
 
           <InfoCard
             title="Active Investments"
-            value="$45,120.00"
+            value={MOCK_CLIENT_SUMMARY.investments}
             icon={Briefcase}
             iconColor="text-blue-400"
             glowColor="hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(37,99,235,0.15)]"
             href="/dashboard/stocks"
             subtext={
               <p className="text-zinc-400 font-medium font-sans">
-                12 Stocks & 3 Indexes
+                {MOCK_CLIENT_SUMMARY.positions}
               </p>
             }
           />

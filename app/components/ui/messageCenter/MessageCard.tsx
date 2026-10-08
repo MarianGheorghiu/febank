@@ -1,5 +1,5 @@
 import { ShieldCheck, ArrowUpRight, Check } from "lucide-react";
-import { Message } from "../types";
+import { Message } from "@/app/lib/types/messages";
 
 interface MessageCardProps {
   message: Message;

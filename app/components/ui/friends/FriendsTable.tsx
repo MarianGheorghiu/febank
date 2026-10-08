@@ -16,7 +16,7 @@ import {
   HandCoins,
   Gift,
 } from "lucide-react";
-import { Friend } from "@/app/lib/mockFriends";
+import type { Friend } from "@/app/lib/types/friends";
 
 interface FriendsTableProps {
   friends: Friend[];

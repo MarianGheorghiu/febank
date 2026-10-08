@@ -11,7 +11,7 @@ import {
     BarChart3,
     Coins,
 } from "lucide-react";
-import { mockAdminStats } from "@/app/lib/admin/mockTransactions";
+import { mockAdminStats } from "@/app/lib/mock/admin/transactions";
 
 export default function TransactionWidgets() {
     const { amlCompliance, systemHealth, financialPerformance } =

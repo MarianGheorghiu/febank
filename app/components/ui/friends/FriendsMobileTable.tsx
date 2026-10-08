@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { Search, X, ShieldAlert } from "lucide-react";
-import { Friend } from "@/app/lib/mockFriends";
+import type { Friend } from "@/app/lib/types/friends";
 
 interface FriendsMobileTableProps {
   friends: Friend[];

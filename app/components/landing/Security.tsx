@@ -1,4 +1,5 @@
 "use client";
+import { MOCK_LANDING_SECURITY } from "@/app/lib/mock/summaries";
 
 import {
   ShieldCheck,
@@ -115,7 +116,7 @@ export default function Security() {
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-emerald-400 font-bold">
-                  0.02ms
+                  {MOCK_LANDING_SECURITY.latency}
                 </span>
               </div>
 
@@ -127,7 +128,7 @@ export default function Security() {
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-emerald-400 font-bold">
-                  100% OK
+                  {MOCK_LANDING_SECURITY.status}
                 </span>
               </div>
             </div>

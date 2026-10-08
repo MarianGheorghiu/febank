@@ -1,4 +1,6 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
+import { MOCK_ANALYTICS_SUMMARY } from "@/app/lib/mock/summaries";
 
 import PageHeader from "@/app/components/ui/PageHeader";
 import { Download } from "lucide-react";
@@ -12,7 +14,7 @@ export default function AnalyticsMatrixPage() {
     <div className="w-full min-h-screen flex flex-col bg-[#02050e] text-white antialiased font-mono m-0 p-0 overflow-x-hidden relative">
       {/* ULTRA-INLINE HEADER CONSOLE NODE (FLUSH EDGE) */}
       <div className="w-full shrink-0 border-b border-cyan-500/10 bg-[#02050e] m-0 p-0 overflow-hidden">
-        <PageHeader systemDate="12 JUN 2026" statusText="MATRIX_LIVE">
+        <PageHeader systemDate={MOCK_PAGE_DATES.analytics} statusText="MATRIX_LIVE">
           <div className="flex flex-row items-center justify-between gap-4 w-full mt-3 lg:mt-0">
             {/* ALINIERE STÂNGA: Text și valoare (Compacte) */}
             <div className="flex items-center gap-2 font-mono shrink-0">
@@ -20,7 +22,7 @@ export default function AnalyticsMatrixPage() {
                 Assets:
               </span>
               <span className="text-sm font-bold text-white tracking-tight">
-                $142,891.60
+                {MOCK_ANALYTICS_SUMMARY.portfolio}
               </span>
             </div>
 

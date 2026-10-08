@@ -1,5 +1,6 @@
 // app/components/ui/TransferModal.tsx
 "use client";
+import { MOCK_BALANCES } from "@/app/lib/mock/balances";
 
 import React, { useState, useEffect } from "react";
 import {
@@ -32,7 +33,7 @@ export default function TransferModal({
   const [recipientName, setRecipientName] = useState<string>("");
   const [recipientData, setRecipientData] = useState<string>(""); // Va ține fie IBAN-ul, fie Nr de Telefon
 
-  const mockBalance = 48250.75;
+  const mockBalance = MOCK_BALANCES.transferAvailableUsd;
   const quickAmounts = [50, 100, 500, 1000];
 
   // Resetăm toate stările la închidere/deschidere

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Search, Globe, Flame, ShieldAlert, Cpu } from "lucide-react";
-import { MOCK_MARKET_ASSETS, MarketAsset } from "@/app/lib/mockStockData";
+import { MOCK_MARKET_ASSETS } from "@/app/lib/mock/stocks";
+import type { MarketAsset } from "@/app/lib/types/stocks";
 import StockActionModal from "./StockActionModal";
 
 export default function MarketExplorerTable() {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, Check } from "lucide-react";
-import { BankCardData } from "@/app/lib/mockCardData";
+import type { BankCardData } from "@/app/lib/types/cards";
 
 interface CardSelectorProps {
   cards: BankCardData[];

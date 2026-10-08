@@ -1,11 +1,12 @@
 "use client";
+import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import { useState } from "react";
 import { Download, User, Building } from "lucide-react";
 import PageHeader from "@/app/components/ui/PageHeader";
 
 // Core data mapping infrastructure
-import { mockRetailLoans } from "@/app/lib/loans/mockData";
+import { mockRetailLoans } from "@/app/lib/mock/loans/retail";
 
 // Neon Tokyo UI Component Matrix
 import LombardDashboard from "@/app/components/ui/loans/LombardDashboard";
@@ -36,7 +37,7 @@ export default function LoansCapitalPage() {
     <div className="w-full min-h-screen flex flex-col bg-[#02050e] text-white antialiased m-0 p-0 overflow-x-hidden">
       {/* HEADER ZONE - FULL WIDTH FLUSH */}
       <div className="w-full shrink-0 m-0 p-0 overflow-hidden border-b border-indigo-500/10">
-        <PageHeader systemDate="08 Jun 2026" statusText="Active">
+        <PageHeader systemDate={MOCK_PAGE_DATES.loans} statusText="Active">
           <div className="flex flex-wrap items-center justify-between gap-4 mt-3 lg:mt-0 w-full">
             {/* RIGHT: Premium Cyberpunk Controls */}
             <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2.5 lg:ml-auto">
