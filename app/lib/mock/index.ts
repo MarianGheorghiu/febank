@@ -44,3 +44,4 @@ export * as transferTable from "./transfer-table";
 export * as transfers from "./transfers";
 export * as adminSimulation from "./admin/simulation";
 export * as loansBusinessPricing from "./loans/business-pricing";
+export * as adminCardIssuing from "./admin/card-issuing";

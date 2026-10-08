@@ -1,4 +1,5 @@
 export const MOCK_PAGE_DATES = {
+  "admin_cards": "08 Oct 2026",
   "admin_rates": "24 Jun 2026",
   "admin_transactions": "18 Jun 2026",
   "admin_users": "18 JUN 2026",

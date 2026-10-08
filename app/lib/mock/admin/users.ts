@@ -2,6 +2,25 @@ import type { User, UserSession, AuditLog } from "@/app/lib/types/admin/users";
 
 export const initialUsers: User[] = [
     {
+        id: "USR-1204", name: "Andrei Ionescu", username: "@andrei.i",
+        email: "andrei.ionescu@example.com", phone: "+40 722 120 400",
+        role: "CLIENT", status: "ACTIVE", balance: 24500, clearanceLevel: 1,
+        lastActive: "08 OCT 2026 09:12",
+    },
+    {
+        id: "USR-2315", name: "Ioana Marinescu", username: "@ioana.m",
+        email: "ioana.marinescu@example.com", phone: "+40 722 231 500",
+        role: "CLIENT", status: "ACTIVE", balance: 12840, clearanceLevel: 1,
+        lastActive: "08 OCT 2026 10:05",
+    },
+    {
+        id: "USR-3426", name: "Radu Stan", username: "@radu.s",
+        email: "radu.stan@example.com", phone: "+40 722 342 600",
+        role: "CLIENT", status: "ACTIVE", balance: 3200, clearanceLevel: 1,
+        lastActive: "07 OCT 2026 16:20",
+    },
+
+    {
         id: "USR-9021",
         name: "Alexandru Radu",
         username: "@radualex",

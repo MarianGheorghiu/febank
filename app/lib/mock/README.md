@@ -21,6 +21,8 @@ import { cards, loansRetail, adminUsers } from "@/app/lib/mock";
 ```
 
 [Inventarul complet](./INVENTORY.md) enumeră modulele, exporturile și contractele.
+[Card Issuing admin](./admin/CARD_ISSUING.md) documentează regulile operaționale,
+store-ul persistent și contractul propus pentru backendul Go.
 
 ## Organizare
 
@@ -95,6 +97,7 @@ aceste fluxuri cu cereri reale și gestionarea erorilor.
 
 ## Aspecte de contract de păstrat în vedere
 
+- Card Issuing admin are un store reactiv persistent separat, documentat mai sus.
 - Centralizarea oferă o sursă globală de import. Datele nu sunt un store global
   reactiv: listele modificate cu `useState` rămân locale componentelor, exact ca
   înainte. La integrare, un cache comun și invalidarea după mutații vor asigura
