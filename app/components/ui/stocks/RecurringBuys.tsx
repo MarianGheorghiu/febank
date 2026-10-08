@@ -1,5 +1,8 @@
 "use client";
 import type { RecurringBuy, RecurringAsset } from "@/app/lib/types/recurring-buys";
+import { useMarketsState } from "@/app/lib/markets/store";
+import { marketInstrument, quantityForBudget, quoteTrade, tradingRestriction } from "@/app/lib/markets/engine";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
 import { createMockId } from "@/app/lib/mock/ids";
 import { MOCK_DCA, AVAILABLE_ASSETS } from "@/app/lib/mock/recurring-buys";
 
@@ -26,6 +29,7 @@ interface NewPlanModalProps {
 }
 
 function NewPlanModal({ isOpen, onClose, onAddPlan }: NewPlanModalProps) {
+  const marketState = useMarketsState();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAsset, setSelectedAsset] = useState<RecurringAsset | null>(null);
   const [amount, setAmount] = useState("");
@@ -33,22 +37,6 @@ function NewPlanModal({ isOpen, onClose, onAddPlan }: NewPlanModalProps) {
     "Weekly",
   );
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery("");
-      setSelectedAsset(null);
-      setAmount("");
-      setFrequency("Weekly");
-      setIsProcessing(false);
-    }
-  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) document.body.style.overflow = "hidden";
@@ -58,7 +46,7 @@ function NewPlanModal({ isOpen, onClose, onAddPlan }: NewPlanModalProps) {
     };
   }, [isOpen]);
 
-  if (!isOpen || !mounted) return null;
+  if (!isOpen) return null;
 
   const filteredAssets = AVAILABLE_ASSETS.filter(
     (asset) =>
@@ -70,9 +58,17 @@ function NewPlanModal({ isOpen, onClose, onAddPlan }: NewPlanModalProps) {
     e.preventDefault();
     if (!selectedAsset || !amount || parseFloat(amount) <= 0) return;
 
+    try {
+      const instrument = marketInstrument(marketState, selectedAsset.symbol);
+      const restriction = tradingRestriction(marketState, instrument, "BUY");
+      if (restriction) throw new Error(restriction);
+      quoteTrade(instrument, "BUY", quantityForBudget(instrument, Number(amount)));
+    } catch (cause) {
+      notifyOperation("Auto-invest unavailable", cause instanceof Error ? cause.message : "Check bank trading controls.", true, "Trading desk");
+      return;
+    }
     setIsProcessing(true);
-    setTimeout(() => {
-      onAddPlan({
+    onAddPlan({
         id: createMockId("dca"),
         symbol: selectedAsset.symbol,
         name: selectedAsset.name,
@@ -89,7 +85,6 @@ function NewPlanModal({ isOpen, onClose, onAddPlan }: NewPlanModalProps) {
       });
       setIsProcessing(false);
       onClose();
-    }, 1200);
   };
 
   return createPortal(
@@ -296,11 +291,17 @@ function NewPlanModal({ isOpen, onClose, onAddPlan }: NewPlanModalProps) {
 
 // --- MAIN COMPONENT ---
 export default function RecurringBuys() {
+  const marketState = useMarketsState();
   const [dcaList, setDcaList] = useState(MOCK_DCA);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [moduleSearchQuery, setModuleSearchQuery] = useState(""); // State pentru search-ul din modul
 
   const toggleStatus = (id: string) => {
+    const plan = dcaList.find(item => item.id === id);
+    if (plan?.status === "PAUSED") {
+      try { const instrument = marketInstrument(marketState, plan.symbol); const restriction = tradingRestriction(marketState, instrument, "BUY"); if (restriction) throw new Error(restriction); quoteTrade(instrument, "BUY", quantityForBudget(instrument, plan.amount)); }
+      catch (cause) { notifyOperation("Auto-invest unavailable", cause instanceof Error ? cause.message : "Check trading controls.", true, "Trading desk"); return; }
+    }
     setDcaList(
       dcaList.map((item) =>
         item.id === id
@@ -311,7 +312,11 @@ export default function RecurringBuys() {
   };
 
   const handleAddPlan = (newPlan: RecurringBuy) => {
+    // Revalidate the current controls before adding the demo schedule.
+    const instrument = marketState.instruments.find(item => item.symbol === newPlan.symbol);
+    if (!instrument || tradingRestriction(marketState, instrument, "BUY")) { notifyOperation("Plan not added", "Bank trading controls changed. Review the instrument and try again.", true, "Trading desk"); return; }
     setDcaList([newPlan, ...dcaList]);
+    notifyOperation("Demo plan added", "Auto-invest schedule saved for this page. Automatic execution requires the backend scheduler.", false, "Trading desk");
   };
 
   // Filtrarea listei principale bazată pe input-ul din modul
@@ -326,6 +331,7 @@ export default function RecurringBuys() {
       <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col h-full gap-4">
+        <p className="text-[9px] leading-relaxed text-slate-400">Demo schedules. Automatic execution is not connected. Bank restrictions apply when creating or resuming plans.</p>
         {/* HEADER */}
         <div className="flex justify-between items-center pb-2 border-b border-blue-500/10 shrink-0">
           <h2 className="text-blue-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
@@ -469,11 +475,11 @@ export default function RecurringBuys() {
       </div>
 
       {/* MODAL INSTANCE */}
-      <NewPlanModal
+      {isModalOpen && <NewPlanModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAddPlan={handleAddPlan}
-      />
+      />}
     </div>
   );
 }

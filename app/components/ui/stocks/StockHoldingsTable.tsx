@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Briefcase, Activity, Zap } from "lucide-react";
-import { MOCK_STOCK_HOLDINGS } from "@/app/lib/mock/stocks";
+import { Search, Briefcase, Zap } from "lucide-react";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
 import type { StockHolding } from "@/app/lib/types/stocks";
 import StockActionModal from "./StockActionModal";
 
 export default function StockHoldingsTable() {
+  const { holdings: MOCK_STOCK_HOLDINGS } = useTradingPortfolio();
   const [searchQuery, setSearchQuery] = useState("");
   const [modalType, setModalType] = useState<"BUY" | "SELL" | null>(null);
   const [selectedStock, setSelectedStock] = useState<StockHolding | null>(null);

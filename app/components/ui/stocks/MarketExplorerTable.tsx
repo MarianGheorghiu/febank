@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Globe, Flame, ShieldAlert, Cpu } from "lucide-react";
-import { MOCK_MARKET_ASSETS } from "@/app/lib/mock/stocks";
+import { Search, Globe, Flame } from "lucide-react";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
 import type { MarketAsset } from "@/app/lib/types/stocks";
 import StockActionModal from "./StockActionModal";
 
 export default function MarketExplorerTable() {
+  const { stockMarket: MOCK_MARKET_ASSETS } = useTradingPortfolio();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [modalType, setModalType] = useState<"BUY" | "SELL" | null>(null);

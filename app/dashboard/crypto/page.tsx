@@ -1,12 +1,14 @@
 "use client";
+import CustomerMarketStatus from "@/app/components/ui/markets/CustomerMarketStatus";
 import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-import { MOCK_CRYPTO_SUMMARY } from "@/app/lib/mock/summaries";
 
-import { ArrowLeftRight, Download } from "lucide-react";
+
+import { Download } from "lucide-react";
 import PageHeader from "@/app/components/ui/PageHeader";
 import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
-import TransferModal from "@/app/components/ui/dashboard/TransferModal";
-import { useState } from "react";
+import { useUser } from "@/app/context/UserContext";
+import { downloadMarketOrders } from "@/app/lib/markets/report";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
 
 // Componente Modul Crypto
 import CryptoManagement from "@/app/components/ui/currencies/CryptoManagement";
@@ -14,12 +16,13 @@ import CryptoPLAnalysis from "@/app/components/ui/crypto/CryptoPLAnalysis";
 import CryptoOperations from "@/app/components/ui/crypto/CryptoOperations";
 
 // Date Mock Crypto
-import { MOCK_CRYPTO } from "@/app/lib/mock/currencies";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
 
 import CryptoMarketTable from "@/app/components/ui/crypto/CryptoMarketTable";
 
 export default function CryptoPage() {
-  const [modalType, setModalType] = useState<"transfer" | null>(null);
+  const { cryptos, cryptoValue, cryptoMarket, state } = useTradingPortfolio();
+  const { user } = useUser();
 
   return (
     // REPARAT: Container curat, fără h-screen sau restricții de overflow dăunătoare
@@ -43,7 +46,7 @@ export default function CryptoPage() {
                 <span className="truncate">
                   PORTFOLIO:{" "}
                   <span className="text-white font-black">
-                    {MOCK_CRYPTO_SUMMARY.portfolio}
+                    {cryptoValue.toLocaleString("en-US", { style: "currency", currency: "USD" })}
                   </span>
                 </span>
               </div>
@@ -53,7 +56,7 @@ export default function CryptoPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
                 <span className="truncate">
                   BTC PRICE:{" "}
-                  <span className="text-white font-black">{MOCK_CRYPTO_SUMMARY.btcPrice}</span>
+                  <span className="text-white font-black">{cryptoMarket.find(item => item.symbol === "BTC")?.price.toLocaleString("en-US", { style: "currency", currency: "USD" })}</span>
                 </span>
               </div>
 
@@ -61,7 +64,7 @@ export default function CryptoPage() {
               <ActionButton
                 variant="cyan"
                 icon={<Download size={15} />}
-                onClick={() => setModalType("transfer")}
+                onClick={() => { try { downloadMarketOrders(state, user?.email ?? "", "CRYPTO"); notifyOperation("Demo orders exported", "CSV includes your crypto orders recorded in this browser."); } catch { notifyOperation("Export failed", "The report could not be downloaded.", true); } }}
               >
                 DOWNLOAD REPORT
               </ActionButton>
@@ -70,6 +73,7 @@ export default function CryptoPage() {
         </PageHeader>
       </div>
 
+      <div className="mt-4"><CustomerMarketStatus domain="CRYPTO" /></div>
       {/* MATRIX GRID SPA */}
       {/* Folosim space-y-4 pentru o gestionare curată a spațiului pe verticală */}
       <div className="w-full flex flex-col space-y-4 mt-4">
@@ -78,7 +82,7 @@ export default function CryptoPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full items-start min-w-0">
           {/* Înălțimile sunt acum controlate direct și sigur de containerele copiilor */}
           <div className="lg:col-span-1 w-full h-[400px] min-w-0 overflow-hidden">
-            <CryptoManagement cryptos={MOCK_CRYPTO} />
+            <CryptoManagement cryptos={cryptos} />
           </div>
           <div className="lg:col-span-2 w-full h-[400px] min-w-0 overflow-hidden">
             <CryptoPLAnalysis />

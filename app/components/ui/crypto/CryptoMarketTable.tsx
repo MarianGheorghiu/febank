@@ -2,8 +2,9 @@
 
 import { useState, useRef } from "react";
 import { Search, Activity, Zap } from "lucide-react";
+import type { CryptoMarketAsset } from "@/app/lib/types/crypto";
 import CryptoActionModal, { TradeType } from "./CryptoActionModal";
-import { MOCK_MARKET } from "@/app/lib/mock/crypto";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
 
 // ==========================================
 // 1. NATIVE SVG SPARKLINE (CU HOVER EFFECT)
@@ -124,9 +125,10 @@ const SparklineChart = ({
 // 2. COMPONENTA PRINCIPALĂ
 // ==========================================
 export default function CryptoMarketTable() {
+  const { cryptoMarket: MOCK_MARKET } = useTradingPortfolio();
   const [searchQuery, setSearchQuery] = useState("");
   const [modalType, setModalType] = useState<TradeType>(null);
-  const [selectedAsset, setSelectedAsset] = useState<any>(null);
+  const [selectedAsset, setSelectedAsset] = useState<CryptoMarketAsset | null>(null);
 
   const filteredMarket = MOCK_MARKET.filter(
     (coin) =>
@@ -134,13 +136,8 @@ export default function CryptoMarketTable() {
       coin.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const handleOpenAction = (type: TradeType, coin: any) => {
-    setSelectedAsset({
-      id: coin.id,
-      symbol: coin.symbol,
-      name: coin.name,
-      price: coin.price,
-    });
+  const handleOpenAction = (type: TradeType, coin: CryptoMarketAsset) => {
+    setSelectedAsset(coin);
     setModalType(type);
   };
 

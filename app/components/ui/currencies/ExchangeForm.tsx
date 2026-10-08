@@ -1,5 +1,8 @@
 "use client";
-import { ASSET_PRICES, ASSET_TYPES } from "@/app/lib/mock/exchange";
+import { MOCK_TRADING_FX } from "@/app/lib/mock/admin/markets";
+import { useMarketsState } from "@/app/lib/markets/store";
+import { previewExchange } from "@/app/lib/markets/engine";
+import ExchangeReviewDialog from "@/app/components/ui/markets/ExchangeReviewDialog";
 
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -15,9 +18,15 @@ export default function ExchangeForm() {
   const [receiveAsset, setReceiveAsset] = useState("BTC");
 
   const [payAmount, setPayAmount] = useState("");
-  const [receiveAmount, setReceiveAmount] = useState("");
-  const [exchangeRate, setExchangeRate] = useState(0);
-  const [isSwapping, setIsSwapping] = useState(false);
+  const state = useMarketsState();
+  const [reviewing, setReviewing] = useState(false);
+  const isSwapping = false;
+  const ASSET_PRICES: Record<string, number> = { ...MOCK_TRADING_FX, ...Object.fromEntries(state.instruments.map(item => [item.symbol, item.priceUsd])) };
+  const ASSET_TYPES: Record<string, string> = { ...Object.fromEntries(Object.keys(MOCK_TRADING_FX).map(symbol => [symbol, "FIAT"])), ...Object.fromEntries(state.instruments.map(item => [item.symbol, item.domain === "STOCK" ? "STOCK" : "CRYPTO"])) };
+  let receiveAmount = "";
+  let quoteError = "";
+  let exchangeRate = ASSET_PRICES[payAsset] / ASSET_PRICES[receiveAsset];
+  if (Number(payAmount) > 0) { try { const preview = previewExchange(state, payAsset, receiveAsset, Number(payAmount)); receiveAmount = String(preview.received); exchangeRate = preview.received / Number(payAmount); } catch (cause) { quoteError = cause instanceof Error ? cause.message : "Quote unavailable."; } }
 
   const [payOpen, setPayOpen] = useState(false);
   const [paySearch, setPaySearch] = useState("");
@@ -45,24 +54,6 @@ export default function ExchangeForm() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const pricePay = ASSET_PRICES[payAsset];
-    const priceReceive = ASSET_PRICES[receiveAsset];
-
-    if (pricePay && priceReceive) {
-      const rate = pricePay / priceReceive;
-      setExchangeRate(rate);
-
-      if (payAmount && !isNaN(Number(payAmount))) {
-        const calculated = Number(payAmount) * rate;
-        const decimals = ASSET_TYPES[receiveAsset] === "CRYPTO" ? 6 : 2;
-        setReceiveAmount(calculated.toFixed(decimals));
-      } else {
-        setReceiveAmount("");
-      }
-    }
-  }, [payAsset, receiveAsset, payAmount]);
-
   const handleInvert = () => {
     const temp = payAsset;
     setPayAsset(receiveAsset);
@@ -73,14 +64,7 @@ export default function ExchangeForm() {
   const handleExecuteSwap = () => {
     if (!payAmount || isNaN(Number(payAmount)) || Number(payAmount) <= 0)
       return;
-    setIsSwapping(true);
-    setTimeout(() => {
-      setIsSwapping(false);
-      setPayAmount("");
-      alert(
-        `TRANSMISSION SUCCESSFUL: Swapped ${payAmount} ${payAsset} to ${receiveAmount} ${receiveAsset}`,
-      );
-    }, 1200);
+    if (!quoteError) setReviewing(true);
   };
 
   const colorAssetTag = (asset: string) => {
@@ -101,10 +85,11 @@ export default function ExchangeForm() {
   );
 
   const isValidInput =
-    payAmount && !isNaN(Number(payAmount)) && Number(payAmount) > 0;
+    payAmount && !isNaN(Number(payAmount)) && Number(payAmount) > 0 && !quoteError;
 
   return (
-    // Păstrat structura exterioară neschimbată (w-full, h-full, p-4 sm:p-5)
+    <>
+    {/* Existing exchange panel layout. */}
     <div className="relative border border-cyan-500/30  bg-[#0a1024] sm:backdrop-blur-xl rounded-xl p-4 sm:p-5 flex flex-col w-full h-full transition-all duration-300 group hover:border-blue-500/40 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]">
       <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/10 to-cyan-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
@@ -330,5 +315,8 @@ export default function ExchangeForm() {
         </div>
       </div>
     </div>
+    {quoteError && <p role="alert" className="mt-2 text-xs text-rose-300">{quoteError}</p>}
+    {reviewing && <ExchangeReviewDialog source={payAsset} target={receiveAsset} amount={Number(payAmount)} onClose={() => setReviewing(false)} onComplete={() => setPayAmount("")} />}
+    </>
   );
 }

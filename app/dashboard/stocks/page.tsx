@@ -1,5 +1,10 @@
 "use client";
+import CustomerMarketStatus from "@/app/components/ui/markets/CustomerMarketStatus";
 import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
+import { useUser } from "@/app/context/UserContext";
+import { downloadMarketOrders } from "@/app/lib/markets/report";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
 import { MOCK_STOCK_SUMMARY } from "@/app/lib/mock/summaries";
 
 import { useState } from "react";
@@ -17,12 +22,13 @@ import DividendTracker from "@/app/components/ui/stocks/DividendTracker";
 import StockAnalyticsHub from "@/app/components/ui/stocks/StockAnalyticsHub";
 
 export default function StocksPage() {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [selectedStock, setSelectedStock] = useState<string | null>("NVDA");
+  const { stockValue, state } = useTradingPortfolio();
+  const { user } = useUser();
+  const [selectedStock] = useState<string | null>("NVDA");
 
   const handleDownloadReport = () => {
-    setIsDownloading(true);
-    setTimeout(() => setIsDownloading(false), 1500);
+    try { downloadMarketOrders(state, user?.email ?? "", "STOCK"); notifyOperation("Demo orders exported", "CSV includes your stock orders recorded in this browser."); }
+    catch { notifyOperation("Export failed", "The report could not be downloaded.", true); }
   };
 
   return (
@@ -44,7 +50,7 @@ export default function StocksPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="truncate">
                   PORTFOLIO VALUE:{" "}
-                  <span className="text-white font-black">{MOCK_STOCK_SUMMARY.portfolio}</span>
+                  <span className="text-white font-black">{stockValue.toLocaleString("en-US", { style: "currency", currency: "USD" })}</span>
                 </span>
               </div>
 
@@ -70,15 +76,15 @@ export default function StocksPage() {
                 variant="cyan"
                 icon={<Download size={15} />}
                 onClick={handleDownloadReport}
-                disabled={isDownloading}
               >
-                {isDownloading ? "GENERATING..." : "DOWNLOAD REPORT"}
+                DOWNLOAD REPORT
               </ActionButton>
             </div>
           </div>
         </PageHeader>
       </div>
 
+      <div className="mt-4"><CustomerMarketStatus domain="STOCK" /></div>
       {/* MATRIX GRID SPA */}
       <div className="w-full flex flex-col space-y-4 mt-4">
         {/* ROW 1: BUYING POWER (STÂNGA) + LINE & PIE ANALYTICS (DREAPTA) */}

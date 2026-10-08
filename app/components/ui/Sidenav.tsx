@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useUser } from "@/app/context/UserContext";
 import {
     Landmark,
     LayoutDashboard,
@@ -26,7 +27,6 @@ import {
     Bell,
     Fingerprint,
     Percent,
-    LifeBuoy,
     FileText,
     Sliders,
     ActivityIcon,
@@ -44,7 +44,7 @@ export default function Sidenav({ user }: { user: UserProps }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const pathname = usePathname();
-    const router = useRouter();
+    const { logout } = useUser();
 
     const lastLogin = "28 May 2026 - 18:39";
 
@@ -276,7 +276,7 @@ export default function Sidenav({ user }: { user: UserProps }) {
                         <button
                             onClick={() => {
                                 setIsMobileOpen(false);
-                                router.push("/auth/login");
+                                logout();
                             }}
                             className="flex items-center justify-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/20 text-red-400 font-bold text-sm w-full rounded-xl active:bg-red-500/20 transition-all"
                         >
@@ -404,7 +404,7 @@ export default function Sidenav({ user }: { user: UserProps }) {
                 {/* Footer static */}
                 <div className="p-3 border-t border-white/[0.08] bg-black/[0.2] space-y-2 shrink-0">
                     <button
-                        onClick={() => router.push("/auth/login")}
+                        onClick={logout}
                         className={`flex cursor-pointer items-center rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-150 w-full group ${
                             isCollapsed
                                 ? "justify-center p-3.5"

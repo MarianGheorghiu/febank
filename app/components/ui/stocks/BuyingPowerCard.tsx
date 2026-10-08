@@ -1,5 +1,6 @@
 "use client";
-import { MOCK_BALANCES } from "@/app/lib/mock/balances";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
 
 import React, { useState, useEffect } from "react";
 import {
@@ -12,7 +13,7 @@ import {
   Loader2,
   ArrowRightLeft,
 } from "lucide-react";
-import { MOCK_STOCK_HOLDINGS } from "@/app/lib/mock/stocks";
+
 
 // ==========================================
 // 1. MODAL PENTRU DEPUNERE / RETRAGERE
@@ -31,14 +32,7 @@ function FundsActionModal({
   currentBalance,
 }: FundsActionModalProps) {
   const [amount, setAmount] = useState<string>("");
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setAmount("");
-      setIsProcessing(false);
-    }
-  }, [isOpen]);
+  const isProcessing = false;
 
   useEffect(() => {
     if (isOpen) document.body.style.overflow = "hidden";
@@ -64,11 +58,8 @@ function FundsActionModal({
     e.preventDefault();
     if (!amount || numAmount <= 0 || hasInsufficientFunds) return;
 
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      onClose();
-    }, 1500);
+    notifyOperation("Funding preview only", "Bank account funding requires the backend ledger. Your trading balance has not changed.", false, "Trading desk");
+    onClose();
   };
 
   return (
@@ -94,7 +85,7 @@ function FundsActionModal({
                 {type} FUNDS
               </h3>
               <span className="text-[10px] font-mono text-slate-400 uppercase">
-                Liquidity Transfer
+                Demo funding preview
               </span>
             </div>
           </div>
@@ -177,6 +168,8 @@ function FundsActionModal({
             </div>
           )}
 
+          <p className="text-[10px] leading-relaxed text-amber-200">Preview only. Funding from bank accounts requires the backend ledger; no balance changes are applied here.</p>
+
           {/* SUBMIT BUTTON */}
           <button
             type="submit"
@@ -192,7 +185,7 @@ function FundsActionModal({
                 <Loader2 size={14} className="animate-spin" /> PROCESSING...
               </span>
             ) : (
-              <span>CONFIRM {type}</span>
+              <span>CLOSE PREVIEW</span>
             )}
           </button>
         </form>
@@ -205,7 +198,7 @@ function FundsActionModal({
 // 2. COMPONENTA PRINCIPALĂ BUYING POWER
 // ==========================================
 export default function BuyingPowerCard() {
-  const cashBalance = MOCK_BALANCES.stockAvailableUsd;
+  const { cashUsd: cashBalance, wallet, holdings: MOCK_STOCK_HOLDINGS } = useTradingPortfolio();
   const [searchQuery, setSearchQuery] = useState("");
   const [modalAction, setModalAction] = useState<"DEPOSIT" | "WITHDRAW" | null>(
     null,
@@ -227,7 +220,7 @@ export default function BuyingPowerCard() {
     (acc, stock) => acc + stock.shares * stock.currentPrice,
     0,
   );
-  const totalPortfolioValue = totalStockValue + cashBalance;
+  const totalPortfolioValue = totalStockValue + (wallet.cash.USD ?? 0);
 
   return (
     <>
@@ -368,12 +361,12 @@ export default function BuyingPowerCard() {
         </div>
       </div>
 
-      <FundsActionModal
+      {modalAction && <FundsActionModal
         isOpen={modalAction !== null}
         onClose={() => setModalAction(null)}
         type={modalAction}
         currentBalance={cashBalance}
-      />
+      />}
     </>
   );
 }

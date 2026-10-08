@@ -4,7 +4,7 @@ export interface StockHolding {
   shares: number;
   avgCost: number;
   currentPrice: number;
-  sector: "Tech" | "Healthcare" | "Energy" | "ETFs";
+  sector: "Tech" | "Healthcare" | "Energy" | "ETFs" | "Unclassified";
   change24h: number;
 }
 
@@ -18,6 +18,7 @@ export interface MarketAsset {
   volume: string;
   marketCap: string;
   category:
+    | "Unclassified"
     | "Big Tech"
     | "AI & Robotics"
     | "Green Energy"

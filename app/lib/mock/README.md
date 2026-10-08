@@ -23,6 +23,8 @@ import { cards, loansRetail, adminUsers } from "@/app/lib/mock";
 [Inventarul complet](./INVENTORY.md) enumeră modulele, exporturile și contractele.
 [Card Issuing admin](./admin/CARD_ISSUING.md) documentează regulile operaționale,
 store-ul persistent și contractul propus pentru backendul Go.
+[Crypto Pools și Stock & Markets](./admin/MARKETS.md) documentează motorul comun,
+inventarul băncii, ordinele clienților, rezervările și integrarea Go propusă.
 
 ## Organizare
 
@@ -98,8 +100,10 @@ aceste fluxuri cu cereri reale și gestionarea erorilor.
 ## Aspecte de contract de păstrat în vedere
 
 - Card Issuing admin are un store reactiv persistent separat, documentat mai sus.
+- Crypto Pools și Stock & Markets au un store reactiv comun pentru controalele
+  admin și execuțiile client, documentat în `admin/MARKETS.md`.
 - Centralizarea oferă o sursă globală de import. Datele nu sunt un store global
-  reactiv: listele modificate cu `useState` rămân locale componentelor, exact ca
+  reactiv în toate modulele: listele modificate cu `useState` rămân locale componentelor, exact ca
   înainte. La integrare, un cache comun și invalidarea după mutații vor asigura
   sincronizarea între pagini și între utilizatori.
 - Nu modifica obiectele/array-urile importate direct. Creează copii când
@@ -109,7 +113,9 @@ aceste fluxuri cu cereri reale și gestionarea erorilor.
 - Există scenarii demo independente cu valori diferite pentru același activ:
   `stock-catalog` față de `stocks`, `crypto` față de `currencies`; `exchange`
   folosește o bază USD, iar `crypto-operations` o bază EUR. Aceste scenarii au
-  fost păstrate, nu reconciliate arbitrar. API-ul trebuie să furnizeze aceeași
+  fost păstrate în snapshoturile istorice. Formularele de tranzacționare și
+  piețele crypto/stocks folosesc acum cotațiile comune din `admin/markets`.
+  API-ul trebuie să furnizeze aceeași
   cotație, moneda de referință și momentul evaluării tuturor ecranelor relevante.
 - Transferurile de overview (`types/dashboard`), tabelul simplificat
   (`types/transfer-table`) și transferurile complete (`types/transfers`) au forme

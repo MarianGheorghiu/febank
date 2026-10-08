@@ -1,5 +1,7 @@
 "use client";
-import { ASSET_PRICES } from "@/app/lib/mock/crypto-operations";
+import { useMarketsState } from "@/app/lib/markets/store";
+import { previewExchange } from "@/app/lib/markets/engine";
+import ExchangeReviewDialog from "@/app/components/ui/markets/ExchangeReviewDialog";
 
 import React, { useState, useEffect, useRef } from "react";
 import { Landmark, ChevronDown, Search } from "lucide-react";
@@ -9,10 +11,14 @@ export default function CryptoOperations() {
   const [fiatAsset, setFiatAsset] = useState("EUR");
   const [cryptoAsset, setCryptoAsset] = useState("BTC");
   const [amount, setAmount] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [conversionText, setConversionText] = useState(
-    "0.00 EUR = 0.000000 BTC",
-  );
+  const state = useMarketsState();
+  const [reviewing, setReviewing] = useState(false);
+  const isProcessing = false;
+  const source = tradeType === "BUY" ? fiatAsset : cryptoAsset;
+  const target = tradeType === "BUY" ? cryptoAsset : fiatAsset;
+  let conversionText = `0 ${source} → 0 ${target}`;
+  let quoteError = "";
+  if (Number(amount) > 0) { try { const quote = previewExchange(state, source, target, Number(amount)); conversionText = `${amount} ${source} → ${quote.received} ${target} · $${quote.feeUsd.toFixed(2)} fee`; } catch (cause) { quoteError = cause instanceof Error ? cause.message : "Quote unavailable."; conversionText = quoteError; } }
 
   const fiatRef = useRef<HTMLDivElement>(null);
   const [fiatOpen, setFiatOpen] = useState(false);
@@ -40,57 +46,21 @@ export default function CryptoOperations() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const numAmount = Number(amount);
-    if (!amount || isNaN(numAmount) || numAmount <= 0) {
-      setConversionText(
-        tradeType === "BUY"
-          ? `0.00 ${fiatAsset} = 0.000000 ${cryptoAsset}`
-          : `0.000000 ${cryptoAsset} = 0.00 ${fiatAsset}`,
-      );
-      return;
-    }
-
-    const fiatPriceInEur = ASSET_PRICES[fiatAsset];
-    const cryptoPriceInEur = ASSET_PRICES[cryptoAsset];
-
-    if (tradeType === "BUY") {
-      const totalEur = numAmount * fiatPriceInEur;
-      const cryptoReceived = totalEur / cryptoPriceInEur;
-      setConversionText(
-        `${numAmount.toLocaleString()} ${fiatAsset} = ${cryptoReceived.toFixed(6)} ${cryptoAsset}`,
-      );
-    } else {
-      const totalEur = numAmount * cryptoPriceInEur;
-      const fiatReceived = totalEur / fiatPriceInEur;
-      setConversionText(
-        `${numAmount.toFixed(6)} ${cryptoAsset} = ${fiatReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${fiatAsset}`,
-      );
-    }
-  }, [amount, tradeType, fiatAsset, cryptoAsset]);
-
-  const handleExecuteSubmit = () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return;
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setAmount("");
-      alert(`TRANSMISSION SUCCESSFUL: Settled trade sequence via core router.`);
-    }, 1250);
-  };
+  const handleExecuteSubmit = () => { if (Number(amount) > 0 && !quoteError) setReviewing(true); };
 
   const filteredFiat = ["EUR", "RON"].filter((acc) =>
     acc.toLowerCase().includes(fiatSearch.toLowerCase()),
   );
 
-  const filteredCrypto = ["BTC", "ETH"].filter((coin) =>
+  const filteredCrypto = state.instruments.filter(item => item.domain === "CRYPTO").map(item => item.symbol).filter((coin) =>
     coin.toLowerCase().includes(cryptoSearch.toLowerCase()),
   );
 
-  const isValidInput = amount && !isNaN(Number(amount)) && Number(amount) > 0;
+  const isValidInput = amount && !isNaN(Number(amount)) && Number(amount) > 0 && !quoteError;
 
   return (
-    /* INTEGRAT: Fundalul nou, blur-ul și efectul de hover pe Cyan potrivit pentru BUY */
+    <>
+    {/* Operations keep the shared trading preview inside the existing panel. */}
     <div className="relative bg-[#0a1024] sm:backdrop-blur-xl border border-cyan-500/30 rounded-xl p-4 flex flex-col w-full h-full justify-between font-mono text-white select-none shadow-[0_0_30px_rgba(0,0,0,0.3)] hover:border-cyan-500/80 hover:shadow-[0_0_30px_rgba(0,240,255,0.15)] transition-all duration-300 group overflow-hidden">
       {/* Neon Glow Cyberpunk Activat pe Hover potrivit cu stilul formei tale */}
       <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
@@ -295,10 +265,12 @@ export default function CryptoOperations() {
           >
             {isProcessing
               ? "PROCESSING QUANTUM LINK..."
-              : `EXECUTE ${tradeType}`}
+              : `REVIEW ${tradeType}`}
           </button>
         </div>
       </div>
     </div>
+    {reviewing && <ExchangeReviewDialog source={source} target={target} amount={Number(amount)} onClose={() => setReviewing(false)} onComplete={() => setAmount("")} />}
+    </>
   );
 }

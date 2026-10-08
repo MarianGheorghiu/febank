@@ -7,6 +7,7 @@ este vizibilă în export; nu există încă un DTO Go validat.
 | --- | --- | --- |
 | [admin/card-issuing.ts](./admin/card-issuing.ts) | `MOCK_CARD_CUSTOMERS`, `MOCK_CARD_ISSUING_STATE`, `MOCK_ISSUING_POLICY` | [admin/card-issuing.ts](../types/admin/card-issuing.ts); [flux și integrare Go](./admin/CARD_ISSUING.md) |
 | [admin/dashboard.ts](./admin/dashboard.ts) | `SYSTEM_LOGS`, `API_TRAFFIC_DATA`, `FLAGGED_ENTITIES` | [admin/dashboard.ts](../types/admin/dashboard.ts) |
+| [admin/markets.ts](./admin/markets.ts) | `MOCK_MARKET_DATE`, `MOCK_TRADING_FX`, `MOCK_TRADING_WALLET`, `MOCK_MARKETS_STATE` | [admin/markets.ts](../types/admin/markets.ts); [reguli și integrare Go](./admin/MARKETS.md) |
 | [admin/rates.ts](./admin/rates.ts) | `mockFeeRules`, `mockFxPairs`, `mockWeekendShield`, `mockSubscriptionMatrix` | [admin/rates.ts](../types/admin/rates.ts) |
 | [admin/simulation.ts](./admin/simulation.ts) | `MOCK_SIMULATION_FX_SPREAD_PERCENT`, `simulateMockFees` | [admin/simulation.ts](../types/admin/simulation.ts) |
 | [admin/system-logs.ts](./admin/system-logs.ts) | `MOCK_SYSTEM_LOGS` | Tipuri inferate / structură inline |
