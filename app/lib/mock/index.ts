@@ -47,3 +47,5 @@ export * as loansBusinessPricing from "./loans/business-pricing";
 export * as adminCardIssuing from "./admin/card-issuing";
 
 export * as adminMarkets from "./admin/markets";
+export * as adminRisk from "./admin/risk";
+export * as adminAudit from "./admin/audit";

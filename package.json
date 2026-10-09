@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test:card-issuing": "node tests/card-issuing.test.cjs",
-    "test:markets": "node tests/markets.test.cjs"
+    "test:markets": "node tests/markets.test.cjs",
+    "test:risk": "node tests/risk-control.test.cjs",
+    "test:audit": "node tests/audit-logs.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

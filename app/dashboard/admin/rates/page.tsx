@@ -3,6 +3,8 @@ import { createMockId } from "@/app/lib/mock/ids";
 import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import React, { useState } from "react";
+import { useUser } from "@/app/context/UserContext";
+import { captureAdminAudit } from "@/app/components/ui/admin/audit/capture";
 import {
     Percent,
     Sliders,
@@ -33,6 +35,7 @@ type ActiveTabType =
     | "SIMULATOR";
 
 export default function RatesFeeEngineDashboard() {
+    const { user: operator } = useUser();
     // Tab configuration state
     const [activeTab, setActiveTab] = useState<ActiveTabType>("FIAT_FEES");
 
@@ -106,36 +109,26 @@ export default function RatesFeeEngineDashboard() {
                 monthlyFreeAllowance: updatedFields.monthlyFreeAllowance ?? 0,
                 volumeBrackets: [],
                 status: "PENDING_APPROVAL",
-                maker: "current.admin@matrix.io",
+                maker: operator?.email ?? "unknown administrator",
                 checker: null,
-                lastModified: "2026-06-24 19:00",
+                lastModified: new Date().toISOString(),
             };
+            if (!captureAdminAudit({ source: "RATES", domain: newRule.category === "CRYPTO_TRADE" ? "CRYPTO" : newRule.category === "EQUITIES" ? "STOCK" : "FIAT", category: "CONFIGURATION", action: "FEE_RULE_CREATED", target: newRule.id, severity: "WARNING", reason: "Administrator proposed a demo fee rule.", before: null, after: newRule }, operator)) return;
             setRules((prev) => [newRule, ...prev]);
         } else if (selectedRule) {
-            setRules((prevRules) =>
-                prevRules.map((r) => {
-                    if (r.id === selectedRule.id) {
-                        if (modalMode === "toggle") {
-                            let nextStatus: FeeRule["status"] = "ACTIVE";
-                            if (r.status === "ACTIVE") nextStatus = "PAUSED";
-                            if (r.status === "PAUSED") nextStatus = "ACTIVE";
-                            return {
-                                ...r,
-                                status: nextStatus,
-                                checker: "compliance.officer@matrix.io",
-                            };
-                        }
-                        return {
-                            ...r,
-                            ...updatedFields,
-                            status: "PENDING_APPROVAL",
-                        };
-                    }
-                    return r;
-                }),
-            );
+            const nextRule: FeeRule = modalMode === "toggle"
+                ? { ...selectedRule, status: selectedRule.status === "ACTIVE" ? "PAUSED" : "ACTIVE", checker: operator?.email ?? null }
+                : { ...selectedRule, ...updatedFields, status: "PENDING_APPROVAL" };
+            if (!captureAdminAudit({ source: "RATES", domain: selectedRule.category === "CRYPTO_TRADE" ? "CRYPTO" : selectedRule.category === "EQUITIES" ? "STOCK" : "FIAT", category: "CONFIGURATION", action: modalMode === "toggle" ? "FEE_RULE_STATUS_CHANGED" : "FEE_RULE_UPDATED", target: selectedRule.id, severity: "WARNING", reason: "Administrator confirmed a demo fee rule change.", before: selectedRule, after: nextRule }, operator)) return;
+            setRules(prev => prev.map(rule => rule.id === selectedRule.id ? nextRule : rule));
         }
     };
+    const toggleWeekendShield = () => {
+        const next = { ...weekendConfig, isProtocolActive: !weekendConfig.isProtocolActive };
+        if (!captureAdminAudit({ source: "RATES", domain: "FIAT", category: "CONFIGURATION", action: "WEEKEND_SHIELD_CHANGED", target: "weekend-shield", severity: "WARNING", reason: "Administrator changed the demo weekend FX safeguard.", before: weekendConfig, after: next }, operator)) return;
+        setWeekendConfig(next);
+    };
+    if (!operator || operator.role !== "admin") return <p className="p-6 text-rose-300">Administrator access required.</p>;
 
     return (
         <div className="w-full bg-[#020617] text-white p-0 m-0 overflow-x-hidden min-h-[500px]">
@@ -266,13 +259,7 @@ export default function RatesFeeEngineDashboard() {
                                 onUpdateMarkup={(pair, markup) =>
                                     alert(`Update markup for ${pair}`)
                                 }
-                                onToggleWeekendShield={() =>
-                                    setWeekendConfig((prev) => ({
-                                        ...prev,
-                                        isProtocolActive:
-                                            !prev.isProtocolActive,
-                                    }))
-                                }
+                                onToggleWeekendShield={toggleWeekendShield}
                             />
                         </div>
                         <div className="xl:col-span-7 w-full">

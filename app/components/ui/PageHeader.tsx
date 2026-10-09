@@ -4,6 +4,7 @@ import React from "react";
 import { Terminal } from "lucide-react"; // sau librăria de iconițe pe care o folosești
 
 interface PageHeaderProps {
+  compact?: boolean;
   children?: React.ReactNode; // Aici va veni conținutul din dreapta
   sessionId?: string;
   systemDate?: string;
@@ -12,12 +13,13 @@ interface PageHeaderProps {
 
 export default function PageHeader({
   children,
+  compact = false,
   sessionId = MOCK_HEADER_SESSION.id,
   systemDate = MOCK_HEADER_SESSION.date,
   statusText = "Secure Node Connected",
 }: PageHeaderProps) {
   return (
-    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-5 border-b border-white/5 pb-5 w-full">
+    <div className={`flex flex-col md:flex-row md:justify-between md:items-center border-b border-white/5 w-full ${compact ? "gap-3 pb-2" : "gap-5 pb-5"}`}>
       {/* SECȚIUNE STATUT NOD & SESIUNE (Rămâne fixă) */}
       <div className="space-y-2 w-full md:w-auto">
         <div className="flex items-center gap-2 text-xs font-mono tracking-widest text-cyan-400 uppercase font-black">

@@ -3,6 +3,8 @@ import { createMockId } from "@/app/lib/mock/ids";
 import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import React, { useState } from "react";
+import { useUser } from "@/app/context/UserContext";
+import { captureAdminAudit } from "@/app/components/ui/admin/audit/capture";
 import PageHeader from "@/app/components/ui/PageHeader";
 import { Download, ShieldCheck } from "lucide-react";
 import { initialUsers, initialLogs, initialSessions } from "@/app/lib/mock/admin/users";
@@ -13,6 +15,7 @@ import AuditLogsTable from "@/app/components/ui/admin/users/AuditLogsTable";
 import SecuritySessionManager from "@/app/components/ui/admin/users/SecuritySessionManager";
 
 export default function AdminUserManagementPage() {
+    const { user: operator } = useUser();
     const [users, setUsers] = useState<User[]>(initialUsers);
     const [logs, setLogs] = useState<AuditLog[]>(initialLogs);
     const [sessions, setSessions] = useState<UserSession[]>(initialSessions);
@@ -22,6 +25,14 @@ export default function AdminUserManagementPage() {
     const [modalMode, setModalMode] = useState<
         "view" | "edit" | "block" | null
     >(null);
+
+    const persistUserLog = (log: AuditLog, action: string) => captureAdminAudit({
+        source: "USERS", category: action === "USER_EXPORT_REQUESTED" ? "DATA_ACCESS" : "SECURITY",
+        action, target: log.targetUserId,
+        severity: ["SESSIONS_REVOKED", "MFA_RESET", "USER_STATUS_CHANGED"].includes(action) ? "CRITICAL" : "WARNING",
+        reason: `Administrator confirmed ${action.toLowerCase().replaceAll("_", " ")} in demo user management.`,
+        before: log.before, after: log.after,
+    }, operator);
 
     // Stări unificate pentru panoul din dreapta (Utilizator activ + Log activ inspectat)
     const [selectedSecurityUser, setSelectedSecurityUser] =
@@ -58,20 +69,21 @@ export default function AdminUserManagementPage() {
     };
 
     const handleRevokeAllSessions = (userId: string) => {
-        setSessions((prev) => prev.filter((s) => s.userId !== userId));
         const newLog: AuditLog = {
             id: generateTxId(),
             timestamp: new Date()
                 .toISOString()
                 .replace("T", " ")
                 .substring(0, 23),
-            actor: "@root_admin",
+            actor: operator?.email ?? "unknown administrator",
             ip: "127.0.0.1",
             action: "HARD_ACCESS_FREEZE",
             targetUserId: userId,
             before: { active_sessions: "LIST_IDENTIFIED" },
             after: { active_sessions: "REVOKED_ALL", tokens_invalidated: true },
         };
+        if (!persistUserLog(newLog, "SESSIONS_REVOKED")) return;
+        setSessions((prev) => prev.filter((s) => s.userId !== userId));
         setLogs((prev) => [newLog, ...prev]);
         setSelectedLog(newLog); // Selectează automat noul log generat
     };
@@ -83,13 +95,14 @@ export default function AdminUserManagementPage() {
                 .toISOString()
                 .replace("T", " ")
                 .substring(0, 23),
-            actor: "@root_admin",
+            actor: operator?.email ?? "unknown administrator",
             ip: "127.0.0.1",
             action: "MUTATION_OVERRIDE",
             targetUserId: userId,
             before: { mfa_status: "ENABLED_TOTP" },
             after: { mfa_status: "DISABLED_HARD_RESET_REQUIRED" },
         };
+        if (!persistUserLog(newLog, "MFA_RESET")) return;
         setLogs((prev) => [newLog, ...prev]);
         setSelectedLog(newLog);
     };
@@ -101,18 +114,33 @@ export default function AdminUserManagementPage() {
                 .toISOString()
                 .replace("T", " ")
                 .substring(0, 23),
-            actor: "@root_admin",
+            actor: operator?.email ?? "unknown administrator",
             ip: "127.0.0.1",
             action: "MUTATION_OVERRIDE",
             targetUserId: userId,
             before: { password_policy: "STANDARD" },
             after: { password_policy: "FORCE_RESET_ON_NEXT_LOGIN" },
         };
+        if (!persistUserLog(newLog, "PASSWORD_RESET_REQUESTED")) return;
         setLogs((prev) => [newLog, ...prev]);
         setSelectedLog(newLog);
     };
 
     const handleExportSingleUser = (user: User) => {
+        const newLog: AuditLog = {
+            id: generateTxId(),
+            timestamp: new Date()
+                .toISOString()
+                .replace("T", " ")
+                .substring(0, 23),
+            actor: operator?.email ?? "unknown administrator",
+            ip: "127.0.0.1",
+            action: "BINARY_DUMP",
+            targetUserId: user.id,
+            before: null,
+            after: { export_type: "SINGLE_NODE_DATABASE_DUMP" },
+        };
+        if (!persistUserLog(newLog, "USER_EXPORT_REQUESTED")) return;
         const dataStr =
             "data:text/json;charset=utf-8," +
             encodeURIComponent(JSON.stringify(user, null, 2));
@@ -126,28 +154,16 @@ export default function AdminUserManagementPage() {
         downloadAnchor.click();
         downloadAnchor.remove();
 
-        const newLog: AuditLog = {
-            id: generateTxId(),
-            timestamp: new Date()
-                .toISOString()
-                .replace("T", " ")
-                .substring(0, 23),
-            actor: "@root_admin",
-            ip: "127.0.0.1",
-            action: "BINARY_DUMP",
-            targetUserId: user.id,
-            before: null,
-            after: { export_type: "SINGLE_NODE_DATABASE_DUMP" },
-        };
+
         setLogs((prev) => [newLog, ...prev]);
         setSelectedLog(newLog);
     };
 
     const handleConfirmEdit = (updatedFields: Partial<User>) => {
         if (!activeUser) return;
-        const beforeState: Record<string, any> = {};
-        Object.keys(updatedFields).forEach((key) => {
-            beforeState[key] = (activeUser as any)[key];
+        const beforeState: Record<string, unknown> = {};
+        (Object.keys(updatedFields) as (keyof User)[]).forEach((key) => {
+            beforeState[key] = activeUser[key];
         });
 
         const newLog: AuditLog = {
@@ -156,13 +172,14 @@ export default function AdminUserManagementPage() {
                 .toISOString()
                 .replace("T", " ")
                 .substring(0, 23),
-            actor: "@root_admin",
+            actor: operator?.email ?? "unknown administrator",
             ip: "127.0.0.1",
             action: "MUTATION_OVERRIDE",
             targetUserId: activeUser.id,
             before: beforeState,
             after: updatedFields,
         };
+        if (!persistUserLog(newLog, "USER_UPDATED")) return;
 
         setUsers((prev) =>
             prev.map((u) =>
@@ -184,7 +201,7 @@ export default function AdminUserManagementPage() {
                 .toISOString()
                 .replace("T", " ")
                 .substring(0, 23),
-            actor: "@root_admin",
+            actor: operator?.email ?? "unknown administrator",
             ip: "127.0.0.1",
             action:
                 nextStatus === "BLOCKED"
@@ -194,6 +211,7 @@ export default function AdminUserManagementPage() {
             before: { status: activeUser.status },
             after: { status: nextStatus },
         };
+        if (!persistUserLog(newLog, "USER_STATUS_CHANGED")) return;
 
         setUsers((prev) =>
             prev.map((u) =>
@@ -205,6 +223,7 @@ export default function AdminUserManagementPage() {
     };
 
     const handleExportAllUsers = () => {
+        if (!captureAdminAudit({ source: "USERS", category: "DATA_ACCESS", action: "USER_REGISTRY_EXPORT_REQUESTED", target: "user-registry", severity: "WARNING", reason: "Administrator requested the demo user registry export.", before: null, after: { records: users.length, format: "JSON" } }, operator)) return;
         const dataStr =
             "data:text/json;charset=utf-8," +
             encodeURIComponent(JSON.stringify(users, null, 2));
@@ -218,6 +237,8 @@ export default function AdminUserManagementPage() {
         downloadAnchor.click();
         downloadAnchor.remove();
     };
+
+    if (!operator || operator.role !== "admin") return <p className="p-6 text-rose-300">Administrator access required.</p>;
 
     return (
         <div className="w-full min-h-screen flex flex-col bg-[#02050e] text-white antialiased font-mono m-0 p-0 overflow-x-hidden relative">

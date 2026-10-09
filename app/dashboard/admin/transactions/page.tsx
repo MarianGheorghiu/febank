@@ -2,6 +2,8 @@
 import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
 
 import React, { useState } from "react";
+import { useUser } from "@/app/context/UserContext";
+import { captureAdminAudit } from "@/app/components/ui/admin/audit/capture";
 import {
     Layers,
     CheckCircle2,
@@ -19,6 +21,7 @@ import { mockTransactions, mockAdminStats } from "@/app/lib/mock/admin/transacti
 import type { Transaction } from "@/app/lib/types/admin/transactions";
 
 export default function AdminTransactionsPage() {
+    const { user: operator } = useUser();
     const [transactions, setTransactions] =
         useState<Transaction[]>(mockTransactions);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -56,6 +59,7 @@ export default function AdminTransactionsPage() {
 
     const handleConfirmEdit = (updatedFields: Partial<Transaction>) => {
         if (!modalConfig.transaction) return;
+        if (!captureAdminAudit({ source: "TRANSACTIONS", domain: modalConfig.transaction.type === "CRYPTO" ? "CRYPTO" : modalConfig.transaction.type === "STOCKS" ? "STOCK" : modalConfig.transaction.type === "SYSTEM" ? "PLATFORM" : "FIAT", category: "FINANCIAL", action: "TRANSACTION_UPDATED", target: modalConfig.transaction.id, severity: "WARNING", reason: "Administrator confirmed a demo transaction override.", before: modalConfig.transaction, after: { ...modalConfig.transaction, ...updatedFields } }, operator)) return;
         setTransactions((prev) =>
             prev.map((t) =>
                 t.id === modalConfig.transaction!.id
@@ -67,6 +71,7 @@ export default function AdminTransactionsPage() {
 
     const handleConfirmBlock = () => {
         if (!modalConfig.transaction) return;
+        if (!captureAdminAudit({ source: "TRANSACTIONS", domain: modalConfig.transaction.type === "CRYPTO" ? "CRYPTO" : modalConfig.transaction.type === "STOCKS" ? "STOCK" : modalConfig.transaction.type === "SYSTEM" ? "PLATFORM" : "FIAT", category: "COMPLIANCE", action: "TRANSACTION_FLAG_TOGGLED", target: modalConfig.transaction.id, severity: "WARNING", reason: "Administrator confirmed a demo transaction flag change.", before: { status: modalConfig.transaction.status }, after: { status: modalConfig.transaction.status === "FLAGGED" ? "COMPLETED" : "FLAGGED" } }, operator)) return;
         setTransactions((prev) =>
             prev.map((t) =>
                 t.id === modalConfig.transaction!.id
@@ -79,6 +84,8 @@ export default function AdminTransactionsPage() {
             ),
         );
     };
+
+    if (!operator || operator.role !== "admin") return <p className="p-6 text-rose-300">Administrator access required.</p>;
 
     return (
         /* 💡 Modificat: p-0, m-0, eliminat space-y-6 pentru layout edge-to-edge complet */

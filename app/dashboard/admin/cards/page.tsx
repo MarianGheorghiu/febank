@@ -149,7 +149,9 @@ function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
     };
     return (
         <div className="w-full space-y-4 bg-[#02050e] font-mono text-white">
+            <div className="space-y-2">
             <PageHeader
+                compact
                 sessionId={operator.email}
                 systemDate={MOCK_PAGE_DATES.admin_cards}
                 statusText="ADMINISTRATOR · CARD OPERATIONS"
@@ -176,6 +178,7 @@ function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
                     <ShieldCheck size={14} /> Administrator console · Demo
                     environment
                 </span>
+            </div>
             </div>
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                 <MetricCard

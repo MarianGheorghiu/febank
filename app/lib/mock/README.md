@@ -26,6 +26,10 @@ store-ul persistent și contractul propus pentru backendul Go.
 [Crypto Pools și Stock & Markets](./admin/MARKETS.md) documentează motorul comun,
 inventarul băncii, ordinele clienților, rezervările și integrarea Go propusă.
 
+[Risk Control admin](./admin/RISK_CONTROL.md) documentează cazurile, controalele, screening-ul și integrarea cu motorul de piețe.
+
+[Audit Logs admin](./admin/AUDIT_LOGS.md) documentează registrul unificat, graficele, exporturile și limitele de colectare.
+
 ## Organizare
 
 | Domeniu | Fișiere mock | Contracte / rol |

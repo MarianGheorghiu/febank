@@ -1,5 +1,7 @@
 "use client";
 import { useSyncExternalStore } from "react";
+import { readRiskForExecution } from "@/app/lib/risk/store";
+import { enforceMarketRisk } from "@/app/lib/risk/engine";
 import { MOCK_MARKETS_STATE } from "@/app/lib/mock/admin/markets";
 import { applyMarketAdminCommand, cancelCustomerOrder, exchangeAssets, submitTrade } from "./engine";
 import type { MarketActor, MarketAdminCommand, MarketsState, TradeRequest } from "@/app/lib/types/admin/markets";
@@ -35,15 +37,16 @@ function subscribe(listener: () => void) {
 }
 export function useMarketsState() { return useSyncExternalStore(subscribe, getSnapshot, () => MOCK_MARKETS_STATE); }
 export function marketStorageWarning() { return warning; }
-function mutate(operation: (state: MarketsState, now: string, id: string) => MarketsState) {
+function mutate(operation: (state: MarketsState, now: string, id: string) => MarketsState, checkRisk = false) {
   const latest = read(); if (warning) throw new Error(warning);
   const next = operation(latest, new Date().toISOString(), crypto.randomUUID());
   if (!valid(next)) throw new Error("Invalid market result. No changes were saved.");
+  if (checkRisk) enforceMarketRisk(readRiskForExecution(), latest, next);
   try { localStorage.setItem(KEY, JSON.stringify(next)); }
   catch { throw new Error("Browser storage is unavailable or full. No changes were applied."); }
   snapshot = next; listeners.forEach(notify => notify()); return next;
 }
-export function executeMarketAdmin(command: MarketAdminCommand, actor: MarketActor) { return mutate((state, now, id) => applyMarketAdminCommand(state, command, actor, now, id)); }
-export function executeTrade(request: TradeRequest, actor: MarketActor) { return mutate((state, now, id) => submitTrade(state, request, actor, now, id)); }
-export function executeExchange(source: string, target: string, amount: number, revision: number, actor: MarketActor) { return mutate((state, now, id) => exchangeAssets(state, source, target, amount, revision, actor, now, id)); }
+export function executeMarketAdmin(command: MarketAdminCommand, actor: MarketActor) { return mutate((state, now, id) => applyMarketAdminCommand(state, command, actor, now, id), command.action === "PROCESS"); }
+export function executeTrade(request: TradeRequest, actor: MarketActor) { return mutate((state, now, id) => submitTrade(state, request, actor, now, id), true); }
+export function executeExchange(source: string, target: string, amount: number, revision: number, actor: MarketActor) { return mutate((state, now, id) => exchangeAssets(state, source, target, amount, revision, actor, now, id), true); }
 export function cancelOwnOrder(id: string, actor: MarketActor) { return mutate((state, now) => cancelCustomerOrder(state, id, actor, now)); }
