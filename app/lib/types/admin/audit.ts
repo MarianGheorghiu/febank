@@ -1,4 +1,4 @@
-export const AUDIT_SOURCES = ["IDENTITY", "USERS", "TRANSACTIONS", "RATES", "CARDS", "MARKETS", "RISK", "SYSTEM", "AUDIT"] as const;
+export const AUDIT_SOURCES = ["IDENTITY", "USERS", "TRANSACTIONS", "RATES", "CARDS", "MARKETS", "RISK", "SYSTEM", "AUDIT", "SUBSCRIPTIONS", "ANALYTICS"] as const;
 export const AUDIT_SEVERITIES = ["INFO", "WARNING", "CRITICAL"] as const;
 export const AUDIT_OUTCOMES = ["SUCCESS", "DENIED", "FAILED"] as const;
 export type AuditSource = typeof AUDIT_SOURCES[number];

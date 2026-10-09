@@ -49,3 +49,11 @@ export * as adminCardIssuing from "./admin/card-issuing";
 export * as adminMarkets from "./admin/markets";
 export * as adminRisk from "./admin/risk";
 export * as adminAudit from "./admin/audit";
+
+export * as adminSubscriptions from "./admin/subscriptions";
+
+export * as adminReferrals from "./admin/referrals";
+
+export * as adminBusinessAnalytics from "./admin/business-analytics";
+
+export * as adminSystemHealth from "./admin/system-health";

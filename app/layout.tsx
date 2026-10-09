@@ -23,7 +23,7 @@ export default function RootLayout({
     return (
         <html
             lang="en"
-            className="bg-[#0a0d14] scroll-smooth text-white"
+            className="bg-[#0a0d14] scroll-smooth scrollbar-thin text-white"
             data-scroll-behavior="smooth"
         >
             <body

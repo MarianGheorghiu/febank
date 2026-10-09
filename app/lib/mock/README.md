@@ -30,6 +30,12 @@ inventarul băncii, ordinele clienților, rezervările și integrarea Go propus�
 
 [Audit Logs admin](./admin/AUDIT_LOGS.md) documentează registrul unificat, graficele, exporturile și limitele de colectare.
 
+[Subscriptions admin](../subscriptions/README.md) documentează contractele JSON, operațiunile, facturarea demonstrativă și integrarea Go.
+
+[Referrals admin](../referrals/README.md) documentează clasamentul, cohortele de invitații și contractul de raportare Go.
+
+[Business Analytics admin](../business-analytics/README.md) documentează raportarea financiară, cohortele de utilizatori, reconcilierea și contractele Go.
+
 ## Organizare
 
 | Domeniu | Fișiere mock | Contracte / rol |
@@ -141,3 +147,5 @@ npx tsc --noEmit
 npx eslint app/lib/mock app/lib/types
 npm run build
 ```
+
+System Health: `admin/system-health.ts` provides independent operational fixtures and a fixed UTC snapshot; see [integration and metric definitions](../system-health/README.md).

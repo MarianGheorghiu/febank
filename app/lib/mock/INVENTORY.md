@@ -6,10 +6,14 @@ este vizibilă în export; nu există încă un DTO Go validat.
 | Modul | Exporturi | Contracte |
 | --- | --- | --- |
 | [admin/card-issuing.ts](./admin/card-issuing.ts) | `MOCK_CARD_CUSTOMERS`, `MOCK_CARD_ISSUING_STATE`, `MOCK_ISSUING_POLICY` | [admin/card-issuing.ts](../types/admin/card-issuing.ts); [flux și integrare Go](./admin/CARD_ISSUING.md) |
-| [admin/dashboard.ts](./admin/dashboard.ts) | `SYSTEM_LOGS`, `API_TRAFFIC_DATA`, `FLAGGED_ENTITIES` | [admin/dashboard.ts](../types/admin/dashboard.ts) |
+| [admin/business-analytics.ts](./admin/business-analytics.ts) | `MOCK_BUSINESS_ANALYTICS`, `BUSINESS_ANALYTICS_AS_OF` | [DTO Business Analytics](../types/admin/business-analytics.ts); [definiții și integrare Go](../business-analytics/README.md) |
+| [admin/dashboard.ts](./admin/dashboard.ts) | `SYSTEM_LOGS`, `API_TRAFFIC_DATA`, `FLAGGED_ENTITIES` | [admin/business-analytics.ts](./admin/business-analytics.ts) | `MOCK_BUSINESS_ANALYTICS`, `BUSINESS_ANALYTICS_AS_OF` | [DTO Business Analytics](../types/admin/business-analytics.ts); [definiții și integrare Go](../business-analytics/README.md) |
+| [admin/dashboard.ts](../types/admin/dashboard.ts) |
 | [admin/markets.ts](./admin/markets.ts) | `MOCK_MARKET_DATE`, `MOCK_TRADING_FX`, `MOCK_TRADING_WALLET`, `MOCK_MARKETS_STATE` | [admin/markets.ts](../types/admin/markets.ts); [reguli și integrare Go](./admin/MARKETS.md) |
 | [admin/rates.ts](./admin/rates.ts) | `mockFeeRules`, `mockFxPairs`, `mockWeekendShield`, `mockSubscriptionMatrix` | [admin/rates.ts](../types/admin/rates.ts) |
 | [admin/simulation.ts](./admin/simulation.ts) | `MOCK_SIMULATION_FX_SPREAD_PERCENT`, `simulateMockFees` | [admin/simulation.ts](../types/admin/simulation.ts) |
+| [admin/referrals.ts](./admin/referrals.ts) | `MOCK_REFERRAL_REPORT`, `REFERRALS_AS_OF` | [DTO referrals](../types/admin/referrals.ts); [raportare și integrare Go](../referrals/README.md) |
+| [admin/subscriptions.ts](./admin/subscriptions.ts) | `MOCK_SUBSCRIPTIONS`, `SUBSCRIPTION_CUSTOMERS`, `SUBSCRIPTION_PLANS`, `SUBSCRIPTIONS_AS_OF` | [DTO subscriptions](../types/admin/subscriptions.ts); [integrare Go](../subscriptions/README.md) |
 | [admin/system-logs.ts](./admin/system-logs.ts) | `MOCK_SYSTEM_LOGS` | Tipuri inferate / structură inline |
 | [admin/telemetry.ts](./admin/telemetry.ts) | `MOCK_TELEMETRY_DATA` | [admin/telemetry.ts](../types/admin/telemetry.ts) |
 | [admin/transaction-audit.ts](./admin/transaction-audit.ts) | `auditLogs` | Tipuri inferate / structură inline |
@@ -53,3 +57,5 @@ este vizibilă în export; nu există încă un DTO Go validat.
 | [summaries.ts](./summaries.ts) | `MOCK_CLIENT_SUMMARY`, `MOCK_ADMIN_SUMMARY`, `MOCK_STOCK_SUMMARY`, `MOCK_CRYPTO_SUMMARY`, `MOCK_ANALYTICS_SUMMARY`, `MOCK_TRANSFER_SUMMARY`, `MOCK_BUSINESS_HEALTH`, `MOCK_LOAN_FLEXIBILITY`, `MOCK_ASSISTANT`, `MOCK_LANDING_SUMMARY`, `MOCK_LANDING_HERO`, `MOCK_LANDING_FEATURES`, `MOCK_LANDING_SECURITY` | Tipuri inferate / structură inline |
 | [transfer-table.ts](./transfer-table.ts) | `MOCK_TRANSFERS` | [transfer-table.ts](../types/transfer-table.ts) |
 | [transfers.ts](./transfers.ts) | `ASSETS_DB`, `INITIAL_TRANSFERS` | [transfers.ts](../types/transfers.ts) |
+
+- `admin/system-health.ts`: platform, fiat, crypto and stock service probes, 24-hour API samples, incidents, infrastructure and maintenance. Fixed synthetic snapshot; no live monitoring.

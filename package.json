@@ -10,7 +10,11 @@
     "test:card-issuing": "node tests/card-issuing.test.cjs",
     "test:markets": "node tests/markets.test.cjs",
     "test:risk": "node tests/risk-control.test.cjs",
-    "test:audit": "node tests/audit-logs.test.cjs"
+    "test:audit": "node tests/audit-logs.test.cjs",
+    "test:subscriptions": "node tests/subscriptions.test.cjs",
+    "test:referrals": "node tests/referrals.test.cjs",
+    "test:business-analytics": "node tests/business-analytics.test.cjs",
+    "test:system-health": "node tests/system-health.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

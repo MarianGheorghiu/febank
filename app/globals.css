@@ -88,6 +88,7 @@
 /* Webkit (Chrome, Edge, Safari) - Efect Liquid Premium */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px; /* Lățimea invizibilă a track-ului */
+  height: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
