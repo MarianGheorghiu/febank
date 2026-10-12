@@ -14,7 +14,8 @@
     "test:subscriptions": "node tests/subscriptions.test.cjs",
     "test:referrals": "node tests/referrals.test.cjs",
     "test:business-analytics": "node tests/business-analytics.test.cjs",
-    "test:system-health": "node tests/system-health.test.cjs"
+    "test:system-health": "node tests/system-health.test.cjs",
+    "test:flags-config": "node tests/flags-config.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

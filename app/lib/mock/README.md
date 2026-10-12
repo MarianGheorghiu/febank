@@ -149,3 +149,6 @@ npm run build
 ```
 
 System Health: `admin/system-health.ts` provides independent operational fixtures and a fixed UTC snapshot; see [integration and metric definitions](../system-health/README.md).
+
+Flags & Config: `admin/flags-config.ts` centralizează catalogul, valorile inițiale
+și mediile demo; [contractul Go și fluxul de publicare](../flags-config/README.md).

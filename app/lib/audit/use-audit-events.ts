@@ -1,6 +1,8 @@
 "use client";
 import { useSubscriptions, subscriptionStorageWarning } from "@/app/lib/subscriptions/store";
 import { useMemo } from "react";
+import { useFlagsConfig, configStorageWarning } from "@/app/lib/flags-config/repository";
+import { configAuditEvents } from "@/app/lib/flags-config/audit";
 import { useCardIssuingState, getCardStorageWarning } from "@/app/lib/admin/mock-card-issuing-store";
 import { useMarketsState, marketStorageWarning } from "@/app/lib/markets/store";
 import { useRiskState, riskStorageWarning } from "@/app/lib/risk/store";
@@ -11,14 +13,15 @@ import { useAuditJournal, auditJournalWarning } from "./store";
 import { mergeAudit } from "./engine";
 import { cardAuditEvents, marketAuditEvents, marketOrderEvents, riskAuditEvents, userAuditEvent } from "./adapters";
 export function useAuditEvents() {
+  const config=useFlagsConfig(); const configWarning=configStorageWarning();
   const subscriptions=useSubscriptions(); const subscriptionsWarning=subscriptionStorageWarning();
   const cards=useCardIssuingState(); const markets=useMarketsState(); const risk=useRiskState(); const journal=useAuditJournal();
   const cardWarning=getCardStorageWarning(); const marketsWarning=marketStorageWarning(); const riskWarning=riskStorageWarning(); const journalWarning=auditJournalWarning();
-  const events=useMemo(() => mergeAudit(subscriptionsWarning?[]:subscriptions.audit,MOCK_AUDIT_EVENTS,initialLogs.map(e => userAuditEvent(e)),journalWarning?[]:journal.events,cardWarning?[]:cardAuditEvents(cards.audit),marketsWarning?[]:[...marketAuditEvents(markets.audit),...marketOrderEvents(markets.orders)],riskWarning?[]:riskAuditEvents(risk.audit)),[subscriptions,subscriptionsWarning,cards,markets,risk,journal,cardWarning,marketsWarning,riskWarning,journalWarning]);
+  const events=useMemo(() => mergeAudit(configWarning?[]:configAuditEvents(config),subscriptionsWarning?[]:subscriptions.audit,MOCK_AUDIT_EVENTS,initialLogs.map(e => userAuditEvent(e)),journalWarning?[]:journal.events,cardWarning?[]:cardAuditEvents(cards.audit),marketsWarning?[]:[...marketAuditEvents(markets.audit),...marketOrderEvents(markets.orders)],riskWarning?[]:riskAuditEvents(risk.audit)),[config,configWarning,subscriptions,subscriptionsWarning,cards,markets,risk,journal,cardWarning,marketsWarning,riskWarning,journalWarning]);
   const health: AuditSourceHealth[]=AUDIT_SOURCES.map(source => {
-    const error=source==="SUBSCRIPTIONS"?subscriptionsWarning:source==="CARDS"?cardWarning:source==="MARKETS"?marketsWarning:source==="RISK"?riskWarning:["USERS","TRANSACTIONS","RATES","AUDIT","ANALYTICS","SYSTEM"].includes(source)?journalWarning:null;
-    const connected=["CARDS","MARKETS","RISK","USERS","TRANSACTIONS","RATES","AUDIT","SUBSCRIPTIONS","ANALYTICS"].includes(source);
-    return {source,status:error?"ERROR":connected?"CONNECTED":"DEMO_ONLY",localCount:events.filter(e => e.source===source && e.origin==="LOCAL").length,message:error??(connected ? source==="MARKETS"?"Admin history + latest order snapshots; not a complete order lifecycle.":"Local demo operations; no server ingestion.":"Fixtures only; no live authentication or system telemetry feed.")};
+    const error=source==="SYSTEM"?configWarning??journalWarning:source==="SUBSCRIPTIONS"?subscriptionsWarning:source==="CARDS"?cardWarning:source==="MARKETS"?marketsWarning:source==="RISK"?riskWarning:["USERS","TRANSACTIONS","RATES","AUDIT","ANALYTICS"].includes(source)?journalWarning:null;
+    const connected=["SYSTEM","CARDS","MARKETS","RISK","USERS","TRANSACTIONS","RATES","AUDIT","SUBSCRIPTIONS","ANALYTICS"].includes(source);
+    return {source,status:error?"ERROR":connected?"CONNECTED":"DEMO_ONLY",localCount:events.filter(e => e.source===source && e.origin==="LOCAL").length,message:error??(connected ? source==="SYSTEM"?"Local configuration releases and health acknowledgements; no server telemetry.":source==="MARKETS"?"Admin history + latest order snapshots; not a complete order lifecycle.":"Local demo operations; no server ingestion.":"Fixtures only; no live authentication or system telemetry feed.")};
   });
-  return {events,journal,health,warnings:[subscriptionsWarning,cardWarning,marketsWarning,riskWarning,journalWarning].filter((v): v is string => !!v)};
+  return {events,journal,health,warnings:[configWarning,subscriptionsWarning,cardWarning,marketsWarning,riskWarning,journalWarning].filter((v): v is string => !!v)};
 }

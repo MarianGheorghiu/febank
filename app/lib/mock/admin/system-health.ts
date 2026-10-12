@@ -1,6 +1,6 @@
 import type { HealthService, SystemHealthReport } from "@/app/lib/types/admin/system-health";
 const asOf = "2026-10-09T12:00:00.000Z";
-const services: HealthService[] = [
+const baseServices = [
   { id: "gateway", name: "API gateway & identity", domain: "PLATFORM", status: "OPERATIONAL", checked_at: asOf, availability_24h_pct: 99.99, latency_p95_ms: 82, queue_depth: 0, oldest_job_seconds: 0, owner: "Platform on-call", detail: "Authentication, session validation and routing probes pass. Rate limiting is enabled." },
   { id: "ledger", name: "Core ledger", domain: "FIAT", status: "OPERATIONAL", checked_at: asOf, availability_24h_pct: 100, latency_p95_ms: 96, queue_depth: 0, oldest_job_seconds: 0, owner: "Banking operations", detail: "Posting and read probes pass; latest reconciliation has zero unexplained entries. Synthetic ledger checks only." },
   { id: "payments", name: "SEPA & card processing", domain: "FIAT", status: "OPERATIONAL", checked_at: asOf, availability_24h_pct: 99.98, latency_p95_ms: 184, queue_depth: 12, oldest_job_seconds: 8, owner: "Payments on-call", detail: "Provider connectivity is available. Queued work is within the 60-second processing target." },
@@ -9,20 +9,41 @@ const services: HealthService[] = [
   { id: "broker", name: "Stock order routing", domain: "STOCK", status: "OPERATIONAL", checked_at: asOf, availability_24h_pct: 99.97, latency_p95_ms: 215, queue_depth: 0, oldest_job_seconds: 0, owner: "Markets operations", detail: "Broker connectivity and order-status queries pass. Venue schedules apply; connectivity does not imply an open trading session." },
   { id: "quotes", name: "Stock market data", domain: "STOCK", status: "DEGRADED", checked_at: asOf, availability_24h_pct: 99.81, latency_p95_ms: 612, queue_depth: 0, oldest_job_seconds: 0, owner: "Markets operations", detail: "Secondary feed is serving quotes. Primary feed is 95 seconds behind; quote-age validation remains enabled." },
   { id: "risk", name: "Risk & compliance screening", domain: "PLATFORM", status: "OPERATIONAL", checked_at: asOf, availability_24h_pct: 100, latency_p95_ms: 118, queue_depth: 4, oldest_job_seconds: 3, owner: "Risk operations", detail: "Screening, policy evaluation and audit-ingestion probes pass. This snapshot does not certify compliance." },
-];
+] satisfies Omit<HealthService, "dependencies" | "queue_target_seconds">[];
+const dependencies: Record<string, string[]> = {
+  gateway: [], ledger: ["gateway"], payments: ["ledger", "risk"], custody: ["gateway", "risk"],
+  chain: ["custody"], broker: ["gateway", "risk"], quotes: ["gateway"], risk: ["gateway"],
+};
+const services: HealthService[] = baseServices.map(service => ({
+  ...service, dependencies: dependencies[service.id], queue_target_seconds: service.id === "chain" ? 300 : 60,
+}));
 export const MOCK_SYSTEM_HEALTH: SystemHealthReport = {
-  schema_version: 1, snapshot_id: "health-demo-20261009-1200", as_of: asOf, environment: "DEMO", region: "EU · illustrative primary / standby",
-  probe_successes_24h: 14392, probe_total_24h: 14400, api_p95_ms: 286, services,
+  schema_version: 2, snapshot_id: "health-demo-20261009-1200", as_of: asOf, environment: "DEMO", region: "EU · illustrative primary / standby",
+  probe_successes_24h: 14392, probe_total_24h: 14400, api_p95_ms: 286, availability_target_pct: 99.9, services,
+  controls: [
+    { id: "ledger-balance", service_id: "ledger", domain: "FIAT", name: "Unreconciled ledger entries", value: 0, unit: "entries", threshold: 0, direction: "MAX", checked_at: asOf, detail: "Latest synthetic reconciliation balances debit and credit postings. Owner: Banking operations." },
+    { id: "fiat-liquidity", service_id: "payments", domain: "FIAT", name: "Settlement liquidity coverage", value: 142, unit: "%", threshold: 110, direction: "MIN", checked_at: asOf, detail: "Prefunded balance / projected next-cycle outflows; illustrative operational buffer, not a regulatory liquidity ratio." },
+    { id: "fiat-settlement", service_id: "payments", domain: "FIAT", name: "Oldest payment in queue", value: 8, unit: "s", threshold: 60, direction: "MAX", checked_at: asOf, detail: "Age of the oldest processing job. Does not represent final interbank settlement time." },
+    { id: "custody-balance", service_id: "custody", domain: "CRYPTO", name: "Custody reconciliation breaks", value: 0, unit: "breaks", threshold: 0, direction: "MAX", checked_at: asOf, detail: "Synthetic custody subledger / on-chain balance comparison. No wallet balances or key material exposed." },
+    { id: "chain-settlement", service_id: "chain", domain: "CRYPTO", name: "Oldest chain settlement", value: 420, unit: "s", threshold: 300, direction: "MAX", checked_at: asOf, detail: "Ethereum confirmation backlog exceeds the five-minute investigation target. Owner: Digital assets on-call." },
+    { id: "chain-head", service_id: "chain", domain: "CRYPTO", name: "RPC block-head lag", value: 1, unit: "blocks", threshold: 3, direction: "MAX", checked_at: asOf, detail: "Node head compared with independent reference RPC. Healthy node sync can coexist with slow confirmations." },
+    { id: "quote-age", service_id: "quotes", domain: "STOCK", name: "Primary quote feed age", value: 95, unit: "s", threshold: 15, direction: "MAX", checked_at: asOf, detail: "Primary feed is late; secondary feed is active. Quote-age guards remain enabled. Owner: Markets operations." },
+    { id: "order-ack", service_id: "broker", domain: "STOCK", name: "Broker acknowledgement p95", value: 215, unit: "ms", threshold: 500, direction: "MAX", checked_at: asOf, detail: "Synthetic broker acknowledgement latency, not execution latency. Venue schedules apply." },
+    { id: "stock-reconciliation", service_id: "broker", domain: "STOCK", name: "Position reconciliation breaks", value: 0, unit: "breaks", threshold: 0, direction: "MAX", checked_at: asOf, detail: "Latest synthetic broker / internal position comparison. A healthy route does not prove settlement completion." },
+    { id: "screening-age", service_id: "risk", domain: "PLATFORM", name: "Oldest screening job", value: 3, unit: "s", threshold: 30, direction: "MAX", checked_at: asOf, detail: "Policy-screening queue age. Owner: Risk operations. Processing health does not certify regulatory compliance." },
+    { id: "audit-lag", service_id: "gateway", domain: "PLATFORM", name: "Audit ingestion lag", value: 2, unit: "s", threshold: 10, direction: "MAX", checked_at: asOf, detail: "Delay from synthetic event creation to durable audit ingestion. Owner: Platform on-call." },
+    { id: "notification-age", service_id: "gateway", domain: "PLATFORM", name: "Oldest notification job", value: 4, unit: "s", threshold: 30, direction: "MAX", checked_at: asOf, detail: "Six delivery jobs queued. Delivery-worker health does not confirm receipt by a customer." },
+  ],
   samples: Array.from({ length: 24 }, (_, i) => ({ timestamp: new Date(Date.parse(asOf) - (23-i)*3600000).toISOString(), requests: 18000+(i*1379)%11000, server_errors: i >= 20 ? 118+i*3 : 18+i*2, fiat_p95_ms: 150+(i*13)%80, crypto_p95_ms: i >= 20 ? 330+(i-20)*33 : 190+(i*17)%85, stock_p95_ms: i >= 21 ? 450+(i-21)*81 : 170+(i*19)%90 })),
   incidents: [
     { id: "INC-1042", service_id: "chain", title: "Ethereum confirmation delays", severity: "WARNING", state: "MONITORING", started_at: "2026-10-09T10:20:00Z", updated_at: "2026-10-09T11:55:00Z", impact: "38 crypto settlements queued; oldest pending job is 7 minutes. Fiat and stock operations are unaffected.", update: "Chain congestion is easing. No failed broadcast has been retried by this console.", next_step: "Digital assets on-call monitors confirmation depth and reviews transactions exceeding the settlement target." },
     { id: "INC-1043", service_id: "quotes", title: "Primary stock quote feed lag", severity: "WARNING", state: "INVESTIGATING", started_at: "2026-10-09T11:10:00Z", updated_at: "2026-10-09T11:58:00Z", impact: "Primary quotes are delayed by 95 seconds. Secondary feed is active; order routing remains available.", update: "Markets operations is investigating provider lag. Stale quote checks remain in force.", next_step: "Verify primary-feed recovery and quote timestamps before restoring provider priority." },
   ],
   resources: [
-    { id: "database", name: "Database replication", status: "OPERATIONAL", value: "0.8 s lag", detail: "Primary / standby replication target < 5 s. Storage 61%; 39% capacity remaining." },
-    { id: "compute", name: "Compute capacity", status: "OPERATIONAL", value: "42% CPU · 58% RAM", detail: "Fleet snapshot, not peak utilization. Illustrative alert thresholds: CPU 80%, RAM 85%." },
-    { id: "backup", name: "Backup & recovery", status: "OPERATIONAL", value: "Last backup 11:45 UTC", detail: "Encrypted backup completed at 2026-10-09 11:45 UTC; recovery-point target 30 min. Restore drill passed 2026-10-01. Backup completion alone does not prove recoverability." },
-    { id: "certificates", name: "Certificates & delivery", status: "OPERATIONAL", value: "TLS expiry in 68 days", detail: "Renewal alert at 30 days. Notification delivery queue: 6 jobs, oldest 4 s. Audit ingestion lag: 2 s." },
+    { id: "database", name: "Database replication", status: "OPERATIONAL", checked_at: asOf, value: "0.8 s lag", detail: "Primary / standby replication target < 5 s. Storage 61%; 39% capacity remaining." },
+    { id: "compute", name: "Compute capacity", status: "OPERATIONAL", checked_at: asOf, value: "42% CPU · 58% RAM", detail: "Fleet snapshot, not peak utilization. Illustrative alert thresholds: CPU 80%, RAM 85%." },
+    { id: "backup", name: "Backup & recovery", status: "OPERATIONAL", checked_at: asOf, value: "Last backup 11:45 UTC", detail: "Encrypted backup completed at 2026-10-09 11:45 UTC; recovery-point target 30 min. Restore drill passed 2026-10-01. Backup completion alone does not prove recoverability." },
+    { id: "certificates", name: "Certificates & delivery", status: "OPERATIONAL", checked_at: asOf, value: "TLS expiry in 68 days", detail: "Renewal alert at 30 days. Notification delivery queue: 6 jobs, oldest 4 s. Audit ingestion lag: 2 s." },
   ],
   maintenance: { starts_at: "2026-10-11T01:00:00Z", ends_at: "2026-10-11T01:30:00Z", title: "Standby database patching", impact: "No customer interruption planned. Platform on-call will monitor replication during the maintenance window." },
 };

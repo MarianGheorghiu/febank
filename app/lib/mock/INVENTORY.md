@@ -5,6 +5,7 @@ este vizibilă în export; nu există încă un DTO Go validat.
 
 | Modul | Exporturi | Contracte |
 | --- | --- | --- |
+| [admin/flags-config.ts](./admin/flags-config.ts) | `CONFIG_SETTINGS`, `CONFIG_FLAGS`, `MOCK_FLAGS_CONFIG` | [DTO Flags & Config](../types/admin/flags-config.ts); [publicare, evaluare și integrare Go](../flags-config/README.md) |
 | [admin/card-issuing.ts](./admin/card-issuing.ts) | `MOCK_CARD_CUSTOMERS`, `MOCK_CARD_ISSUING_STATE`, `MOCK_ISSUING_POLICY` | [admin/card-issuing.ts](../types/admin/card-issuing.ts); [flux și integrare Go](./admin/CARD_ISSUING.md) |
 | [admin/business-analytics.ts](./admin/business-analytics.ts) | `MOCK_BUSINESS_ANALYTICS`, `BUSINESS_ANALYTICS_AS_OF` | [DTO Business Analytics](../types/admin/business-analytics.ts); [definiții și integrare Go](../business-analytics/README.md) |
 | [admin/dashboard.ts](./admin/dashboard.ts) | `SYSTEM_LOGS`, `API_TRAFFIC_DATA`, `FLAGGED_ENTITIES` | [admin/business-analytics.ts](./admin/business-analytics.ts) | `MOCK_BUSINESS_ANALYTICS`, `BUSINESS_ANALYTICS_AS_OF` | [DTO Business Analytics](../types/admin/business-analytics.ts); [definiții și integrare Go](../business-analytics/README.md) |

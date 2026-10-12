@@ -57,3 +57,4 @@ export * as adminReferrals from "./admin/referrals";
 export * as adminBusinessAnalytics from "./admin/business-analytics";
 
 export * as adminSystemHealth from "./admin/system-health";
+export * as adminFlagsConfig from "./admin/flags-config";
