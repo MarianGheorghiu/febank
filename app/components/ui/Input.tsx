@@ -1,4 +1,6 @@
-import { InputHTMLAttributes, ReactNode } from "react";
+"use client";
+
+import { InputHTMLAttributes, ReactNode, useId } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -6,9 +8,11 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export default function Input({ label, icon, ...props }: InputProps) {
+  const generatedId = useId();
+  const inputId = props.id ?? generatedId;
   return (
     <div className="flex flex-col space-y-2 w-full text-left">
-      <label className="text-[11px] font-black uppercase tracking-[0.15em] text-gray-200 pl-1">
+      <label htmlFor={inputId} className="text-[11px] font-black uppercase tracking-[0.15em] text-gray-200 pl-1">
         {label}
       </label>
       <div className="relative flex items-center w-full group">
@@ -19,6 +23,7 @@ export default function Input({ label, icon, ...props }: InputProps) {
         )}
         <input
           {...props}
+          id={inputId}
           className={`w-full bg-white/[0.05] border border-white/[0.15] rounded-xl py-3.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-cyan-400/60 focus:bg-white/[0.09] focus:shadow-[0_0_20px_rgba(34,211,238,0.15)] transition-all duration-300 font-semibold ${
             icon ? "pl-12" : "px-4"
           } ${props.className || ""}`}
