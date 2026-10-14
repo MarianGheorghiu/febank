@@ -36,6 +36,10 @@ inventarul băncii, ordinele clienților, rezervările și integrarea Go propus�
 
 [Business Analytics admin](../business-analytics/README.md) documentează raportarea financiară, cohortele de utilizatori, reconcilierea și contractele Go.
 
+[User Overview](../overview/README.md) documentează contractul JSON pentru Go, operațiile mock și persistența per utilizator.
+
+[Message Center](../messages/README.md) documentează conversațiile, drafturile, operațiile și contractul JSON pentru Go.
+
 ## Organizare
 
 | Domeniu | Fișiere mock | Contracte / rol |

@@ -1,184 +1,63 @@
 "use client";
-import { MOCK_CLIENT_SUMMARY } from "@/app/lib/mock/summaries";
-
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-    Plus,
-    Minus,
-    Coins,
-    ArrowLeftRight,
-    Wallet,
-    TrendingUp,
-    Briefcase,
-} from "lucide-react";
+import { Plus, Minus, Coins, ArrowLeftRight, Wallet, TrendingUp, Briefcase } from "lucide-react";
 import dynamic from "next/dynamic";
-
-// Componente UI comune (Importuri Absolute)
+import type { CardTone } from "@/app/components/ui/CardSurface";
 import MetricCard from "@/app/components/ui/MetricCard";
 import MultiCurrencyCard from "@/app/components/ui/MultiCurrencyCard";
 import DashboardChart from "@/app/components/ui/dashboard/DashboardChart";
 import MarketNewsTable from "@/app/components/ui/dashboard/MarketNewsTable";
 import TransfersTable from "@/app/components/ui/dashboard/TransfersTable";
 import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
+import { useSessionMetadata } from "@/app/lib/session/use-session-metadata";
+import { createOverviewRepository } from "@/app/lib/overview/repository";
 import PageHeader from "@/app/components/ui/PageHeader";
-
-// Date statistice mockate
-import { cryptoHistory, stocksHistory, expensesHistory } from "@/app/lib/mock/dashboard";
-
-// Încărcare dinamică modal
-const TransferModal = dynamic(
-    () => import("@/app/components/ui/dashboard/TransferModal"),
-    { ssr: false },
-);
-
-interface ClientDashboardProps {
-    name: string;
-}
-
-export default function ClientDashboard({ name }: ClientDashboardProps) {
-    const router = useRouter();
-    const [modalType, setModalType] = useState<
-        "deposit" | "withdraw" | "transfer" | null
-    >(null);
-
-    return (
-        <div className="space-y-4 animate-fade-in w-full p-0">
-            {/* Meniu acțiuni rapide */}
-            <div className="w-full">
-                <PageHeader>
-                    <ActionButton
-                        variant="cyan"
-                        icon={<Plus size={15} />}
-                        onClick={() => setModalType("deposit")}
-                    >
-                        ADD MONEY
-                    </ActionButton>
-
-                    <ActionButton
-                        variant="rose"
-                        icon={<Minus size={15} />}
-                        onClick={() => setModalType("withdraw")}
-                    >
-                        WITHDRAW
-                    </ActionButton>
-
-                    <ActionButton
-                        variant="amber"
-                        icon={<Coins size={15} />}
-                        onClick={() =>
-                            router.push("/dashboard/loans?action=apply")
-                        }
-                    >
-                        MAKE A LOAN
-                    </ActionButton>
-
-                    <ActionButton
-                        variant="purple"
-                        icon={<ArrowLeftRight size={15} />}
-                        onClick={() => setModalType("transfer")}
-                    >
-                        TRANSFER
-                    </ActionButton>
-
-                    <div className="hidden sm:block h-5 w-[1px] bg-white/10 mx-1" />
-                    <div className="bg-zinc-950/60 border border-white/5 px-4 py-3 sm:px-2.5 sm:py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-[10px] font-bold text-zinc-100 font-mono w-full sm:w-auto">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        V2.4
-                    </div>
-                </PageHeader>
-
-                <TransferModal
-                    isOpen={modalType !== null}
-                    onClose={() => setModalType(null)}
-                    type={modalType}
-                />
-            </div>
-
-            {/* METRICS GRID - Client */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 w-full">
-                <MetricCard
-                    title="Total Liquidity"
-                    value={MOCK_CLIENT_SUMMARY.liquidity}
-                    icon={Wallet}
-                    iconColor="text-cyan-400"
-                    glowColor="hover:border-cyan-500/30 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)]"
-                    subtext={
-                        <p className="text-emerald-400 font-bold flex items-center gap-1 font-sans">
-                            <span className="text-xs">↑</span> {MOCK_CLIENT_SUMMARY.monthlyChange}
-                        </p>
-                    }
-                />
-
-                <MetricCard
-                    title="Crypto Portfolio"
-                    value={MOCK_CLIENT_SUMMARY.cryptoBalance}
-                    icon={TrendingUp}
-                    iconColor="text-purple-400"
-                    glowColor="hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)]"
-                    href="/dashboard/crypto"
-                    subtext={
-                        <p className="text-purple-400 font-mono tracking-wider">
-                            {MOCK_CLIENT_SUMMARY.cryptoValue}
-                        </p>
-                    }
-                />
-
-                <MetricCard
-                    title="Active Investments"
-                    value={MOCK_CLIENT_SUMMARY.investments}
-                    icon={Briefcase}
-                    iconColor="text-blue-400"
-                    glowColor="hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(37,99,235,0.15)]"
-                    href="/dashboard/stocks"
-                    subtext={
-                        <p className="text-zinc-400 font-medium font-sans">
-                            {MOCK_CLIENT_SUMMARY.positions}
-                        </p>
-                    }
-                />
-
-                <MetricCard
-                    title="Loans & Capital"
-                    value={MOCK_CLIENT_SUMMARY.credit}
-                    icon={Coins}
-                    iconColor="text-amber-400"
-                    glowColor="hover:border-amber-500/30 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]"
-                    href="/dashboard/loans"
-                    subtext={
-                        <p className="text-zinc-400 font-medium font-sans">
-                            Collateralized Credit Active
-                        </p>
-                    }
-                />
-
-                <MultiCurrencyCard />
-            </div>
-
-            {/* CHARTS ROW - Client */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
-                <DashboardChart
-                    title="Crypto Node Velocity"
-                    datasets={cryptoHistory}
-                    variant="crypto"
-                />
-                <DashboardChart
-                    title="Equity Market Index"
-                    datasets={stocksHistory}
-                    variant="stocks"
-                />
-                <DashboardChart
-                    title="Capital Outflow / Spending"
-                    datasets={expensesHistory}
-                    variant="expenses"
-                />
-            </div>
-
-            {/* TABLES ROW - Client */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full">
-                <MarketNewsTable />
-                <TransfersTable />
-            </div>
-        </div>
-    );
+import { formatMoney, formatPercent } from "@/app/lib/overview/engine";
+import type { OverviewOperation, OverviewSnapshot } from "@/app/lib/types/dashboard";
+const TransferModal = dynamic(() => import("@/app/components/ui/dashboard/TransferModal"), { ssr: false });
+export default function ClientDashboard({ name, clientId }: { name: string; clientId: string }) {
+  const router = useRouter();
+  const repository = useMemo(() => createOverviewRepository(clientId), [clientId]);
+  const [snapshot, setSnapshot] = useState<OverviewSnapshot | null>(null);
+  const session = useSessionMetadata(clientId);
+  const [error, setError] = useState("");
+  const [modalType, setModalType] = useState<OverviewOperation["type"] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    repository.getSnapshot().then(value => { if (!cancelled) setSnapshot(value); }).catch(() => { if (!cancelled) setError("Unable to load overview."); });
+    return () => { cancelled = true; };
+  }, [repository]);
+  if (error) return <p role="alert" className="text-rose-300">{error}</p>;
+  if (!snapshot) return <p role="status" className="p-6 text-cyan-300">Loading your overview…</p>;
+  const summary = snapshot.summary;
+  const metrics = [
+    { title: "Available USD balance", value: formatMoney(summary.liquidity), icon: Wallet, color: "text-cyan-300", tone: "cyan", subtext: `${formatPercent(summary.monthly_change_percent)} this month` },
+    { title: "Crypto Portfolio", value: `${Number(summary.crypto_quantity)} BTC`, icon: TrendingUp, color: "text-purple-300", tone: "purple", href: "/dashboard/crypto", subtext: `≈ ${formatMoney(summary.crypto_value)}` },
+    { title: "Active Investments", value: formatMoney(summary.investments), icon: Briefcase, color: "text-blue-300", tone: "blue", href: "/dashboard/stocks", subtext: `${summary.stock_positions} stocks · ${summary.index_positions} indexes` },
+    { title: "Loans & Capital", value: formatMoney(summary.credit), icon: Coins, color: "text-amber-300", tone: "amber", href: "/dashboard/loans", subtext: "Outstanding credit" },
+  ];
+  return <div className="w-full min-w-0 space-y-4 animate-fade-in">
+    <h1 className="sr-only">Overview · {name}</h1>
+    <PageHeader actionsPosition="right" sessionId={session.id} lastLogin={session.lastLogin}>
+      <ActionButton variant="cyan" iconGap="tight" icon={<Plus size={15} />} onClick={() => setModalType("deposit")}>ADD MONEY</ActionButton>
+      <ActionButton variant="rose" iconGap="tight" icon={<Minus size={15} />} onClick={() => setModalType("withdraw")}>WITHDRAW</ActionButton>
+      <ActionButton variant="amber" icon={<Coins size={15} />} onClick={() => router.push("/dashboard/loans?action=apply")}>MAKE A LOAN</ActionButton>
+      <ActionButton variant="purple" icon={<ArrowLeftRight size={15} />} onClick={() => setModalType("transfer")}>TRANSFER</ActionButton>
+    </PageHeader>
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-3 min-w-0">
+      {metrics.map(metric => <MetricCard key={metric.title} title={metric.title} value={metric.value} icon={metric.icon} iconColor={metric.color} tone={metric.tone as CardTone} href={metric.href} subtext={<p>{metric.subtext}</p>} />)}
+      <div className="min-w-0 sm:col-span-2 xl:col-span-1"><MultiCurrencyCard accounts={snapshot.accounts} /></div>
+    </div>
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 min-w-0">
+      <DashboardChart title="Crypto holdings" datasets={snapshot.histories.crypto} variant="crypto" />
+      <DashboardChart title="Equity portfolio" datasets={snapshot.histories.stocks} variant="stocks" />
+      <DashboardChart title="Spending overview" datasets={snapshot.histories.expenses} variant="expenses" />
+    </div>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 min-w-0"><MarketNewsTable assets={snapshot.assets} /><TransfersTable transactions={snapshot.transactions} asOf={snapshot.as_of} /></div>
+    {modalType && <TransferModal key={modalType} type={modalType} balance={summary.liquidity} onClose={() => setModalType(null)} onSubmit={async operation => {
+      const next = await repository.submitOperation(operation);
+      setSnapshot(next);
+    }} />}
+  </div>;
 }

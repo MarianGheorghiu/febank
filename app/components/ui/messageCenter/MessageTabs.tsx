@@ -1,48 +1,10 @@
-// app/components/ui/MessageTabs.tsx
-type TabType = "all" | "bank" | "friend";
-
-interface MessageTabsProps {
-  activeTab: TabType;
-  setActiveTab: (tab: TabType) => void;
-  counts: { all: number; bank: number; friend: number };
-}
-
-export default function MessageTabs({
-  activeTab,
-  setActiveTab,
-  counts,
-}: MessageTabsProps) {
-  const tabs: { id: TabType; label: string }[] = [
-    { id: "all", label: "All Streams" },
-    { id: "bank", label: "Core Security" },
-    { id: "friend", label: "P2P Network" },
-  ];
-
-  return (
-    <div className="flex ml-[5px] border-b border-white/[0.04] p-1 gap-2 overflow-x-auto no-scrollbar flex-shrink-0 w-full">
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab.id;
-        return (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex cursor-pointer items-center gap-3 px-5 py-3 rounded-xl font-mono text-xs font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap border
-              ${
-                isActive
-                  ? "bg-blue-950/60 text-blue-400 border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]"
-                  : "text-zinc-400 hover:text-zinc-200 border-transparent bg-transparent hover:bg-white/5"
-              }`}
-          >
-            {tab.label}
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded-md font-black font-mono transition-colors duration-200
-                ${isActive ? "bg-blue-500/20 text-blue-300 border border-blue-500/30" : "bg-zinc-900 text-zinc-500"}`}
-            >
-              {counts[tab.id]}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
+import type { MessageCategory } from "@/app/lib/types/messages";
+import { ActionButton } from "../dashboard/ActionButton";
+export default function MessageTabs({ activeTab, onChange, counts, disabled = false }: {
+  activeTab: MessageCategory; onChange: (tab: MessageCategory) => void;
+  counts: Record<MessageCategory, number>; disabled?: boolean;
+}) {
+  return <div className="ml-auto flex shrink-0 gap-2" role="group" aria-label="Message category">
+    {([{ id: "all", label: "All" }, { id: "bank", label: "Bank" }, { id: "friend", label: "Friends" }] as const).map(tab => <ActionButton key={tab.id} variant={activeTab === tab.id ? "cyan" : "blue"} size="medium" iconGap="tight" autoWidth className="shrink-0 whitespace-nowrap" disabled={disabled} aria-pressed={activeTab === tab.id} onClick={() => onChange(tab.id)}>{tab.label}<span className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-md border border-white/10 bg-white/5 px-1 py-0.5 text-[11px] tabular-nums text-slate-200">{counts[tab.id]}</span></ActionButton>)}
+  </div>;
 }

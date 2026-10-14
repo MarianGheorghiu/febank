@@ -1,97 +1,28 @@
-import { ShieldCheck, ArrowUpRight, Check } from "lucide-react";
-import { Message } from "@/app/lib/types/messages";
-
-interface MessageCardProps {
-  message: Message;
-  onClick: (id: string) => void;
-  isActive: boolean;
-  isSelected: boolean;
-  onToggleSelect: (id: string) => void;
-}
-
-export default function MessageCard({
-  message,
-  onClick,
-  isActive,
-  isSelected,
-  onToggleSelect,
-}: MessageCardProps) {
-  const isBank = message.type === "bank";
-
-  return (
-    <div
-      onClick={() => onClick(message.id)}
-      className={`group relative flex items-start gap-3 p-3 rounded-xl border transition-all duration-150 cursor-pointer backdrop-blur-md
-        ${
-          isActive
-            ? "bg-blue-950/40 border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.15)]"
-            : "bg-zinc-950/20 border-white/[0.02] hover:border-white/[0.06] hover:bg-white/[0.01]"
-        }`}
-    >
-      {/* OUTLOOK HOVER STYLE CHECKBOX CONTAINER - ZERO LAYOUT JUMP */}
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleSelect(message.id);
-        }}
-        className={`cursor-pointer flex-shrink-0 mt-1.5 w-4 h-4 rounded border flex items-center justify-center transition-all duration-150
-          ${
-            isSelected
-              ? "bg-blue-500 border-blue-400 text-white shadow-[0_0_8px_rgba(59,130,246,0.5)] opacity-100"
-              : "border-white/20 bg-zinc-900 opacity-0 group-hover:opacity-100 hover:border-blue-400"
-          }`}
-      >
-        {isSelected && <Check size={10} strokeWidth={3} />}
-      </div>
-
-      {/* AVATAR COMPACT */}
-      <div className="flex-shrink-0">
-        {isBank ? (
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-900 flex items-center justify-center text-white shadow-sm">
-            <ShieldCheck size={14} />
-          </div>
-        ) : (
-          <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500 font-mono font-bold text-[10px]">
-            {message.senderName.substring(0, 2).toUpperCase()}
-          </div>
-        )}
-      </div>
-
-      {/* CONȚINUT */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={`font-mono text-[10px] tracking-wider uppercase ${message.isUnread ? "text-blue-400 font-black" : "text-zinc-500 font-medium"}`}
-          >
-            {message.senderName}
-          </span>
-          <span className="text-[10px] text-zinc-600 font-mono">
-            {message.timestamp}
-          </span>
-        </div>
-
-        <h4
-          className={`text-xs tracking-tight truncate transition-colors duration-150
-          ${message.isUnread ? "font-black text-white" : "font-medium text-zinc-400"} 
-          ${isActive ? "text-blue-300" : ""}`}
-        >
-          {message.title}
-        </h4>
-
-        <p
-          className={`text-[11px] line-clamp-1 leading-relaxed transition-colors duration-150
-          ${message.isUnread ? "text-zinc-300 font-bold" : "text-zinc-500 font-normal"}`}
-        >
-          {message.previewText}
-        </p>
-
-        {message.meta?.amount && (
-          <div className="inline-flex items-center gap-1 mt-1 bg-blue-500/5 border border-blue-500/10 px-1.5 py-0.2 rounded text-[10px] font-mono text-blue-300">
-            <ArrowUpRight size={10} />
-            {message.meta.amount}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+import { Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import type { Message } from "@/app/lib/types/messages";
+import { formatMoney } from "@/app/lib/overview/engine";
+import CardSurface from "../CardSurface";
+export default function MessageCard({ message, onClick, isActive, isSelected, onToggleSelect, disabled }: {
+  message: Message; onClick: (id: string) => void; isActive: boolean; isSelected: boolean; onToggleSelect: (id: string) => void; disabled?: boolean;
+}) {
+  const unread = message.read_at === null;
+  const Icon = message.type === "bank" ? ShieldCheck : MessageCircle;
+  const date = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Europe/Bucharest" }).format(new Date(message.created_at));
+  return <CardSurface tone="blue" className="shrink-0 flex items-start gap-1 p-2">
+    <label className="flex min-h-11 w-9 shrink-0 cursor-pointer items-center justify-center">
+      <input type="checkbox" checked={isSelected} disabled={disabled} onChange={() => onToggleSelect(message.id)} aria-label={`Select ${message.subject}`} className="h-4 w-4 accent-cyan-400 cursor-pointer" />
+    </label>
+    <button id={`message-open-${message.id}`} type="button" disabled={disabled} onClick={() => onClick(message.id)} aria-label={`Open ${message.subject}${unread ? ", unread" : ""}`} aria-current={isActive ? "true" : undefined} className="flex min-w-0 flex-1 gap-3 rounded-xl p-2 text-left cursor-pointer disabled:cursor-wait focus-visible:outline-none focus-visible:bg-blue-400/10">
+      <span aria-hidden="true" className="hidden sm:flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-300/10 bg-blue-400/5 text-blue-300"><Icon size={16} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1"><span className={`text-[11px] font-semibold ${unread ? "text-cyan-200" : "text-slate-300"}`}>{message.sender.name}</span><time dateTime={message.created_at} className="text-[10px] text-slate-500">{date}</time></span>
+        <span className={`mt-1 flex items-start gap-2 text-sm leading-snug ${unread ? "font-semibold text-white" : "text-slate-200"}`}>{unread && <span aria-label="Unread" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300" />}<span className="min-w-0 break-words">{message.subject}</span></span>
+        <span className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-400">{message.body}</span>
+        {(message.amount || message.replies.length > 0) && <span className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+          {message.amount && <span className="rounded-md border border-blue-300/10 bg-blue-400/5 px-2 py-1 text-blue-200">{formatMoney(message.amount.value, message.amount.currency)}</span>}
+          {message.replies.length > 0 && <span className="inline-flex items-center gap-1"><Mail size={11} />{message.replies.length} {message.replies.length === 1 ? "reply" : "replies"}</span>}
+        </span>}
+      </span>
+    </button>
+  </CardSurface>;
 }

@@ -31,7 +31,7 @@ este vizibilă în export; nu există încă un DTO Go validat.
 | [currencies.ts](./currencies.ts) | `MOCK_FIAT`, `MOCK_CRYPTO`, `MOCK_STOCKS` | [currencies.ts](../types/currencies.ts) |
 | [currency-catalog.ts](./currency-catalog.ts) | `AVAILABLE_CURRENCIES`, `generateMockAccountRef` | Tipuri inferate / structură inline |
 | [currency-history.ts](./currency-history.ts) | `generateMarketData` | [currency-history.ts](../types/currency-history.ts) |
-| [dashboard.ts](./dashboard.ts) | `cryptoHistory`, `stocksHistory`, `expensesHistory`, `marketAssetsData`, `transfersHistoryData` | [dashboard.ts](../types/dashboard.ts) |
+| [dashboard.ts](./dashboard.ts) | `MOCK_OVERVIEW`, `OVERVIEW_AS_OF`, `cryptoHistory`, `stocksHistory`, `expensesHistory`, `marketAssetsData`, `transfersHistoryData` | [dashboard.ts](../types/dashboard.ts) |
 | [dividends.ts](./dividends.ts) | `MOCK_DIVIDENDS` | [dividends.ts](../types/dividends.ts) |
 | [exchange.ts](./exchange.ts) | `ASSET_PRICES`, `ASSET_TYPES` | Tipuri inferate / structură inline |
 | [friends.ts](./friends.ts) | `mockFriendStats`, `MOCK_FRIENDS`, `MOCK_RECEIVED_REQUESTS`, `MOCK_SENT_REQUESTS` | [friends.ts](../types/friends.ts) |
@@ -45,7 +45,7 @@ este vizibilă în export; nu există încă un DTO Go validat.
 | [loans/products.ts](./loans/products.ts) | `RETAIL_CONFIGS`, `BUSINESS_CONFIGS` | [loans/products.ts](../types/loans/products.ts) |
 | [loans/retail.ts](./loans/retail.ts) | `mockRetailLoans` | [loans/retail.ts](../types/loans/retail.ts) |
 | [loans/revenue.ts](./loans/revenue.ts) | `MOCK_REVENUE_STREAMS` | [loans/revenue.ts](../types/loans/revenue.ts) |
-| [messages.ts](./messages.ts) | `INITIAL_MESSAGES`, `MOCK_SPLIT_BILL_ALERT` | [messages.ts](../types/messages.ts) |
+| [messages.ts](./messages.ts) | `MOCK_MESSAGES`, `INITIAL_MESSAGES`, `MOCK_SPLIT_BILL_ALERT` | [messages.ts](../types/messages.ts) |
 | [offer-conversions.ts](./offer-conversions.ts) | `MOCK_TARGETS` | [offer-conversions.ts](../types/offer-conversions.ts) |
 | [offers.ts](./offers.ts) | `mockPremiumOffers` | [offers.ts](../types/offers.ts) |
 | [overview-accounts.ts](./overview-accounts.ts) | `MOCK_OVERVIEW_ACCOUNTS` | [overview-accounts.ts](../types/overview-accounts.ts) |

@@ -1,185 +1,20 @@
-import type { Message } from "@/app/lib/types/messages";
-
+import type { Message, MessagesSnapshot } from "@/app/lib/types/messages";
+const defaults = () => ({ previous_folder: null, read_at: null, replies: [], amount: null, action: null });
 export const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "msg-1",
-    type: "bank",
-    folder: "inbox",
-    senderName: "LIQUID CORE SECURITY",
-    title: "Quantum Biometric Override Blocked",
-    previewText:
-      "An unauthorized neural-link handshake was attempted from an unrecognized node in Tokyo. Liquid Shield automatically deployed cryptographic countermeasures. Vault parameters remain nominal.",
-    timestamp: "14:32",
-    isUnread: true,
-  },
-  {
-    id: "msg-2",
-    type: "friend",
-    folder: "inbox",
-    senderName: "Tudor Miron",
-    title: "OTC Liquidity Pool Share",
-    previewText:
-      "Just dropped my part for the commercial real-estate smart contract. Verify the ledger on your end and let me know when you execute the swap.",
-    timestamp: "11:15",
-    isUnread: true,
-    meta: { amount: "+$12,500.00 USDT" },
-  },
-  {
-    id: "msg-3",
-    type: "bank",
-    folder: "inbox",
-    senderName: "ASSET ROUTING DEPT",
-    title: "Cross-Border Wire Dispatched Successfully",
-    previewText:
-      "Your corporate routing to London SW1 has cleared compliance. SWIFT-GPT token verification attached to your monthly statement.",
-    timestamp: "Yesterday",
-    isUnread: false,
-    meta: { amount: "-$4,200.00 EUR" },
-  },
-  {
-    id: "msg-4",
-    type: "friend",
-    folder: "inbox",
-    senderName: "Elena Rostova",
-    title: "P2P Node Access Granted",
-    previewText:
-      "Hey, I added you as a trusted node in my high-frequency vault. You can now pull short-term micro-loans without protocol validation.",
-    timestamp: "28 May",
-    isUnread: false,
-  },
-  {
-    id: "msg-5",
-    type: "bank",
-    folder: "deleted",
-    senderName: "LIQUID AUTOMATION",
-    title: "Recurrent Gas Fee Optimization Report",
-    previewText:
-      "Archived telemetry data regarding automated layer-2 gas refuel cycles executed during low-congestion windows.",
-    timestamp: "25 May",
-    isUnread: false,
-  },
-  {
-    id: "msg-6",
-    type: "bank",
-    folder: "replied",
-    senderName: "LIQUID LOAN ENGINE",
-    title: "Collateralized Debt Position Margin Call Warning",
-    previewText:
-      "LTV ratio reached 74.2%. Automatically requesting an additional buffer injection to prevent algorithmic liquidation modules from execution.",
-    timestamp: "24 May",
-    isUnread: false,
-    meta: { amount: "Required: 2.50 ETH" },
-    replyPayload: {
-      body: "Liquidity buffer successfully refueled from Cold Storage Vault Alpha. Re-verify collateral index.",
-      timestamp: "24 May, 18:05",
-    },
-  },
-  {
-    id: "msg-7",
-    type: "friend",
-    folder: "inbox",
-    senderName: "Marc Andreessen",
-    title: "Seed Round Cap Table Finalization",
-    previewText:
-      "The zero-knowledge compliant cap table is locked. We need your cryptographic signature to deploy the automated venture distribution tokens.",
-    timestamp: "24 May",
-    isUnread: true,
-  },
-  {
-    id: "msg-8",
-    type: "bank",
-    folder: "inbox",
-    senderName: "COMPLIANCE AI",
-    title: "EU MiCA Regulation Validation",
-    previewText:
-      "Your algorithmic yielding strategies have been fully validated under the latest digital assets framework. No compliance modifications required.",
-    timestamp: "22 May",
-    isUnread: false,
-  },
-  {
-    id: "msg-9",
-    type: "friend",
-    folder: "inbox",
-    senderName: "Satoshi Legacy Node",
-    title: "Relay Node Ping Request",
-    previewText:
-      "Encrypted broadcast packet received via localized mesh network. Confirm node uptime statistics for institutional cross-routing integrity.",
-    timestamp: "20 May",
-    isUnread: false,
-  },
-  {
-    id: "msg-10",
-    type: "bank",
-    folder: "deleted",
-    senderName: "MARKETING CORE",
-    title: "Premium Titanium Glass Card Perks",
-    previewText:
-      "Unlock absolute airport terminal privileges across 40 private planetary hubs. Disregard if premium quantum routing tier is already active.",
-    timestamp: "19 May",
-    isUnread: false,
-  },
-  {
-    id: "msg-11",
-    type: "bank",
-    folder: "inbox",
-    senderName: "FRAUD ENGINE DISPATCH",
-    title: "High-Frequency Trading Lock Activated",
-    previewText:
-      "Detected 450 concurrent transaction requests within a 12ms window from an offshore proxy. Stream temporarily throttled for security audit.",
-    timestamp: "18 May",
-    isUnread: true,
-  },
-  {
-    id: "msg-12",
-    type: "friend",
-    folder: "replied",
-    senderName: "Alex CryptoKnight",
-    title: "DeFi Yield Farm Migration Strategy",
-    previewText:
-      "Smart contracts on Pool v4 are experiencing liquidity drain. Recommend instant bridge routing to Liquid Protocol Layer-3.",
-    timestamp: "15 May",
-    isUnread: false,
-    replyPayload: {
-      body: "All dynamic assets bridged smoothly using automated gas optimization channels. Total cost saved: $45.20.",
-      timestamp: "15 May, 12:40",
-    },
-  },
-  {
-    id: "msg-13",
-    type: "bank",
-    folder: "inbox",
-    senderName: "VALUATION & RISK",
-    title: "Quarterly Asset Attestation Report",
-    previewText:
-      "Independent on-chain proof of reserves compiled successfully. 1:1 asset backing mathematically proven via zero-knowledge verification proofs.",
-    timestamp: "14 May",
-    isUnread: false,
-  },
-  {
-    id: "msg-14",
-    type: "friend",
-    folder: "deleted",
-    senderName: "Spam Broker Bot",
-    title: "Instant Micro-leverage Options Available",
-    previewText:
-      "Maximize trading output with 1000x artificial intelligence-powered liquidity vectors. Click here to bypass core authorization controls.",
-    timestamp: "10 May",
-    isUnread: false,
-  },
-  {
-    id: "msg-15",
-    type: "bank",
-    folder: "inbox",
-    senderName: "SYSTEM KERNEL",
-    title: "Scheduled Encryption Key Rotation Completed",
-    previewText:
-      "Every dynamic private key mapping across multi-signature nodes has been shifted automatically. Quantum computational resistance score: 100%.",
-    timestamp: "09 May",
-    isUnread: false,
-  },
+  { ...defaults(), id: "msg-1", type: "bank", folder: "inbox", sender: { id: "bank-security", name: "MBank Security" }, subject: "New sign-in detected", body: "A new sign-in was detected on your account from Bucharest, Romania.\n\nIf this was you, no action is required. You can review your active sessions in Settings & Security.", created_at: "2026-10-14T09:32:00Z", can_reply: false, action: { target: "settings", label: "Review active sessions" } },
+  { ...defaults(), id: "msg-2", type: "friend", folder: "inbox", sender: { id: "friend-matei", name: "Matei Dan" }, subject: "Dinner split", body: "Hi! Your share for our dinner is $24.50. Please review the split bill in Friends & Social when you have a moment.\n\nThanks for a lovely evening!", created_at: "2026-10-14T08:15:00Z", can_reply: true, amount: { value: "24.50", currency: "USD", direction: "outgoing", label: "Requested share" }, action: { target: "friends", label: "Open Friends & Social" } },
+  { ...defaults(), id: "msg-3", type: "bank", folder: "inbox", sender: { id: "bank-transfers", name: "MBank Transfers" }, subject: "Your transfer was completed", body: "Your transfer to Elena Popescu has been completed.\n\nYou can review its details and reference in your transfer history. This is an illustrative notification from the demo account.", created_at: "2026-10-13T13:10:00Z", read_at: "2026-10-13T14:00:00Z", can_reply: false, amount: { value: "420.00", currency: "EUR", direction: "outgoing", label: "Transfer amount" }, action: { target: "transfers", label: "View transfer history" } },
+  { ...defaults(), id: "msg-4", type: "friend", folder: "inbox", sender: { id: "friend-elena", name: "Elena Popescu" }, subject: "Weekend plans", body: "Shall we book the train tickets for Saturday? Let me know what time works for you. I can put together the shared expenses afterwards.", created_at: "2026-10-12T17:45:00Z", can_reply: true },
+  { ...defaults(), id: "msg-5", type: "bank", folder: "archived", sender: { id: "bank-cards", name: "MBank Cards" }, subject: "Your virtual card is ready", body: "Your new virtual card is ready in Cards Vault.\n\nYou can review its status and spending controls from the card dashboard.", created_at: "2026-10-10T10:00:00Z", read_at: "2026-10-10T10:12:00Z", can_reply: false, action: { target: "cards", label: "Open Cards Vault" } },
+  { ...defaults(), id: "msg-6", type: "bank", folder: "inbox", sender: { id: "bank-support", name: "MBank Support" }, subject: "Help with your account statement", body: "Hello,\n\nYour statement enquiry has been received. Could you confirm the month you would like us to review? Reply to this conversation and our support team will follow up.\n\nMBank Support", created_at: "2026-10-09T08:30:00Z", read_at: "2026-10-09T09:00:00Z", can_reply: true, replies: [{ id: "reply-seed-1", body: "Please review my September statement. Thank you.", created_at: "2026-10-09T09:05:00Z" }] },
+  { ...defaults(), id: "msg-7", type: "friend", folder: "inbox", sender: { id: "friend-tudor", name: "Tudor Miron" }, subject: "Thanks for the coffee", body: "Thanks for picking up the coffees today. I sent you my part. See you next week!", created_at: "2026-10-08T11:40:00Z", can_reply: true, amount: { value: "8.50", currency: "EUR", direction: "incoming", label: "Shared expense" } },
+  { ...defaults(), id: "msg-8", type: "bank", folder: "inbox", sender: { id: "bank-loans", name: "MBank Lending" }, subject: "Upcoming repayment reminder", body: "Your next scheduled loan repayment is approaching.\n\nPlease check your repayment schedule and available account balance in Loans & Capital. No payment is initiated from this message.", created_at: "2026-10-07T07:00:00Z", can_reply: false, amount: { value: "180.00", currency: "USD", direction: "outgoing", label: "Scheduled repayment" }, action: { target: "loans", label: "Review repayment schedule" } },
+  { ...defaults(), id: "msg-9", type: "friend", folder: "archived", sender: { id: "friend-alex", name: "Alex Ionescu" }, subject: "Trip expenses settled", body: "Everything from the trip is settled now. Thanks for keeping track of the expenses.", created_at: "2026-10-05T16:30:00Z", read_at: "2026-10-05T17:00:00Z", can_reply: true, replies: [{ id: "reply-seed-2", body: "Thanks, Alex. All sorted on my side as well!", created_at: "2026-10-05T17:10:00Z" }] },
+  { ...defaults(), id: "msg-10", type: "bank", folder: "deleted", previous_folder: "inbox", sender: { id: "bank-offers", name: "MBank Rewards" }, subject: "Your monthly rewards summary", body: "Your monthly rewards summary is available. Explore your points and eligible offers in the Rewards area.", created_at: "2026-10-03T09:00:00Z", read_at: "2026-10-03T09:10:00Z", can_reply: false, action: { target: "offers", label: "View rewards" } },
+  { ...defaults(), id: "msg-11", type: "bank", folder: "deleted", previous_folder: "archived", sender: { id: "bank-support", name: "MBank Support" }, subject: "Previous statement enquiry", body: "Your previous statement enquiry has been resolved. You can restore this conversation if you need its history again.", created_at: "2026-09-28T09:00:00Z", read_at: "2026-09-28T10:00:00Z", can_reply: true, replies: [{ id: "reply-seed-3", body: "Confirmed, thank you for your help.", created_at: "2026-09-28T10:05:00Z" }] },
+  { ...defaults(), id: "msg-12", type: "bank", folder: "inbox", sender: { id: "bank-statements", name: "MBank Statements" }, subject: "September statement available", body: "Your September account statement is ready. If you have a question about a transaction, contact MBank Support through an existing support conversation.", created_at: "2026-10-02T09:00:00Z", read_at: "2026-10-02T10:00:00Z", can_reply: false },
+  { ...defaults(), id: "msg-13", type: "friend", folder: "inbox", sender: { id: "friend-mara", name: "Mara Georgescu" }, subject: "Cinema on Friday", body: "Are you free on Friday evening? I can reserve the cinema tickets once we agree on a time.", created_at: "2026-10-01T18:00:00Z", can_reply: true },
+  { ...defaults(), id: "msg-14", type: "bank", folder: "inbox", sender: { id: "bank-support", name: "MBank Support" }, subject: "Account details updated", body: "Your contact preferences were updated in the demo account. You can review your profile and preferences in Settings & Security.", created_at: "2026-09-30T08:00:00Z", read_at: "2026-09-30T08:05:00Z", can_reply: false, action: { target: "settings", label: "Review profile" } },
 ];
-
-export const MOCK_SPLIT_BILL_ALERT = {
-  title: "Split Bill Received",
-  description: "Matei Dan requested $24.50 USD for 'Private Dinner & Drinks'.",
-};
+export const MOCK_MESSAGES: MessagesSnapshot = { schema_version: 1, revision: 0, as_of: "2026-10-14T12:00:00Z", messages: INITIAL_MESSAGES, drafts: {} };
+export const MOCK_SPLIT_BILL_ALERT = { title: "Split Bill Received", description: "Matei Dan requested $24.50 USD for dinner. Review the request in Message Center." };

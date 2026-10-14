@@ -1,13 +1,17 @@
 // Formatted demo snapshots. API adapters should format numeric backend DTOs for these views.
 
+import { MOCK_OVERVIEW } from "./dashboard";
+import { formatMoney, formatPercent } from "../overview/engine";
+const summary = MOCK_OVERVIEW.summary;
+// Compatibility view for pages that still consume formatted summary fields.
 export const MOCK_CLIENT_SUMMARY = {
-  "liquidity": "$142,350.80",
-  "monthlyChange": "+4.2% this month",
-  "cryptoBalance": "2.405 BTC",
-  "cryptoValue": "~ $164,200.00 USD",
-  "investments": "$45,120.00",
-  "positions": "12 Stocks & 3 Indexes",
-  "credit": "$12,500.00"
+  liquidity: formatMoney(summary.liquidity),
+  monthlyChange: `${formatPercent(summary.monthly_change_percent)} this month`,
+  cryptoBalance: `${Number(summary.crypto_quantity)} BTC`,
+  cryptoValue: `≈ ${formatMoney(summary.crypto_value)} USD`,
+  investments: formatMoney(summary.investments),
+  positions: `${summary.stock_positions} Stocks & ${summary.index_positions} Indexes`,
+  credit: formatMoney(summary.credit),
 };
 
 export const MOCK_ADMIN_SUMMARY = {

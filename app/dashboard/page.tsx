@@ -48,6 +48,6 @@ export default function DashboardPage() {
     return user.role === "admin" ? (
         <AdminDashboard name={user.name} />
     ) : (
-        <ClientDashboard name={user.name} />
+        <ClientDashboard key={user.email} name={user.name} clientId={user.email} />
     );
 }

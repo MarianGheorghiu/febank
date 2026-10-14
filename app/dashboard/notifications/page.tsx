@@ -1,420 +1,133 @@
 "use client";
-import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Inbox, Mail, MailOpen, Search, Send, Square, SquareCheck, SquareMinus, Trash2, X } from "lucide-react";
+import { useUser } from "@/app/context/UserContext";
 import PageHeader from "@/app/components/ui/PageHeader";
+import CardSurface from "@/app/components/ui/CardSurface";
+import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
+import MessageIconButton from "@/app/components/ui/messageCenter/MessageIconButton";
 import MessageTabs from "@/app/components/ui/messageCenter/MessageTabs";
 import MessageCard from "@/app/components/ui/messageCenter/MessageCard";
 import MessageDetail from "@/app/components/ui/messageCenter/MessageDetail";
-import {
-  Mail,
-  Bell,
-  Layers,
-  Inbox,
-  Trash2,
-  CheckSquare,
-  Square,
-  Check,
-  ArchiveRestore,
-  EyeOff,
-} from "lucide-react";
-import { Message, MessageFolder } from "@/app/lib/types/messages";
-import { INITIAL_MESSAGES } from "@/app/lib/mock/messages";
-
-export default function MessageCenter() {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [activeTab, setActiveTab] = useState<"all" | "bank" | "friend">("all");
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
-    null,
-  );
-  const [currentFolder, setCurrentFolder] = useState<MessageFolder>("inbox");
-  const [selectedBulkIds, setSelectedBulkIds] = useState<string[]>([]);
+import MessageDeleteDialog from "@/app/components/ui/messageCenter/MessageDeleteDialog";
+import { filterMessages, messageCounts } from "@/app/lib/messages/engine";
+import { createMessageRepository, messageStorageKey } from "@/app/lib/messages/repository";
+import { useSessionMetadata } from "@/app/lib/session/use-session-metadata";
+import type { MessageCommand, MessageFilters, MessageFolder, MessagesSnapshot } from "@/app/lib/types/messages";
+const PAGE_SIZE = 8;
+const initialFilters: MessageFilters = { folder: "inbox", category: "all", query: "", unread_only: false };
+const actionLabels: Record<MessageCommand["kind"], string> = { mark_read: "Marked as read", mark_unread: "Marked as unread", archive: "Moved to Archive", unarchive: "Moved to Inbox", trash: "Moved to Trash", restore: "Conversations restored", purge: "Permanently deleted", reply: "Reply sent", save_draft: "Draft saved" };
+function MessagesWorkspace({ clientId }: { clientId: string }) {
+  const repository = useMemo(() => createMessageRepository(clientId), [clientId]);
+  const session = useSessionMetadata(clientId);
+  const [snapshot, setSnapshot] = useState<MessagesSnapshot | null>(null);
+  const [filters, setFilters] = useState(initialFilters);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isReplying, setIsReplying] = useState(false);
-
-  // Filtrare bază folder
-  const folderMessages = useMemo(() => {
-    return messages.filter((m) => m.folder === currentFolder);
-  }, [messages, currentFolder]);
-
-  // Filtrare secundară sub-tab
-  const filteredMessages = useMemo(() => {
-    if (activeTab === "all") return folderMessages;
-    return folderMessages.filter((msg) => msg.type === activeTab);
-  }, [activeTab, folderMessages]);
-
-  const handleMessageSelect = (id: string) => {
-    setSelectedMessageId(id);
-    setIsReplying(false);
-    setMessages((prev) =>
-      prev.map((msg) => (msg.id === id ? { ...msg, isUnread: false } : msg)),
-    );
-  };
-
-  const handleToggleSelect = (id: string) => {
-    setSelectedBulkIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
-  };
-
-  // LOGICĂ EXCLUSIVĂ SELECT / DESELECT DINAMIC (Outlook Native)
-  const isAllSelected =
-    filteredMessages.length > 0 &&
-    filteredMessages.every((m) => selectedBulkIds.includes(m.id));
-
-  const handleSelectAllToggle = () => {
-    if (selectedBulkIds.length > 0) {
-      // Dacă există orice fel de selecție activă, butonul acționează ca Deselect / Deselect All
-      setSelectedBulkIds([]);
-    } else {
-      // Dacă nu e nimic selectat, selectăm tot din view-ul curent
-      setSelectedBulkIds(filteredMessages.map((m) => m.id));
-    }
-  };
-
-  const selectButtonText = useMemo(() => {
-    const count = selectedBulkIds.length;
-    if (count === 0) return "Select All";
-    if (count === 1) return `Deselect (${count})`;
-    return `Deselect All (${count})`;
-  }, [selectedBulkIds]);
-
-  // LOGICĂ DINAMICĂ MARK READ / UNMARK ALL (Se uita la starea mesajelor selectate)
-  const isSelectedUnread = useMemo(() => {
-    const selectedMsgs = messages.filter((m) => selectedBulkIds.includes(m.id));
-    return selectedMsgs.some((m) => m.isUnread);
-  }, [messages, selectedBulkIds]);
-
-  const readButtonText = useMemo(() => {
-    const count = selectedBulkIds.length;
-    if (count === 1) {
-      return isSelectedUnread ? "Mark Read" : "Unmark";
-    }
-    return isSelectedUnread ? "Mark All Read" : "Unmark All";
-  }, [selectedBulkIds, isSelectedUnread]);
-
-  const handleBulkMarkReadToggle = () => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        selectedBulkIds.includes(msg.id)
-          ? { ...msg, isUnread: isSelectedUnread ? false : true }
-          : msg,
-      ),
-    );
-    setSelectedBulkIds([]);
-  };
-
-  // Ștergeri & Restaurări
-  const handleDeleteSingle = (id: string) => {
-    setMessages((prev) =>
-      prev
-        .map((msg) => {
-          if (msg.id === id) {
-            return { ...msg, folder: "deleted" as MessageFolder };
-          }
-          return msg;
-        })
-        .filter((msg) => !(msg.id === id && currentFolder === "deleted")),
-    );
-    if (selectedMessageId === id) setSelectedMessageId(null);
-    setSelectedBulkIds((prev) => prev.filter((item) => item !== id));
-    setIsReplying(false);
-  };
-
-  const handleBulkDelete = () => {
-    setMessages((prev) =>
-      prev
-        .map((msg) => {
-          if (selectedBulkIds.includes(msg.id)) {
-            return { ...msg, folder: "deleted" as MessageFolder };
-          }
-          return msg;
-        })
-        .filter(
-          (msg) =>
-            !(selectedBulkIds.includes(msg.id) && currentFolder === "deleted"),
-        ),
-    );
-    setSelectedBulkIds([]);
-    setSelectedMessageId(null);
-  };
-
-  const handleBulkRestore = () => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        selectedBulkIds.includes(msg.id)
-          ? { ...msg, folder: "inbox" as MessageFolder }
-          : msg,
-      ),
-    );
-    setSelectedBulkIds([]);
-    setSelectedMessageId(null);
-  };
-
-  const handleTriggerReplySubmit = (text: string) => {
-    if (!selectedMessageId) return;
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === selectedMessageId
-          ? {
-              ...msg,
-              folder: "replied" as MessageFolder,
-              replyPayload: { body: text, timestamp: "Today, Just Now" },
-            }
-          : msg,
-      ),
-    );
-    setIsReplying(false);
-    setCurrentFolder("replied");
-  };
-
-  const totalMessagesCount = messages.filter(
-    (m) => m.folder === "inbox",
-  ).length;
-  const unreadMessagesCount = messages.filter(
-    (m) => m.isUnread && m.folder === "inbox",
-  ).length;
-  const notificationCount = messages.filter(
-    (m) => m.type === "bank" && m.isUnread && m.folder === "inbox",
-  ).length;
-
-  const tabCounts = useMemo(
-    () => ({
-      all: folderMessages.length,
-      bank: folderMessages.filter((m) => m.type === "bank").length,
-      friend: folderMessages.filter((m) => m.type === "friend").length,
-    }),
-    [folderMessages],
-  );
-
-  const currentMessage = useMemo(() => {
-    return messages.find((m) => m.id === selectedMessageId) || null;
-  }, [selectedMessageId, messages]);
-
-  return (
-    <div className="p-0 space-y-3 h-[calc(100vh-50px)] flex flex-col bg-[#02050e] text-white overflow-hidden w-full antialiased">
-      {/* HEADER CONTROLS */}
-      <div
-        className={`${selectedMessageId ? "hidden lg:block" : "block"} flex-shrink-0`}
-      >
-        <PageHeader systemDate={MOCK_PAGE_DATES.notifications} statusText="Secure Node Connected">
-          <div className="flex flex-wrap items-center gap-1 bg-zinc-950/60 p-1 rounded-xl border border-white/[0.02] backdrop-blur-md w-full sm:w-auto">
-            <div className="flex items-center gap-2 px-3 py-1.5 font-mono text-xs text-zinc-400 font-bold">
-              <Layers size={14} className="text-zinc-500" />
-              <span>
-                ALL INBOX:{" "}
-                <span className="text-zinc-200 font-black">
-                  {totalMessagesCount}
-                </span>
-              </span>
-            </div>
-            <div className="hidden sm:block h-3 w-[1px] bg-white/[0.05]" />
-            <div className="flex items-center gap-2 px-3 py-1.5 font-mono text-xs text-blue-400 bg-blue-950/30 rounded-lg border border-blue-500/10">
-              <Mail size={14} />
-              <span>
-                UNREAD:{" "}
-                <span className="text-blue-300 font-black">
-                  {unreadMessagesCount}
-                </span>
-              </span>
-            </div>
-            <div className="hidden sm:block h-3 w-[1px] bg-white/[0.05]" />
-            <div className="flex items-center gap-2 px-3 py-1.5 font-mono text-xs text-amber-400 bg-amber-950/10 rounded-lg">
-              <Bell size={14} className="text-amber-500" />
-              <span>
-                NOTIFICATIONS:{" "}
-                <span className="text-amber-300 font-bold">
-                  {notificationCount}
-                </span>
-              </span>
-            </div>
-          </div>
-        </PageHeader>
+  const [page, setPage] = useState(1);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const [purgeIds, setPurgeIds] = useState<string[] | null>(null);
+  const load = useCallback(async () => {
+    try { const next = await repository.getSnapshot(); setSnapshot(next); setError(""); }
+    catch { setError("Unable to load messages. Please retry."); }
+  }, [repository]);
+  useEffect(() => {
+    let cancelled = false;
+    repository.getSnapshot().then(next => { if (!cancelled) setSnapshot(next); }).catch(() => { if (!cancelled) setError("Unable to load messages. Please retry."); });
+    const changed = (event: StorageEvent) => { if (event.key === messageStorageKey(clientId) || event.key === null) void load(); };
+    window.addEventListener("storage", changed);
+    return () => { cancelled = true; window.removeEventListener("storage", changed); };
+  }, [repository, clientId, load]);
+  const filtered = useMemo(() => snapshot ? filterMessages(snapshot, filters) : [], [snapshot, filters]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const activeIds = selectedIds.filter(id => visible.some(message => message.id === id));
+  const allSelected = visible.length > 0 && activeIds.length === visible.length;
+  const current = snapshot?.messages.find(message => message.id === selectedId) ?? null;
+  const counts = snapshot ? messageCounts(snapshot) : { inbox: 0, unread: 0, bank: 0, replied: 0, archived: 0, deleted: 0 };
+  const categoryRows = snapshot ? filterMessages(snapshot, { ...filters, category: "all" }) : [];
+  const tabCounts = { all: categoryRows.length, bank: categoryRows.filter(message => message.type === "bank").length, friend: categoryRows.filter(message => message.type === "friend").length };
+  function changeFilters(patch: Partial<MessageFilters>) { setFilters(previous => ({ ...previous, ...patch })); setPage(1); setSelectedIds([]); setSelectedId(null); setIsReplying(false); }
+  const saveDraft = useCallback(async (id: string, body: string) => {
+    const next = await repository.execute({ kind: "save_draft", id, body });
+    setSnapshot(next);
+  }, [repository]);
+  async function run(command: MessageCommand, quiet = false) {
+    setPending(true); setError("");
+    try {
+      const next = await repository.execute(command);
+      setSnapshot(next);
+      if ("ids" in command && ["archive", "unarchive", "trash", "restore", "purge"].includes(command.kind)) {
+        setSelectedIds([]);
+        if (selectedId && command.ids.includes(selectedId)) { setSelectedId(null); setIsReplying(false); }
+      }
+      if (!quiet) notifyOperation(actionLabels[command.kind], command.kind === "reply" ? "Your reply has been saved in this mock conversation." : `${"ids" in command ? command.ids.length : 1} conversation(s) updated in your mock account.`, false, "Message Center");
+      return true;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "The operation could not be completed.";
+      setError(message);
+      if (!purgeIds) notifyOperation("Message operation failed", message, true, "Message Center");
+      return false;
+    } finally { setPending(false); }
+  }
+  if (!snapshot) return <div role={error ? "alert" : "status"} className="p-6 text-sm text-slate-300">{error || "Loading your messages…"}{error && <ActionButton variant="blue" onClick={() => void load()}>Retry</ActionButton>}</div>;
+  const folders: { id: MessageFolder; label: string; count: number; Icon: typeof Inbox }[] = [
+    { id: "inbox", label: "Inbox", count: counts.inbox, Icon: Inbox },
+    { id: "replied", label: "Replied", count: counts.replied, Icon: Send },
+    { id: "archived", label: "Archive", count: counts.archived, Icon: Archive },
+    { id: "deleted", label: "Trash", count: counts.deleted, Icon: Trash2 },
+  ];
+  return <div data-mail-workspace style={{ containerType: "inline-size", containerName: "mailbox" }} className="flex h-full min-h-0 min-w-0 w-full flex-col gap-3 overflow-hidden">
+    <h1 className="sr-only">Message Center</h1>
+    <div className="shrink-0"><PageHeader sessionId={session.id} lastLogin={session.lastLogin}>
+      <dl aria-label="Message summary" className="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono">
+        {[{ label: "Inbox", value: counts.inbox, Icon: Inbox }, { label: "Unread", value: counts.unread, Icon: Mail }, { label: "Replied", value: counts.replied, Icon: Send }].map(({ label, value, Icon }) => <div key={label} className="flex items-center gap-2">
+          <dt className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400"><Icon size={13} className="text-blue-300/70" aria-hidden="true" />{label}</dt>
+          <dd className="text-sm font-semibold tabular-nums text-slate-200">{value}</dd>
+        </div>)}
+      </dl>
+    </PageHeader></div>
+    <CardSurface data-mail-filters tone="blue" className="shrink-0 p-2.5 space-y-2">
+      <div data-mail-folders className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-thin" role="group" aria-label="Message folder">
+        {folders.map(({ id, label, count, Icon }) => <ActionButton key={id} variant={filters.folder === id ? "cyan" : "blue"} size="medium" iconGap="tight" autoWidth className="shrink-0 whitespace-nowrap" aria-pressed={filters.folder === id} disabled={pending} icon={<Icon size={14} />} onClick={() => changeFilters({ folder: id })}>{label}<span className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-md border border-white/10 bg-white/5 px-1 py-0.5 text-[11px] tabular-nums text-slate-200">{count}</span></ActionButton>)}
       </div>
-
-      {/* OUTLOOK TOOLBAR - COMPACT, FĂRĂ BORDER ALB SÂCÂITOR */}
-      <div className="flex flex-col sm:flex-row gap-2 justify-between items-stretch sm:items-center bg-zinc-950/40 p-1.5 border border-white/[0.02] rounded-xl flex-shrink-0 backdrop-blur-md">
-        {/* SWITCHER FOLDERE FLUID */}
-        <div className="flex items-center gap-1 bg-zinc-900/60 p-1 rounded-lg border border-white/[0.01]">
-          <button
-            onClick={() => {
-              setCurrentFolder("inbox");
-              setSelectedBulkIds([]);
-              setSelectedMessageId(null);
-            }}
-            className={`cursor-pointer flex items-center gap-2 h-7 px-3.5 font-mono text-[11px] font-bold rounded-md uppercase tracking-wider transition-all duration-200 border ${
-              currentFolder === "inbox"
-                ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-600/10"
-                : "text-zinc-400 hover:text-white border-transparent hover:bg-white/5"
-            }`}
-          >
-            <Inbox size={12} />
-            Secure Inbox
-          </button>
-
-          <button
-            onClick={() => {
-              setCurrentFolder("replied");
-              setSelectedBulkIds([]);
-              setSelectedMessageId(null);
-            }}
-            className={`cursor-pointer flex items-center gap-2 h-7 px-3.5 font-mono text-[11px] font-bold rounded-md uppercase tracking-wider transition-all duration-200 border ${
-              currentFolder === "replied"
-                ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/10"
-                : "text-zinc-400 hover:text-white border-transparent hover:bg-white/5"
-            }`}
-          >
-            <Mail size={12} />
-            Replied Streams
-          </button>
-
-          <button
-            onClick={() => {
-              setCurrentFolder("deleted");
-              setSelectedBulkIds([]);
-              setSelectedMessageId(null);
-            }}
-            className={`cursor-pointer flex items-center gap-2 h-7 px-3.5 font-mono text-[11px] font-bold rounded-md uppercase tracking-wider transition-all duration-200 border ${
-              currentFolder === "deleted"
-                ? "bg-rose-950/60 text-rose-400 border-rose-500/20 shadow-md shadow-rose-950/10"
-                : "text-zinc-400 hover:text-white border-transparent hover:bg-white/5"
-            }`}
-          >
-            <Trash2 size={12} />
-            Trash Bin
-          </button>
-        </div>
-
-        {/* CONTROALE DINAMICE CU ELEMENTE DE CULOARE ȘI IDENTIFICARE RAPIDĂ */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar min-h-[28px]">
-          {filteredMessages.length > 0 && (
-            <button
-              onClick={handleSelectAllToggle}
-              className={`cursor-pointer flex items-center gap-1.5 h-7 px-3 rounded-lg font-mono text-[10px] uppercase font-black border transition-all duration-150 whitespace-nowrap ${
-                selectedBulkIds.length > 0
-                  ? "bg-cyan-950/50 border-cyan-500/40 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.1)]"
-                  : "bg-zinc-900/60 border-white/[0.04] text-zinc-400 hover:text-white hover:bg-zinc-800"
-              }`}
-            >
-              {selectedBulkIds.length > 0 ? (
-                <CheckSquare size={12} />
-              ) : (
-                <Square size={12} />
-              )}
-              <span>{selectButtonText}</span>
-            </button>
-          )}
-
-          {selectedBulkIds.length > 0 && (
-            <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-1 duration-150">
-              {/* CULOARE PURPLE/AMBER PENTRU CITIT/NECITIT */}
-              {currentFolder !== "deleted" && (
-                <button
-                  onClick={handleBulkMarkReadToggle}
-                  className={`cursor-pointer flex items-center gap-1.5 h-7 px-3 rounded-lg font-mono text-[10px] font-black uppercase border transition-all whitespace-nowrap ${
-                    isSelectedUnread
-                      ? "bg-amber-950/50 border-amber-500/40 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.1)]"
-                      : "bg-indigo-950/50 border-indigo-500/40 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.1)]"
-                  }`}
-                >
-                  {isSelectedUnread ? (
-                    <Check size={12} />
-                  ) : (
-                    <EyeOff size={12} />
-                  )}
-                  <span>{readButtonText}</span>
-                </button>
-              )}
-
-              {currentFolder === "deleted" && (
-                <button
-                  onClick={handleBulkRestore}
-                  className="cursor-pointer flex items-center gap-1.5 h-7 px-3 rounded-lg font-mono text-[10px] font-black uppercase bg-emerald-950/50 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/40 transition whitespace-nowrap shadow-[0_0_10px_rgba(16,185,129,0.1)]"
-                >
-                  <ArchiveRestore size={12} />
-                  Restore
-                </button>
-              )}
-
-              {/* DYNAMIC TEXT SYSTEM (Delete vs Delete All) CU VARIANTĂ ROȘU ELECTRIC */}
-              <button
-                onClick={handleBulkDelete}
-                className="cursor-pointer flex items-center gap-1.5 h-7 px-3 rounded-lg font-mono text-[10px] font-black uppercase bg-rose-950/50 border border-rose-500/40 text-rose-400 hover:bg-rose-900/40 transition-all duration-150 whitespace-nowrap shadow-[0_0_10px_rgba(244,63,94,0.15)]"
-              >
-                <Trash2 size={12} />
-                <span>
-                  {currentFolder === "deleted"
-                    ? selectedBulkIds.length === 1
-                      ? "Purge"
-                      : "Purge All"
-                    : selectedBulkIds.length === 1
-                      ? "Delete"
-                      : "Delete All"}
-                </span>
-              </button>
-            </div>
-          )}
-        </div>
+      <div data-mail-search className="flex items-center gap-2">
+        <div className="relative flex-1 min-w-0"><Search size={15} className="absolute left-2.5 top-2.5 text-slate-500" aria-hidden="true" /><input type="text" role="searchbox" enterKeyHint="search" aria-label="Search messages" placeholder="Search sender, subject or conversation…" value={filters.query} onChange={event => changeFilters({ query: event.target.value })} className="w-full h-9 rounded-lg border border-white/10 bg-[#060d1b] pl-8 pr-9 text-base sm:text-sm text-slate-100 outline-none focus:border-cyan-400/40" />{filters.query && <button type="button" aria-label="Clear message search" onClick={() => changeFilters({ query: "" })} className="absolute right-0 top-0 p-2.5 text-slate-400 cursor-pointer"><X size={14} /></button>}</div>
       </div>
-
-      {/* CORE WORKSPACE GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch flex-1 min-h-0 overflow-hidden">
-        {/* LISTA DIN STÂNGA */}
-        <div
-          className={`lg:col-span-5 flex flex-col gap-2 h-full min-h-0 ${selectedMessageId ? "hidden lg:flex" : "flex"}`}
-        >
-          <MessageTabs
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            counts={tabCounts}
-          />
-
-          <div
-            className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1 min-h-0
-            [&::-webkit-scrollbar]:w-1.5
-            [&::-webkit-scrollbar-track]:bg-transparent 
-            [&::-webkit-scrollbar-thumb]:bg-zinc-800 
-            hover:[&::-webkit-scrollbar-thumb]:bg-blue-600/30 
-            [&::-webkit-scrollbar-thumb]:rounded-md"
-          >
-            {filteredMessages.length > 0 ? (
-              filteredMessages.map((message) => (
-                <MessageCard
-                  key={message.id}
-                  message={message}
-                  isActive={message.id === selectedMessageId}
-                  isSelected={selectedBulkIds.includes(message.id)}
-                  onClick={handleMessageSelect}
-                  onToggleSelect={handleToggleSelect}
-                />
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-white/[0.02] rounded-xl bg-zinc-950/10 h-full">
-                <Inbox size={20} className="text-zinc-700 mb-2" />
-                <p className="text-[11px] font-mono text-zinc-600 uppercase tracking-widest">
-                  No vectors found in this secure array
-                </p>
-              </div>
-            )}
-          </div>
+    </CardSurface>
+    {error && !purgeIds && <p role="alert" className="shrink-0 rounded-xl border border-rose-500/20 p-2 text-xs text-rose-300">{error}</p>}
+    <div className="grid flex-1 min-w-0 min-h-0 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+      <div className={`min-w-0 min-h-0 flex-col gap-2 ${current ? "hidden lg:flex" : "flex"}`}>
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto scrollbar-thin rounded-xl border border-white/10 bg-blue-400/5 p-1.5">
+          <ActionButton variant={activeIds.length ? "cyan" : "blue"} size="medium" iconGap="tight" autoWidth className="shrink-0 whitespace-nowrap" role="checkbox" aria-label="Select all messages on this page" aria-checked={allSelected ? true : activeIds.length ? "mixed" : false} disabled={!visible.length || pending} icon={allSelected ? <SquareCheck size={14} /> : activeIds.length ? <SquareMinus size={14} /> : <Square size={14} />} onClick={() => setSelectedIds(allSelected ? [] : visible.map(message => message.id))}>Select all</ActionButton>
+          <ActionButton variant={filters.unread_only ? "cyan" : "blue"} size="medium" iconGap="tight" autoWidth className="shrink-0 whitespace-nowrap" role="checkbox" aria-checked={filters.unread_only} disabled={pending} icon={filters.unread_only ? <SquareCheck size={14} /> : <Square size={14} />} onClick={() => changeFilters({ unread_only: !filters.unread_only })}>Unread only</ActionButton>
+          {activeIds.length > 0 ? <>
+            <span aria-label={`${activeIds.length} selected`} title={`${activeIds.length} selected`} className="mr-auto px-1 text-[11px] tabular-nums text-slate-400">{activeIds.length}</span>
+            <MessageIconButton label="Mark selected messages as read" icon={<MailOpen size={14} />} disabled={pending} onClick={() => void run({ kind: "mark_read", ids: activeIds })} />
+            <MessageIconButton label="Mark selected messages as unread" icon={<Mail size={14} />} disabled={pending} onClick={() => void run({ kind: "mark_unread", ids: activeIds })} />
+            {filters.folder === "deleted" ? <MessageIconButton label="Restore selected messages" icon={<ArchiveRestore size={14} />} disabled={pending} onClick={() => void run({ kind: "restore", ids: activeIds })} /> : <MessageIconButton label={filters.folder === "archived" ? "Move selected messages to Inbox" : "Archive selected messages"} icon={<Archive size={14} />} disabled={pending} onClick={() => void run({ kind: filters.folder === "archived" ? "unarchive" : "archive", ids: activeIds })} />}
+            <MessageIconButton label={filters.folder === "deleted" ? "Delete selected messages permanently" : "Move selected messages to Trash"} icon={<Trash2 size={14} />} danger disabled={pending} onClick={() => filters.folder === "deleted" ? (setError(""), setPurgeIds(activeIds)) : void run({ kind: "trash", ids: activeIds })} />
+            <MessageIconButton label="Clear message selection" icon={<X size={14} />} disabled={pending} onClick={() => setSelectedIds([])} />
+          </> : <MessageTabs activeTab={filters.category} onChange={category => changeFilters({ category })} counts={tabCounts} disabled={pending} />}
         </div>
-
-        {/* PANOUL DE DETALIU DIN DREAPTA */}
-        <div
-          className={`lg:col-span-7 h-full min-h-0 ${selectedMessageId ? "block" : "hidden lg:block"}`}
-        >
-          <MessageDetail
-            message={currentMessage}
-            isReplying={isReplying}
-            setIsReplying={setIsReplying}
-            onClose={() => {
-              setSelectedMessageId(null);
-              setIsReplying(false);
-            }}
-            onDeleteMessage={handleDeleteSingle}
-            onTriggerReplySubmit={handleTriggerReplySubmit}
-          />
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1 scrollbar-thin" aria-label="Message list">
+          {visible.map(message => <MessageCard key={message.id} message={message} isActive={selectedId === message.id} isSelected={activeIds.includes(message.id)} disabled={pending} onToggleSelect={id => setSelectedIds(previous => previous.includes(id) ? previous.filter(value => value !== id) : [...previous, id])} onClick={id => { setSelectedId(id); setIsReplying(false); if (message.read_at === null) void run({ kind: "mark_read", ids: [id] }, true); }} />)}
+          {!visible.length && <CardSurface tone="blue" className="flex min-h-48 flex-1 flex-col items-center justify-center gap-3 p-6 text-center"><Inbox size={24} className="text-blue-300/50" /><p className="text-sm text-slate-300">No messages match this view.</p>{(filters.query || filters.unread_only || filters.category !== "all") && <ActionButton variant="blue" onClick={() => changeFilters({ query: "", unread_only: false, category: "all" })}>Clear filters</ActionButton>}</CardSurface>}
         </div>
+        <div className="flex shrink-0 items-center justify-between gap-2 text-[10px] text-slate-500"><p>{filtered.length ? `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filtered.length)} of ${filtered.length}` : "0 messages"}</p><nav aria-label="Message pagination" className="flex items-center gap-1"><MessageIconButton label="Previous message page" disabled={pending || currentPage === 1} icon={<ChevronLeft size={13} />} compact onClick={() => { setPage(currentPage - 1); setSelectedIds([]); }} /><span className="px-1 tabular-nums">{currentPage}/{pageCount}</span><MessageIconButton label="Next message page" disabled={pending || currentPage === pageCount} icon={<ChevronRight size={13} />} compact onClick={() => { setPage(currentPage + 1); setSelectedIds([]); }} /></nav></div>
+      </div>
+      <div className={`min-w-0 min-h-0 ${current ? "block" : "hidden lg:block"}`}>
+        <MessageDetail message={current} draft={current ? snapshot.drafts[current.id] ?? "" : ""} isReplying={isReplying} onReplyingChange={setIsReplying} pending={pending} onClose={() => { const id = selectedId; setSelectedId(null); setIsReplying(false); window.requestAnimationFrame(() => document.getElementById(`message-open-${id}`)?.focus({ preventScroll: true })); }} onCommand={run} onPurge={ids => { setError(""); setPurgeIds(ids); }} onSaveDraft={saveDraft} onSendReply={async (id, body, reply_id) => { const success = await run({ kind: "reply", id, reply_id, body }); if (!success) throw new Error("Reply was not saved. Please retry."); setIsReplying(false); }} />
       </div>
     </div>
-  );
+    {purgeIds && <MessageDeleteDialog count={purgeIds.length} pending={pending} error={error} onCancel={() => { setPurgeIds(null); setError(""); }} onConfirm={() => void run({ kind: "purge", ids: purgeIds }).then(success => { if (success) setPurgeIds(null); })} />}
+  </div>;
+}
+export default function MessageCenter() {
+  const { user } = useUser();
+  return user ? <MessagesWorkspace key={user.email} clientId={user.email} /> : <p role="status" className="p-6 text-sm text-slate-400">Loading your messages…</p>;
 }

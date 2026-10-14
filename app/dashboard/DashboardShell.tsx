@@ -1,8 +1,9 @@
 // app/dashboard/DashboardShell.tsx
 "use client";
 
+import "./dashboard-layout.css";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Sidenav from "@/app/components/ui/Sidenav";
 import { useUser } from "@/app/context/UserContext";
 
@@ -13,6 +14,7 @@ export default function DashboardShell({
 }) {
     const { user, loading } = useUser();
     const router = useRouter();
+    const isMailbox = usePathname() === "/dashboard/notifications";
 
     useEffect(() => {
         // Redirecționare automată la login dacă sesiunea lipsește
@@ -34,12 +36,12 @@ export default function DashboardShell({
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-[#030712] text-white flex flex-col md:flex-row">
+        <div data-mail-layout={isMailbox ? "true" : undefined} className={`${isMailbox ? "h-dvh min-h-0 overflow-hidden" : "min-h-screen"} bg-[#030712] text-white flex flex-col md:flex-row`}>
             {/* Sidenav preia acum utilizatorul real configurat din Login */}
             <Sidenav user={user} />
 
-            <main className="flex-1 min-w-0 pt-16 md:pt-0 transition-all duration-300">
-                <div className="w-full h-full p-4 md:p-6 flex flex-col">
+            <main className={`flex-1 min-w-0 pt-16 md:pt-0 ${isMailbox ? "min-h-0 overflow-hidden" : ""}`}>
+                <div data-dashboard-inset className={`w-full h-full flex flex-col p-4 md:p-6 ${isMailbox ? "min-h-0 overflow-hidden" : ""}`}>
                     {children}
                 </div>
             </main>

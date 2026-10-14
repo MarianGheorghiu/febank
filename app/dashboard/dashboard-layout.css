@@ -1,0 +1,18 @@
+/* Mail controls adapt without changing the shared header dimensions. */
+@media (max-height: 500px) {
+  [data-dashboard-inset] { padding: 8px; }
+  [data-mail-workspace] { gap: 8px; }
+  [data-mail-filters] { padding: 8px; }
+}
+@media (max-height: 500px) and (min-width: 640px) {
+  [data-mail-filters] { display: flex; align-items: center; gap: 8px; }
+  [data-mail-filters] > * { margin-block: 0; }
+  [data-mail-filters] [data-mail-folders] { flex: 1; min-width: 0; }
+  [data-mail-search] { width: 180px; min-width: 0; flex-shrink: 0; }
+}
+
+/* On short screens, scroll the mailbox workspace to keep controls and messages reachable. */
+@media (max-height: 600px) {
+  [data-mail-workspace] { overflow-y: auto; }
+  [data-mail-workspace] > .grid { flex: none; height: max(240px, 50dvh); min-height: 240px; }
+}

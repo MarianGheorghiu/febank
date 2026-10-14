@@ -1,5 +1,6 @@
 "use client";
 
+import CardSurface from "@/app/components/ui/CardSurface";
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   ArrowUpRight,
@@ -7,11 +8,9 @@ import {
   RefreshCw,
   Layers,
   ChevronDown,
-  Search,
-  X,
-  Trash2,
 } from "lucide-react";
-import { transfersHistoryData } from "@/app/lib/mock/dashboard";
+import FilterControls from "./FilterControls";
+import { filterTransactions, formatDate } from "@/app/lib/overview/engine";
 import type { TransferPeriod, TransferTransaction } from "@/app/lib/types/dashboard";
 
 const periodOptions: { value: TransferPeriod; label: string }[] = [
@@ -25,19 +24,14 @@ const periodOptions: { value: TransferPeriod; label: string }[] = [
   { value: "1Y", label: "1 Year" },
 ];
 
-export default function TransfersTable() {
+export default function TransfersTable({ transactions, asOf }: { transactions: TransferTransaction[]; asOf: string }) {
   const [period, setPeriod] = useState<TransferPeriod>("1M");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
-  const [localTransfers, setLocalTransfers] =
-    useState<Record<TransferPeriod, TransferTransaction[]>>(
-      transfersHistoryData,
-    );
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const currentTransfers = localTransfers[period] || [];
+  const currentTransfers = useMemo(() => filterTransactions(transactions, period, asOf), [transactions, period, asOf]);
   const currentLabel =
     periodOptions.find((p) => p.value === period)?.label || period;
 
@@ -50,8 +44,10 @@ export default function TransfersTable() {
         setIsDropdownOpen(false);
       }
     }
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setIsDropdownOpen(false); };
+    document.addEventListener("keydown", escape);
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => { document.removeEventListener("mousedown", handleClickOutside); document.removeEventListener("keydown", escape); };
   }, []);
 
   const filteredTransfers = useMemo(() => {
@@ -69,13 +65,6 @@ export default function TransfersTable() {
       return matchesSearch && matchesStatus;
     });
   }, [currentTransfers, searchQuery, selectedStatus]);
-
-  const handleDeleteTransaction = (id: string) => {
-    setLocalTransfers((prev) => ({
-      ...prev,
-      [period]: prev[period].filter((tx) => tx.id !== id),
-    }));
-  };
 
   const getTxDetails = (type: TransferTransaction["type"]) => {
     switch (type) {
@@ -116,7 +105,7 @@ export default function TransfersTable() {
   const statuses = ["ALL", "COMPLETED", "PENDING", "FAILED"];
 
   return (
-    <div className="p-3 sm:p-5 flex flex-col border border-cyan-500/40 bg-[#0d1527] rounded-xl relative overflow-hidden group transition-all duration-300 hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] h-[355px]">
+    <CardSurface tone="blue" className="p-3 sm:p-5 flex flex-col overflow-hidden h-[430px]">
       {/* HEADER */}
       <div className="flex items-center justify-between mb-3 sm:mb-4 shrink-0 z-20 gap-2">
         <div>
@@ -135,8 +124,10 @@ export default function TransfersTable() {
         >
           <button
             type="button"
+            aria-expanded={isDropdownOpen}
+            aria-label="Filter activity by period"
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center justify-between w-full bg-[#070b14] text-white font-mono text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-700 hover:border-cyan-400 transition-all cursor-pointer outline-none select-none text-left"
+            className="flex items-center justify-between w-full bg-[#070b14] text-white font-mono text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 min-h-11 py-1.5 rounded-md border border-zinc-700 hover:border-cyan-400 transition-all cursor-pointer outline-none select-none text-left"
           >
             {currentLabel}
           </button>
@@ -155,7 +146,7 @@ export default function TransfersTable() {
                     setPeriod(opt.value);
                     setIsDropdownOpen(false);
                   }}
-                  className={`w-full text-left font-mono text-[11px] sm:text-xs px-2 py-1 rounded transition-all select-none cursor-pointer ${period === opt.value ? "bg-cyan-500 text-[#02040f] font-black" : "text-zinc-400 hover:text-white"}`}
+                  className={`w-full text-left font-mono text-[11px] sm:text-xs px-2 min-h-9 py-1 rounded transition-all select-none cursor-pointer ${period === opt.value ? "bg-cyan-500 text-[#02040f] font-black" : "text-zinc-400 hover:text-white"}`}
                 >
                   {opt.label}
                 </button>
@@ -165,56 +156,13 @@ export default function TransfersTable() {
         </div>
       </div>
 
-      {/* SEARCH & STATUS FILTER ROW */}
-      <div className="space-y-2.5 sm:space-y-3 mb-3 sm:mb-4 shrink-0 z-10">
-        <div className="relative flex items-center bg-[#070b14] border border-zinc-700 rounded-md focus-within:border-cyan-400 transition-all duration-200">
-          <Search size={13} className="absolute left-2.5 text-zinc-400" />
-          <input
-            type="text"
-            placeholder="Search ledger..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-transparent pl-8 pr-8 py-1.5 text-[11px] sm:text-xs font-mono text-white placeholder-zinc-500 outline-none"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 p-0.5 rounded text-zinc-400 hover:text-white"
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-
-        {/* Status Scrollbar pe mobil */}
-        <div className="flex gap-1 overflow-x-auto pb-1 font-mono snap-x snap-mandatory [&::-webkit-scrollbar]:hidden">
-          {statuses.map((stat) => {
-            const isSelected =
-              stat === "ALL"
-                ? selectedStatus === null
-                : selectedStatus === stat;
-            return (
-              <button
-                key={stat}
-                onClick={() => setSelectedStatus(stat === "ALL" ? null : stat)}
-                className={`text-[9px] sm:text-[10px] font-bold px-2.5 sm:px-3 py-1 rounded border shrink-0 snap-start transition-all cursor-pointer ${
-                  isSelected
-                    ? "bg-cyan-500 text-[#02040f] border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.2)] font-black"
-                    : "bg-[#070b14] text-zinc-400 border-zinc-800 hover:text-white"
-                }`}
-              >
-                {stat === "FAILED" ? "DECLINED" : stat}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <FilterControls query={searchQuery} onQueryChange={setSearchQuery} label="Search ledger" options={statuses} selected={selectedStatus} onSelect={setSelectedStatus} />
 
       {/* TRANSACTIONS LIST */}
       <div className="flex-1 overflow-y-auto pr-0.5 space-y-2 z-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
         {filteredTransfers.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center font-mono py-12 bg-[#111a36]/50 rounded-lg border border-dashed border-zinc-800 p-4">
-            <span className="text-zinc-400 text-xs">No records matrixed</span>
+            <span className="text-zinc-400 text-xs">No transactions match these filters</span>
           </div>
         ) : (
           filteredTransfers.map((tx) => {
@@ -238,7 +186,7 @@ export default function TransfersTable() {
                       {tx.reference}
                     </h4>
                     <p className="text-[9px] sm:text-[10px] font-mono text-zinc-400 mt-0.5">
-                      {tx.date}
+                      {formatDate(tx.occurred_at)}
                     </p>
                   </div>
                 </div>
@@ -250,26 +198,18 @@ export default function TransfersTable() {
                       className={`font-mono text-xs sm:text-sm font-black tracking-tight tabular-nums ${isPositive ? "text-emerald-400" : "text-white"}`}
                     >
                       {isPositive ? "+" : "-"}
-                      {tx.amount}
+                      {Number(tx.amount).toLocaleString("en-US", { minimumFractionDigits: tx.currency === "BTC" ? 0 : 2, maximumFractionDigits: tx.currency === "BTC" ? 8 : 2 })}
                       <span className="text-[8px] sm:text-[9px] text-zinc-500 font-bold ml-0.5 uppercase">
                         {tx.currency}
                       </span>
                     </span>
                     <span
-                      className={`text-[7px] sm:text-[8px] font-mono font-bold tracking-wider uppercase px-1 sm:px-1.5 py-0.2 mt-0.5 rounded border text-center ${getStatusStyle(tx.status)}`}
+                      className={`text-[7px] sm:text-[8px] font-mono font-bold tracking-wider uppercase px-1 sm:px-1.5 py-0.5 mt-0.5 rounded border text-center ${getStatusStyle(tx.status)}`}
                     >
                       {tx.status === "FAILED" ? "DECLINED" : tx.status}
                     </span>
                   </div>
 
-                  {/* Trash button: Perfect scalat și direct accesibil pe mobil */}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteTransaction(tx.id)}
-                    className="p-1 sm:p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/40 border border-transparent rounded transition-all cursor-pointer opacity-80 group-hover/row:opacity-100"
-                  >
-                    <Trash2 size={13} className="sm:size-[14px]" />
-                  </button>
                 </div>
               </div>
             );
@@ -278,6 +218,6 @@ export default function TransfersTable() {
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-[#0d1527] to-transparent pointer-events-none z-20" />
-    </div>
+    </CardSurface>
   );
 }

@@ -1,18 +1,18 @@
 "use client";
 
+import CardSurface from "@/app/components/ui/CardSurface";
 import React, { useState, useMemo } from "react";
 import {
   Globe,
   Activity,
   TrendingUp,
   TrendingDown,
-  Search,
-  X,
 } from "lucide-react";
-import { marketAssetsData } from "@/app/lib/mock/dashboard";
+import FilterControls from "./FilterControls";
+import { formatMoney, formatPercent } from "@/app/lib/overview/engine";
 import type { MarketAsset } from "@/app/lib/types/dashboard";
 
-export default function MarketNewsTable() {
+export default function MarketNewsTable({ assets }: { assets: MarketAsset[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -43,7 +43,7 @@ export default function MarketNewsTable() {
   };
 
   const filteredAssets = useMemo(() => {
-    return marketAssetsData.filter((asset) => {
+    return assets.filter((asset) => {
       const matchesSearch =
         asset.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
         asset.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -52,12 +52,12 @@ export default function MarketNewsTable() {
         : true;
       return matchesSearch && matchesCategory;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [assets, searchQuery, selectedCategory]);
 
   const categories = ["ALL", "CRYPTO", "STOCKS", "FOREX", "COMMODITIES"];
 
   return (
-    <div className="p-3 sm:p-5 flex flex-col border border-cyan-500/40 bg-[#0d1527] rounded-xl relative overflow-hidden group transition-all duration-300 hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] h-[355px]">
+    <CardSurface tone="cyan" className="p-3 sm:p-5 flex flex-col overflow-hidden h-[430px]">
       {/* HEADER */}
       <div className="flex justify-between items-center mb-3 sm:mb-4 shrink-0 z-10">
         <div className="space-y-0.5">
@@ -66,58 +66,15 @@ export default function MarketNewsTable() {
             Global Ticker
           </div>
           <h2 className="text-xs sm:text-sm font-black font-mono text-white uppercase tracking-tight">
-            Live Asset Metrics
+            Market Snapshot
           </h2>
         </div>
         <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-          <Activity size={9} className="animate-pulse sm:size-[10px]" /> LIVE
+          <Activity size={9} className="animate-pulse sm:size-[10px]" /> MOCK
         </span>
       </div>
 
-      {/* CONTROALE (SEARCH & FILTERS) */}
-      <div className="space-y-2.5 sm:space-y-3 mb-3 sm:mb-4 shrink-0 z-10">
-        <div className="relative flex items-center bg-[#070b14] border border-zinc-700 rounded-md focus-within:border-cyan-400 transition-all duration-200">
-          <Search size={13} className="absolute left-2.5 text-zinc-400" />
-          <input
-            type="text"
-            placeholder="Search ticker..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-transparent pl-8 pr-8 py-1.5 text-[11px] sm:text-xs font-mono text-white placeholder-zinc-500 outline-none"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 p-0.5 rounded text-zinc-400 hover:text-white"
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-
-        {/* Swipe orizontal pe mobil, așezare curată pe desktop */}
-        <div className="flex gap-1 overflow-x-auto pb-1 font-mono snap-x snap-mandatory [&::-webkit-scrollbar]:hidden">
-          {categories.map((cat) => {
-            const isSelected =
-              cat === "ALL"
-                ? selectedCategory === null
-                : selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat === "ALL" ? null : cat)}
-                className={`text-[9px] sm:text-[10px] font-bold px-2.5 sm:px-3 py-1 rounded transition-all cursor-pointer border shrink-0 snap-start ${
-                  isSelected
-                    ? "bg-cyan-500 text-[#02040f] border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.2)] font-black"
-                    : "bg-[#070b14] text-zinc-400 border-zinc-800 hover:text-white"
-                }`}
-              >
-                {cat}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <FilterControls query={searchQuery} onQueryChange={setSearchQuery} label="Search ticker" options={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
 
       {/* LISTA DE ACTIVE */}
       <div className="flex-1 overflow-y-auto pr-0.5 space-y-2 z-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
@@ -125,7 +82,7 @@ export default function MarketNewsTable() {
           filteredAssets.map((asset) => (
             <div
               key={asset.id}
-              className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-[#111a36] border border-white/[0.05] hover:bg-[#162246] hover:border-cyan-500/60 transition-all duration-200 gap-2 sm:gap-3 group/row cursor-pointer"
+              className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-[#111a36] border border-white/[0.05] hover:bg-[#162246] hover:border-cyan-500/60 transition-all duration-200 gap-2 sm:gap-3 group/row"
             >
               {/* STÂNGA */}
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -152,23 +109,23 @@ export default function MarketNewsTable() {
               </div>
 
               {/* DREAPTA */}
-              <div className="flex items-center gap-2 sm:gap-3 text-right shrink-0">
+              <div className="flex items-center gap-1 sm:gap-3 text-right shrink-0 flex-col sm:flex-row">
                 <div className="font-mono text-xs sm:text-sm font-bold text-white tabular-nums tracking-tight">
-                  {asset.price}
+                  {formatMoney(asset.price, asset.currency, asset.category === "FOREX" ? 4 : undefined)}
                 </div>
                 <div
                   className={`w-16 sm:w-20 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[11px] font-mono font-bold flex items-center justify-end gap-0.5 border shadow-sm ${
-                    asset.pos
+                    Number(asset.change_percent) >= 0
                       ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
                       : "bg-rose-500/20 text-rose-300 border-rose-500/40"
                   }`}
                 >
-                  {asset.pos ? (
+                  {Number(asset.change_percent) >= 0 ? (
                     <TrendingUp size={10} className="shrink-0" />
                   ) : (
                     <TrendingDown size={10} className="shrink-0" />
                   )}
-                  <span className="tabular-nums">{asset.change}</span>
+                  <span className="tabular-nums">{formatPercent(asset.change_percent)}</span>
                 </div>
               </div>
             </div>
@@ -192,6 +149,6 @@ export default function MarketNewsTable() {
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-[#0d1527] to-transparent pointer-events-none z-20" />
-    </div>
+    </CardSurface>
   );
 }

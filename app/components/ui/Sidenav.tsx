@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { UserProps } from "@/app/lib/types/auth";
+import { useSessionMetadata } from "@/app/lib/session/use-session-metadata";
 import { useUser } from "@/app/context/UserContext";
 import {
     Landmark,
@@ -34,19 +36,13 @@ import {
     Megaphone,
 } from "lucide-react";
 
-interface UserProps {
-    name: string;
-    clientCode: string;
-    role: "client" | "admin";
-}
-
 export default function Sidenav({ user }: { user: UserProps }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const pathname = usePathname();
     const { logout } = useUser();
 
-    const lastLogin = "28 May 2026 - 18:39";
+    const { lastLogin } = useSessionMetadata(user.email);
 
     const clientNavItems = [
         {
@@ -289,7 +285,7 @@ export default function Sidenav({ user }: { user: UserProps }) {
 
             {/* DESKTOP SIDENAV */}
             <aside
-                className={`hidden md:flex flex-col sticky top-0 h-screen shrink-0 transition-all duration-300 z-30 border-r border-white/[0.08] bg-[#030712]/60 backdrop-blur-xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] ${
+                className={`hidden md:flex flex-col sticky top-0 h-dvh shrink-0 transition-all duration-300 z-30 border-r border-white/[0.08] bg-[#030712]/60 backdrop-blur-xl shadow-[4px_0_30px_rgba(0,0,0,0.5)] ${
                     isCollapsed ? "w-20" : "w-64"
                 }`}
             >

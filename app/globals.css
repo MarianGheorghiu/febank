@@ -121,3 +121,12 @@
   border-width: 1px;
   background-clip: padding-box;
 }
+
+/* The mailbox owns its viewport; only its list and reading pane scroll. */
+html:has([data-mail-layout="true"]) {
+  overflow: hidden;
+}
+body:has([data-mail-layout="true"]) {
+  min-height: 100dvh;
+  overflow: hidden;
+}

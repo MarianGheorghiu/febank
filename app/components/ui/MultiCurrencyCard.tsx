@@ -1,22 +1,24 @@
 "use client";
-import { MOCK_OVERVIEW_ACCOUNTS } from "@/app/lib/mock/overview-accounts";
+import CardSurface from "@/app/components/ui/CardSurface";
+import { AVAILABLE_CURRENCIES } from "@/app/lib/mock/currency-catalog";
+import { formatMoney } from "@/app/lib/overview/engine";
 import type { CurrencyAccount } from "@/app/lib/types/overview-accounts";
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, ChevronDown, Search } from "lucide-react";
 
-export default function MultiCurrencyCard() {
+export default function MultiCurrencyCard({ accounts }: { accounts: CurrencyAccount[] }) {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const [accounts] = useState<CurrencyAccount[]>(MOCK_OVERVIEW_ACCOUNTS);
 
   const [activeCode, setActiveCode] = useState<string>("EUR");
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const current = accounts.find((a) => a.code === activeCode) || accounts[0];
+  const metadata = (code: string) => AVAILABLE_CURRENCIES.find(currency => currency.code === code);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -31,7 +33,10 @@ export default function MultiCurrencyCard() {
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("touchstart", handleClickOutside);
 
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setIsOpen(false); };
+    document.addEventListener("keydown", escape);
     return () => {
+      document.removeEventListener("keydown", escape);
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
@@ -40,12 +45,14 @@ export default function MultiCurrencyCard() {
   const filteredAccounts = accounts.filter(
     (acc) =>
       acc.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      acc.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      (metadata(acc.code)?.name ?? acc.code).toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  if (!current) return <div className="rounded-xl border border-white/10 p-4 text-sm text-zinc-400">No currency accounts.</div>;
+
   return (
-    <div
-      className={`relative bg-slate-900 border border-blue-500/20  rounded-xl p-3.5 sm:p-4 transition-all duration-300 flex flex-col justify-between min-h-[115px] overflow-visible ${
+    <CardSurface tone="blue"
+      className={`p-3.5 sm:p-4 flex flex-col justify-between h-full min-h-[115px] overflow-visible ${
         isOpen ? "z-50 ring-1 ring-blue-700" : "z-10"
       }`}
     >
@@ -57,13 +64,15 @@ export default function MultiCurrencyCard() {
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
+            aria-expanded={isOpen}
+            aria-label="Select wallet currency"
             onClick={() => {
               setIsOpen(!isOpen);
               setSearchQuery("");
             }}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black border border-blue-800 text-blue-300 text-[11px] font-bold font-mono transition-all duration-200 cursor-pointer hover:border-blue-600 hover:text-white select-none"
           >
-            <span>{current.flag}</span>
+            <span>{metadata(current.code)?.flag}</span>
             <span>{current.code}</span>
             <ChevronDown
               size={12}
@@ -74,7 +83,7 @@ export default function MultiCurrencyCard() {
           {isOpen && (
             <div
               /* Modificat fundalul în bg-slate-950 solid din Tailwind și poziționare nativă absolută sub buton */
-              className="absolute right-0 top-full mt-2 w-60 rounded-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] p-2 bg-slate-950 z-50 block"
+              className="absolute right-0 top-full mt-2 w-[min(15rem,calc(100vw-4rem))] rounded-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] p-2 bg-slate-950 z-50 block"
             >
               <div className="relative mb-2">
                 <Search
@@ -83,6 +92,7 @@ export default function MultiCurrencyCard() {
                 />
                 <input
                   type="text"
+                  aria-label="Search currency"
                   placeholder="Search currency"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -121,7 +131,7 @@ export default function MultiCurrencyCard() {
                         }`}
                       >
                         <span className="flex items-center gap-1.5">
-                          <span>{acc.flag}</span>
+                          <span>{metadata(acc.code)?.flag}</span>
                           <span
                             className={
                               isSelected ? "text-cyan-400" : "text-white"
@@ -131,10 +141,7 @@ export default function MultiCurrencyCard() {
                           </span>
                         </span>
                         <span className="text-white">
-                          {acc.symbol}
-                          {acc.balance.toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                          })}
+                          {formatMoney(acc.balance, acc.code)}
                         </span>
                       </button>
                     );
@@ -148,10 +155,7 @@ export default function MultiCurrencyCard() {
 
       <div className="mt-auto">
         <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight font-mono mb-1">
-          {current.symbol}
-          {current.balance.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-          })}
+          {formatMoney(current.balance, current.code)}
         </h3>
 
         <div className="mt-1 flex items-center justify-between text-[11px]">
@@ -167,10 +171,10 @@ export default function MultiCurrencyCard() {
             FX Exchange
           </button>
           <span className="text-[10px] text-gray-200 font-mono">
-            1 {current.code} ≈ {current.rateToEur.toFixed(2)} EUR
+            1 {current.code} ≈ {Number(current.rate_to_eur).toLocaleString("en-US", { maximumFractionDigits: 4 })} EUR
           </span>
         </div>
       </div>
-    </div>
+    </CardSurface>
   );
 }

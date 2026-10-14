@@ -15,7 +15,9 @@
     "test:referrals": "node tests/referrals.test.cjs",
     "test:business-analytics": "node tests/business-analytics.test.cjs",
     "test:system-health": "node tests/system-health.test.cjs",
-    "test:flags-config": "node tests/flags-config.test.cjs"
+    "test:flags-config": "node tests/flags-config.test.cjs",
+    "test:overview": "node tests/overview.test.cjs",
+    "test:messages": "node tests/messages.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",
