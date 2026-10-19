@@ -19,7 +19,8 @@
     "test:overview": "node tests/overview.test.cjs",
     "test:wallet": "node tests/wallet.test.cjs",
     "test:transfers": "node tests/transfers.test.cjs",
-    "test:messages": "node tests/messages.test.cjs"
+    "test:messages": "node tests/messages.test.cjs",
+    "test:social": "node tests/social.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

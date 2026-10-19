@@ -51,7 +51,7 @@ export default function ClientDashboard({ name, clientId }: { name: string; clie
       <ActionButton variant="cyan" iconGap="tight" icon={<Plus size={15} />} onClick={() => setModalType("deposit")}>ADD MONEY</ActionButton>
       <ActionButton variant="rose" iconGap="tight" icon={<Minus size={15} />} onClick={() => setModalType("withdraw")}>WITHDRAW</ActionButton>
       <ActionButton variant="amber" icon={<Coins size={15} />} onClick={() => router.push("/dashboard/loans?action=apply")}>MAKE A LOAN</ActionButton>
-      <ActionButton variant="purple" icon={<ArrowLeftRight size={15} />} onClick={() => router.push("/dashboard/transfers")}>TRANSFER</ActionButton>
+      <ActionButton variant="purple" icon={<ArrowLeftRight size={15} />} onClick={() => setModalType("transfer")}>TRANSFER</ActionButton>
     </PageHeader>
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-3 min-w-0">
       {metrics.map(metric => <MetricCard key={metric.title} title={metric.title} value={metric.value} icon={metric.icon} iconColor={metric.color} tone={metric.tone as CardTone} href={metric.href} subtext={<p>{metric.subtext}</p>} />)}

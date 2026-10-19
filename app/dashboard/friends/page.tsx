@@ -1,243 +1,90 @@
 "use client";
-import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-
-import { useState } from "react";
-import { UserPlus, Plus } from "lucide-react";
-import { mockFriendStats, MOCK_FRIENDS } from "@/app/lib/mock/friends";
-import type { Friend } from "@/app/lib/types/friends";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDownLeft, ArrowUpRight, Plus, RefreshCw, Split, Users, UserPlus } from "lucide-react";
+import { useUser } from "@/app/context/UserContext";
 import PageHeader from "@/app/components/ui/PageHeader";
+import CardSurface from "@/app/components/ui/CardSurface";
+import MetricCard from "@/app/components/ui/MetricCard";
 import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
+import SocialActionModal, { type SocialAction } from "@/app/components/ui/friends/SocialActionModal";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
+import { createSocialRepository, SOCIAL_EVENT } from "@/app/lib/social/repository";
+import { indexSocialDirectory } from "@/app/lib/social/directory";
+import SocialDirectory from "@/app/components/ui/friends/SocialDirectory";
+import { amountLabel } from "@/app/lib/transfers/engine";
+import type { SocialCommand, SocialSnapshot } from "@/app/lib/social/contracts";
 
-import AddFriendModal from "@/app/components/ui/friends/AddFriendModal";
-import SplitBillModal from "@/app/components/ui/friends/SplitBillModal";
-import ConfirmationModal from "@/app/components/ui/friends/ConfirmationModal";
-import FriendsTable from "@/app/components/ui/friends/FriendsTable";
-import FriendsMobileTable from "@/app/components/ui/friends/FriendsMobileTable";
-import PendingRequests from "@/app/components/ui/friends/PendingRequests";
-import RequestMoneyModal from "@/app/components/ui/friends/RequestMoneyModal";
-import GiftModal from "@/app/components/ui/friends/GiftModal";
-import QuickFriendTransferModal from "@/app/components/ui/friends/QuickFriendTransfer";
-
+const smallButton = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-white/10 bg-blue-400/5 p-2 text-slate-400 transition-colors hover:border-blue-300/30 hover:text-white focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-40";
+function FriendsWorkspace({ clientId }: { clientId: string }) {
+  const repository = useMemo(() => createSocialRepository(clientId), [clientId]);
+  const [snapshot, setSnapshot] = useState<SocialSnapshot | null>(null);
+  const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [action, setAction] = useState<SocialAction | null>(null);
+  const revision = useRef(0);
+  const mutation = useRef(false);
+  const actionKeys = useRef(new Map<string, string>());
+  const refresh = useCallback(async (signal?: AbortSignal) => {
+    if (mutation.current) return;
+    const request = ++revision.current;
+    setRefreshing(true);
+    try {
+      const next = await repository.getSnapshot(signal);
+      if (!signal?.aborted && request === revision.current) { setSnapshot(next); setError(""); }
+    } catch (cause) { if (!signal?.aborted && request === revision.current) setError(cause instanceof Error ? cause.message : "Unable to load your friends."); }
+    finally { if (!signal?.aborted && request === revision.current) setRefreshing(false); }
+  }, [repository]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => { void refresh(controller.signal); };
+    load();
+    window.addEventListener("focus", load);
+    window.addEventListener(SOCIAL_EVENT, load);
+    return () => { controller.abort(); window.removeEventListener("focus", load); window.removeEventListener(SOCIAL_EVENT, load); };
+  }, [refresh]);
+  async function execute(command: SocialCommand, key: string) {
+    if (mutation.current) throw new Error("Please wait for the current action to finish.");
+    mutation.current = true; revision.current++; setPending(true); setRefreshing(false);
+    try { setSnapshot(await repository.execute(command, key)); setError(""); }
+    finally { mutation.current = false; setPending(false); }
+  }
+  async function run(command: SocialCommand) {
+    const payload = JSON.stringify(command);
+    const key = actionKeys.current.get(payload) ?? crypto.randomUUID();
+    actionKeys.current.set(payload, key);
+    try { await execute(command, key); notifyOperation("Request updated", "Your social workspace is up to date.", false, "Friends & Social", "purple", 2500); }
+    catch (cause) { notifyOperation("Unable to update request", cause instanceof Error ? cause.message : "Please try again.", true, "Friends & Social", "purple", 4000); }
+  }
+  const index = useMemo(() => snapshot ? indexSocialDirectory(snapshot) : null, [snapshot]);
+  const online = snapshot?.friends.filter(f => f.presence === "online").length ?? 0;
+  const connections = snapshot?.connections.filter(r => r.status === "pending") ?? [];
+  return <div data-social-workspace className="w-full min-w-0 space-y-3 text-white">
+    <h1 className="sr-only">Friends & Social</h1>
+    <PageHeader inlineActions actionsPosition="right" statusText="Friends & Social">
+      <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
+        <button type="button" aria-label="Refresh social workspace" title="Refresh" className={smallButton} disabled={refreshing || pending} onClick={() => void refresh()}><RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /></button>
+        <ActionButton autoWidth className="social-header-action" labelClassName="hidden md:inline" variant="purple" aria-label="Split bill" title="Split bill" disabled={pending || !snapshot?.friends.length} icon={<Split size={15} />} onClick={() => setAction({ type: "split" })}>Split bill</ActionButton>
+        <ActionButton autoWidth className="social-header-action" labelClassName="hidden md:inline" variant="cyan" aria-label="Add friend" title="Add friend" disabled={pending || !snapshot} icon={<Plus size={15} />} onClick={() => setAction({ type: "invite" })}>Add friend</ActionButton>
+      </div>
+    </PageHeader>
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-400/20 bg-rose-400/5 p-4 text-sm text-rose-200"><p>{error}</p><button type="button" className="min-h-10 underline" disabled={refreshing || pending} onClick={() => void refresh()}>Retry</button></div>}
+    {!snapshot ? <CardSurface className="p-8"><p role="status" className="text-sm text-slate-400">{error ? "Your social workspace is unavailable." : "Loading your friends and shared expenses…"}</p></CardSurface> : <>
+      <div data-social-summary className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-4">
+        <MetricCard compact title="Your circle" value={snapshot.friends.length.toLocaleString("en-GB")} icon={Users} tone="blue" iconColor="text-blue-300" subtext={`${online} online · ${snapshot.friends.filter(f => f.muted).length} muted`} />
+        <MetricCard compact title="Invitations" value={connections.length.toLocaleString("en-GB")} icon={UserPlus} tone="purple" iconColor="text-purple-300" subtext={`${connections.filter(r => r.direction === "incoming").length} received · ${connections.filter(r => r.direction === "outgoing").length} sent`} />
+        <MetricCard compact title="Requested by you" value={amountLabel(index?.receivable ?? "0.00", "USD")} icon={ArrowDownLeft} tone="cyan" iconColor="text-cyan-300" subtext="Pending requests you sent" />
+        <MetricCard compact title="Requested from you" value={amountLabel(index?.payable ?? "0.00", "USD")} icon={ArrowUpRight} tone="amber" iconColor="text-amber-300" subtext="Pending requests you received" />
+      </div>
+      <SocialDirectory snapshot={snapshot} index={index!} pending={pending} onAction={setAction} run={run} />
+      <p data-social-footnote className="px-1 text-[10px] leading-relaxed text-slate-500">{snapshot.mode === "demo" ? "Demo workspace · changes are saved for this customer in this browser session." : "Connected to your social account."}</p>
+    </>}
+    {action && snapshot && <SocialActionModal action={action} friends={snapshot.friends} clientId={clientId} execute={execute} onClose={() => setAction(null)} />}
+  </div>;
+}
 export default function FriendsPage() {
-  const [friends, setFriends] = useState<Friend[]>(MOCK_FRIENDS);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-
-  // Stare pentru tipul de acțiune care se execută
-  const [actionModal, setActionModal] = useState<
-    "transfer" | "request" | "gift" | null
-  >(null);
-
-  const [isSplitOpen, setIsSplitOpen] = useState<boolean>(false);
-  const [activeFriend, setActiveFriend] = useState<Friend | null>(null);
-
-  const [confirmConfig, setConfirmConfig] = useState<{
-    isOpen: boolean;
-    type: "mute" | "unmute" | "delete" | null;
-    friend: Friend | null;
-  }>({ isOpen: false, type: null, friend: null });
-
-  const stats = mockFriendStats;
-
-  const handleOpenSplit = (friend: Friend) => {
-    setActiveFriend(friend);
-    setIsSplitOpen(true);
-  };
-
-  // HANDLERELE CORECTE CARE SETEAZĂ ȘI PRIETENUL
-  const handleOpenTransfer = (friend: Friend) => {
-    setActiveFriend(friend); // AICI ERA PROBLEMA! Acum modalul va primi datele.
-    setActionModal("transfer");
-  };
-
-  const handleOpenRequest = (friend: Friend) => {
-    setActiveFriend(friend);
-    setActionModal("request");
-  };
-
-  const handleOpenGift = (friend: Friend) => {
-    setActiveFriend(friend);
-    setActionModal("gift");
-  };
-
-  const triggerConfirm = (
-    type: "mute" | "unmute" | "delete",
-    friend: Friend,
-  ) => {
-    setConfirmConfig({ isOpen: true, type, friend });
-  };
-
-  const handleExecuteConfirmation = () => {
-    const { type, friend } = confirmConfig;
-    if (!friend || !type) return;
-
-    if (type === "delete") {
-      setFriends((prev) => prev.filter((f) => f.id !== friend.id));
-    } else if (type === "mute" || type === "unmute") {
-      setFriends((prev) =>
-        prev.map((f) =>
-          f.id === friend.id ? { ...f, isMuted: !f.isMuted } : f,
-        ),
-      );
-    }
-  };
-
-  const getConfirmModalDetails = () => {
-    if (!confirmConfig.friend)
-      return { title: "", desc: "", label: "", variant: "warning" as const };
-    const name = confirmConfig.friend.name.toUpperCase();
-    if (confirmConfig.type === "delete") {
-      return {
-        title: "Purge Network Connection",
-        desc: `Are you sure you want to permanently erase\n ${name} \nfrom your local node database?`,
-        label: "PURGE CONTACT",
-        variant: "danger" as const,
-      };
-    }
-    if (confirmConfig.type === "mute") {
-      return {
-        title: "Mute P2P Ledger Node",
-        desc: `Deactivate automatic synchronization and notifications for \n ${name}?`,
-        label: "MUTE NODE",
-        variant: "warning" as const,
-      };
-    }
-    return {
-      title: "Unmute P2P Ledger Node",
-      desc: `Re-establish hot-sync pipeline and alerts for \n ${name}?`,
-      label: "UNMUTE NODE",
-      variant: "warning" as const,
-    };
-  };
-
-  const modalDetails = getConfirmModalDetails();
-
-  return (
-    <div className="w-full flex flex-col bg-[#02050e] text-white antialiased">
-      {/* HEADER ZONE */}
-      <div className="w-full shrink-0">
-        <PageHeader
-          systemDate={MOCK_PAGE_DATES.friends}
-          statusText="Social Ledger Sync Active"
-        >
-          <div className="grid grid-cols-2 sm:flex items-center p-1 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md w-full sm:w-auto gap-0">
-            <div className="flex items-center justify-center gap-2 px-4 py-2 font-mono text-xs text-emerald-400 font-bold">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>
-                ONLINE:{" "}
-                <span className="text-white font-black">{stats.online}</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-center gap-2 px-4 py-2 font-mono text-xs text-amber-400 font-bold border-l border-white/[0.06]">
-              <UserPlus size={14} className="text-amber-400/80" />
-              <span>
-                PENDING:{" "}
-                <span className="text-white font-black">{stats.pending}</span>
-              </span>
-            </div>
-          </div>
-
-          <ActionButton
-            variant="cyan"
-            icon={<Plus size={15} />}
-            onClick={() => setIsModalOpen(true)}
-          >
-            ADD NEW FRIEND
-          </ActionButton>
-        </PageHeader>
-      </div>
-
-      {/* WORKSPACE RESPONSIV */}
-      <div className="w-full flex flex-col space-y-6 ">
-        {/* DESKTOP TABLE VIEW */}
-        <div className="hidden md:block w-full">
-          <FriendsTable
-            friends={friends}
-            onTransferClick={handleOpenTransfer} // AICI AM MODIFICAT
-            onSplitClick={handleOpenSplit}
-            onRequestClick={handleOpenRequest}
-            onGiftClick={handleOpenGift}
-            onMuteToggle={(friend) =>
-              triggerConfirm(friend.isMuted ? "unmute" : "mute", friend)
-            }
-            onDeleteClick={(friend) => triggerConfirm("delete", friend)}
-          />
-        </div>
-
-        {/* MOBILE CARDS VIEW */}
-        <div className="block md:hidden w-full">
-          <FriendsMobileTable
-            friends={friends}
-            onTransferClick={handleOpenTransfer} // AICI AM MODIFICAT
-            onSplitClick={handleOpenSplit}
-            onRequestClick={handleOpenRequest}
-            onGiftClick={handleOpenGift}
-            onMuteToggle={(friend) =>
-              triggerConfirm(friend.isMuted ? "unmute" : "mute", friend)
-            }
-            onDeleteClick={(friend) => triggerConfirm("delete", friend)}
-          />
-        </div>
-
-        {/* PENDING REQUESTS SYSTEM */}
-        <div className="w-full">
-          <PendingRequests />
-        </div>
-      </div>
-
-      {/* SYSTEM MODALS */}
-      <AddFriendModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
-
-      <SplitBillModal
-        isOpen={isSplitOpen}
-        onClose={() => {
-          setIsSplitOpen(false);
-          setActiveFriend(null);
-        }}
-        friend={activeFriend}
-      />
-
-      {/* NOILE MODALE LEGATE DE PRIETENI */}
-      <QuickFriendTransferModal
-        isOpen={actionModal === "transfer"}
-        onClose={() => {
-          setActionModal(null);
-          setActiveFriend(null);
-        }}
-        friend={activeFriend}
-      />
-
-      <RequestMoneyModal
-        isOpen={actionModal === "request"}
-        onClose={() => {
-          setActionModal(null);
-          setActiveFriend(null);
-        }}
-        friend={activeFriend}
-      />
-
-      <GiftModal
-        isOpen={actionModal === "gift"}
-        onClose={() => {
-          setActionModal(null);
-          setActiveFriend(null);
-        }}
-        friend={activeFriend}
-      />
-
-      <ConfirmationModal
-        isOpen={confirmConfig.isOpen}
-        onClose={() =>
-          setConfirmConfig({ isOpen: false, type: null, friend: null })
-        }
-        onConfirm={handleExecuteConfirmation}
-        title={modalDetails.title}
-        description={modalDetails.desc}
-        confirmLabel={modalDetails.label}
-        variant={modalDetails.variant}
-      />
-    </div>
-  );
+  const { user, loading } = useUser();
+  if (loading || !user) return <p role="status" className="p-6 text-slate-400">Loading your social workspace…</p>;
+  if (user.role !== "client") return <p className="p-6 text-slate-400">Switch to a customer account to access Friends & Social.</p>;
+  return <FriendsWorkspace key={user.email} clientId={user.email} />;
 }

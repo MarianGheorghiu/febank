@@ -13,6 +13,7 @@ function OperationDialog({ onClose, type, balance, onSubmit }: {
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const operationId = useRef<string | null>(null);
+  const operationPayload = useRef("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"iban" | "phone">("iban");
   const [name, setName] = useState("");
@@ -30,7 +31,7 @@ function OperationDialog({ onClose, type, balance, onSubmit }: {
   const config = {
     deposit: { title: "Deposit Core", subtitle: "INSTANT FUNDING", Icon: ArrowUpRight, notificationTone: "cyan" as const, button: "cyan" as const },
     withdraw: { title: "Withdraw Secure", subtitle: "SECURE WITHDRAWAL", Icon: ArrowDownLeft, notificationTone: "rose" as const, button: "red" as const },
-    transfer: { title: "Fast Transfer", subtitle: "LEDGER P2P // SECURE", Icon: ArrowLeftRight, notificationTone: "purple" as const, button: "purple" as const },
+    transfer: { title: "Quick Transfer", subtitle: "LEDGER P2P // SECURE", Icon: ArrowLeftRight, notificationTone: "purple" as const, button: "purple" as const },
   }[type];
   const inputClass = "w-full min-w-0 rounded-xl border border-white/10 bg-[#060d1b] px-4 py-3 text-base sm:text-sm font-mono text-slate-100 placeholder:text-slate-600 outline-none transition-colors duration-200 focus:border-cyan-400/40 focus:ring-2 focus:ring-cyan-400/5 disabled:opacity-50";
   const labelClass = "block space-y-2 text-[10px] font-bold font-mono text-slate-400 uppercase tracking-widest";
@@ -39,18 +40,20 @@ function OperationDialog({ onClose, type, balance, onSubmit }: {
     if (processing) return;
     setError(""); setProcessing(true);
     try {
-      operationId.current ??= crypto.randomUUID();
-      await onSubmit({ id: operationId.current, type, amount, ...(type === "transfer" ? { recipient_name: name, recipient_kind: method, recipient } : {}) });
+      const draft = { type, amount, ...(type === "transfer" ? { recipient_name: name, recipient_kind: method, recipient } : {}) };
+      const payload = JSON.stringify(draft);
+      if (operationPayload.current !== payload) { operationPayload.current = payload; operationId.current = crypto.randomUUID(); }
+      await onSubmit({ id: operationId.current!, ...draft });
       // Close the native dialog before showing the shared notification above the page.
       onClose();
       const formattedAmount = formatMoney(amount);
       const notification = {
         deposit: { title: "Money added", description: `${formattedAmount} added to your USD account.`, scope: "Account funding" },
         withdraw: { title: "Withdrawal completed", description: `${formattedAmount} withdrawn from your USD account.`, scope: "Cash withdrawal" },
-        transfer: { title: "Transfer completed", description: `${formattedAmount} sent to ${name.trim()} via ${method === "iban" ? "bank IBAN" : "phone number"}.`, scope: "Money transfer" },
+        transfer: { title: "Transfer submitted", description: `${formattedAmount} reserved for ${name.trim()} via ${method === "iban" ? "bank IBAN" : "phone number"}. Track settlement in Transfers.`, scope: "Money transfer" },
       }[type];
-      notifyOperation(notification.title, `${notification.description} Mock balance and activity updated.`, false, notification.scope, config.notificationTone);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Operation failed. Please retry."); operationId.current = null; }
+      notifyOperation(notification.title, notification.description, false, notification.scope, config.notificationTone);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Operation failed. Please retry."); }
     finally { setProcessing(false); }
   }
   return <dialog ref={dialog} aria-labelledby="operation-title" onCancel={event => { event.preventDefault(); if (!processing) onClose(); }} className="fixed inset-0 isolate m-auto w-[calc(100%-2rem)] max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-[24px] border border-blue-300/15 bg-gradient-to-b from-[#101e3b] to-[#080f20] p-5 sm:p-8 text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop:bg-[#020617]/75 backdrop:backdrop-blur-lg">

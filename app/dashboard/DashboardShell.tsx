@@ -14,7 +14,9 @@ export default function DashboardShell({
 }) {
     const { user, loading } = useUser();
     const router = useRouter();
-    const isMailbox = usePathname() === "/dashboard/notifications";
+    const pathname = usePathname();
+    const isMailbox = pathname === "/dashboard/notifications";
+    const isSocial = pathname === "/dashboard/friends";
 
     useEffect(() => {
         // Redirecționare automată la login dacă sesiunea lipsește
@@ -36,7 +38,7 @@ export default function DashboardShell({
     if (!user) return null;
 
     return (
-        <div data-mail-layout={isMailbox ? "true" : undefined} className={`${isMailbox ? "h-dvh min-h-0 overflow-hidden" : "min-h-screen"} bg-[#030712] text-white flex flex-col md:flex-row`}>
+        <div data-social-layout={isSocial ? "true" : undefined} data-mail-layout={isMailbox ? "true" : undefined} className={`${isMailbox ? "h-dvh min-h-0 overflow-hidden" : "min-h-screen"} bg-[#030712] text-white flex flex-col md:flex-row`}>
             {/* Sidenav preia acum utilizatorul real configurat din Login */}
             <Sidenav user={user} />
 
