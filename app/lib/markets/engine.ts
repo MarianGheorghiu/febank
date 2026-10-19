@@ -1,4 +1,4 @@
-import { MOCK_TRADING_FX, MOCK_TRADING_WALLET } from "@/app/lib/mock/admin/markets";
+import { MOCK_TRADING_FX, MOCK_TRADING_WALLET } from "@/app/lib/markets/seed";
 import type { MarketActor, MarketAdminCommand, MarketDomain, MarketOrder, MarketsState, TradeQuote, TradeRequest, TradingInstrument, TradingWallet } from "@/app/lib/types/admin/markets";
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const units = (n: number) => Math.round(n * 1e8) / 1e8;

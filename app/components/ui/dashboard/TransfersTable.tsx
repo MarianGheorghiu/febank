@@ -97,12 +97,14 @@ export default function TransfersTable({ transactions, asOf }: { transactions: T
         return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
       case "PENDING":
         return "bg-amber-500/20 text-amber-300 border-amber-500/30 animate-pulse";
+      case "CANCELLED":
+        return "bg-slate-500/15 text-slate-300 border-slate-500/30";
       case "FAILED":
         return "bg-rose-500/20 text-rose-300 border-rose-500/30";
     }
   };
 
-  const statuses = ["ALL", "COMPLETED", "PENDING", "FAILED"];
+  const statuses = ["ALL", "COMPLETED", "PENDING", "FAILED", "CANCELLED"];
 
   return (
     <CardSurface tone="blue" className="p-3 sm:p-5 flex flex-col overflow-hidden h-[430px]">
@@ -167,7 +169,7 @@ export default function TransfersTable({ transactions, asOf }: { transactions: T
         ) : (
           filteredTransfers.map((tx) => {
             const txStyle = getTxDetails(tx.type);
-            const isPositive = tx.type === "DEPOSIT" || tx.type === "LOAN";
+            const isPositive = tx.direction === "incoming" || tx.type === "DEPOSIT" || tx.type === "LOAN";
 
             return (
               <div

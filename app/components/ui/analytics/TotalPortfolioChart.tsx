@@ -11,10 +11,12 @@ import {
   CartesianGrid,
 } from "recharts";
 import { Activity } from "lucide-react";
+import { usePortfolio } from "@/app/lib/wallet/use-portfolio";
 import { MOCK_MACRO_DATA } from "@/app/lib/mock/analytics";
 import type { Timeframe } from "@/app/lib/types/analytics";
 
 export default function TotalPortfolioChart() {
+  const { totalValue } = usePortfolio();
   const [timeframe, setTimeframe] = useState<Timeframe>("1M");
   const timeframes: Timeframe[] = ["1W", "1M", "3M", "6M", "1Y", "ALL"];
 
@@ -25,7 +27,7 @@ export default function TotalPortfolioChart() {
           <div className="p-1.5 rounded-lg bg-[#02040f] border border-cyan-500/10 text-cyan-400">
             <Activity size={14} />
           </div>
-          Macro Portfolio Evolution
+          Portfolio · demo history
         </h2>
 
         {/* TIME CONTROLLER CRUCIAL PENTRU DATE REALISTE */}
@@ -49,7 +51,7 @@ export default function TotalPortfolioChart() {
       <div className="w-full flex-1 min-h-0 relative">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
-            data={MOCK_MACRO_DATA[timeframe]}
+            data={MOCK_MACRO_DATA[timeframe].map((point, index, points) => index === points.length - 1 ? { ...point, value: totalValue } : point)}
             margin={{ top: 5, right: 0, left: -25, bottom: 0 }}
           >
             <defs>

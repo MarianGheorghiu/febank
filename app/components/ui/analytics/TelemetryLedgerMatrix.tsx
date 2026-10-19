@@ -1,5 +1,7 @@
 "use client";
 import { MOCK_LEDGER_LOGS } from "@/app/lib/mock/analytics-ledger";
+import { usePortfolio } from "@/app/lib/wallet/use-portfolio";
+import type { LedgerRow } from "@/app/lib/types/analytics-ledger";
 import { LEDGER_DATA } from "@/app/lib/mock/analytics-ledger";
 
 
@@ -27,13 +29,20 @@ export default function TelemetryLedgerMatrix() {
   const [activeTab, setActiveTab] = useState<MatrixTab>("PERFORMANCE");
   const [search, setSearch] = useState("");
 
+  const { assets, totalValue } = usePortfolio();
   const filteredData = useMemo(() => {
-    return LEDGER_DATA.filter(
+    const rows: LedgerRow[] = assets.map(asset => {
+      const fixture = LEDGER_DATA.find(item => item.symbol === asset.symbol);
+      return { id: asset.id, asset: asset.name, symbol: asset.symbol, category: asset.category,
+        r7d: fixture?.r7d ?? 0, r30d: fixture?.r30d ?? 0, r1y: fixture?.r1y ?? 0, volatility: fixture?.volatility ?? "—", sharpe: fixture?.sharpe ?? 0, maxDrawdown: fixture?.maxDrawdown ?? "—", status: fixture?.status ?? "STABLE",
+        allocation: totalValue ? Number(asset.balance) * asset.priceUsd / totalValue * 100 : 0 };
+    });
+    return rows.filter(
       (item) =>
         item.asset.toLowerCase().includes(search.toLowerCase()) ||
         item.symbol.toLowerCase().includes(search.toLowerCase()),
     );
-  }, [search]);
+  }, [search, assets, totalValue]);
 
   return (
     <div className="w-full h-[440px] bg-[#060b19]/60 backdrop-blur-xl border border-cyan-400/30 rounded-2xl flex flex-col overflow-hidden transition-all duration-500 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_0_0_rgba(255,255,255,0.15),0_0_20px_rgba(6,182,212,0.05)] hover:border-cyan-400/50 font-mono">
@@ -48,7 +57,7 @@ export default function TelemetryLedgerMatrix() {
           <div className="flex flex-col">
             <span className="text-white font-black text-sm tracking-widest uppercase flex items-center gap-2">
               <Terminal size={15} className="text-cyan-400" />
-              ANALYTICS_LEDGER_SYSTEM
+              ALLOCATION · DEMO RISK HISTORY
             </span>
           </div>
         </div>
@@ -128,7 +137,7 @@ export default function TelemetryLedgerMatrix() {
                     colSpan={6}
                     className="py-14 text-center text-cyan-700 font-black tracking-widest uppercase"
                   >
-                    // REGISTRY_NODE_EMPTY
+                    No assets found
                   </td>
                 </tr>
               ) : (
@@ -225,7 +234,7 @@ export default function TelemetryLedgerMatrix() {
                     colSpan={5}
                     className="py-14 text-center text-cyan-700 font-black tracking-widest uppercase"
                   >
-                    // RISK_METRICS_EMPTY
+                    No risk metrics available
                   </td>
                 </tr>
               ) : (

@@ -1,6 +1,6 @@
 "use client";
 import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-import { MOCK_ANALYTICS_SUMMARY } from "@/app/lib/mock/summaries";
+import { usePortfolio } from "@/app/lib/wallet/use-portfolio";
 
 import PageHeader from "@/app/components/ui/PageHeader";
 import { Download } from "lucide-react";
@@ -10,6 +10,7 @@ import TelemetryLedgerMatrix from "@/app/components/ui/analytics/TelemetryLedger
 import AssetSummaryCards from "@/app/components/ui/analytics/AssetSummaryCards";
 
 export default function AnalyticsMatrixPage() {
+  const { totalValue, fiatValue, cryptoValue, stockValue } = usePortfolio();
   return (
     <div className="w-full min-h-screen flex flex-col bg-[#02050e] text-white antialiased font-mono m-0 p-0 overflow-x-hidden relative">
       {/* ULTRA-INLINE HEADER CONSOLE NODE (FLUSH EDGE) */}
@@ -22,7 +23,7 @@ export default function AnalyticsMatrixPage() {
                 Assets:
               </span>
               <span className="text-sm font-bold text-white tracking-tight">
-                {MOCK_ANALYTICS_SUMMARY.portfolio}
+                {totalValue.toLocaleString("en-US", { style: "currency", currency: "USD" })}
               </span>
             </div>
 
@@ -43,7 +44,7 @@ export default function AnalyticsMatrixPage() {
       {/* CORE FRAME LAYOUT - FULL HIGH DENSITY GAP SYSTEM */}
       <div className="w-full flex flex-col m-0 p-2 gap-2.5 flex-grow">
         {/* ROW 1: NEO TOKYO LIQUID GLASS SUMMARY CARDS */}
-        <AssetSummaryCards fiat={24500.0} crypto={90370.75} stocks={28020.85} />
+        <AssetSummaryCards fiat={fiatValue} crypto={cryptoValue} stocks={stockValue} />
 
         {/* ROW 2: REDUCED HEIGHT TOTAL PORTFOLIO CHART CONTAINER */}
         <TotalPortfolioChart />

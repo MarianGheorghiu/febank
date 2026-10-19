@@ -1,5 +1,5 @@
 "use client";
-import { useMarketsState } from "@/app/lib/markets/store";
+import { useMarketsState } from "@/app/lib/markets/use-markets";
 import { previewExchange } from "@/app/lib/markets/engine";
 import ExchangeReviewDialog from "@/app/components/ui/markets/ExchangeReviewDialog";
 

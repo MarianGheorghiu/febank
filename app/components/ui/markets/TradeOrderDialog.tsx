@@ -2,7 +2,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeftRight, Check, X } from "lucide-react";
 import { useUser } from "@/app/context/UserContext";
-import { executeExchange, executeTrade, useMarketsState } from "@/app/lib/markets/store";
+import { executeExchange, executeTrade } from "@/app/lib/markets/store";
+import { useMarketsState } from "@/app/lib/markets/use-markets";
 import { availableCash, availableUnits, previewExchange, quantityForBudget, quoteTrade, tradingRestriction } from "@/app/lib/markets/engine";
 import type { MarketOrder, TradeRequest } from "@/app/lib/types/admin/markets";
 import { notifyOperation } from "@/app/components/ui/OperationNotification";

@@ -13,7 +13,8 @@ export interface TransferTransaction {
   id: string; reference: string;
   type: "DEPOSIT" | "WITHDRAW" | "TRANSFER" | "LOAN";
   amount: Decimal; currency: string;
-  status: "COMPLETED" | "PENDING" | "FAILED";
+  status: "COMPLETED" | "PENDING" | "FAILED" | "CANCELLED";
+  direction?: "incoming" | "outgoing";
   occurred_at: string;
 }
 export interface OverviewSnapshot {

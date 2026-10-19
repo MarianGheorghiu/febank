@@ -1,3 +1,8 @@
+Datele financiare curente ale clientului sunt proiectate din jurnalul comun din
+`../wallet`, documentat în [Shared customer financial state](../wallet/README.md).
+Fixture-urile istorice nu sunt surse pentru soldurile curente. Catalogul comun
+este în `../markets/seed.ts`, iar soldurile inițiale în `../wallet/seed.ts`.
+
 # Date demonstrative și integrarea cu backendul Go
 
 Toate seturile demonstrative sunt în `app/lib/mock`. Modelele de date sunt în

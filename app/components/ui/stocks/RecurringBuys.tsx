@@ -1,6 +1,6 @@
 "use client";
 import type { RecurringBuy, RecurringAsset } from "@/app/lib/types/recurring-buys";
-import { useMarketsState } from "@/app/lib/markets/store";
+import { useMarketsState } from "@/app/lib/markets/use-markets";
 import { marketInstrument, quantityForBudget, quoteTrade, tradingRestriction } from "@/app/lib/markets/engine";
 import { notifyOperation } from "@/app/components/ui/OperationNotification";
 import { createMockId } from "@/app/lib/mock/ids";

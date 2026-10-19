@@ -1,5 +1,5 @@
 "use client";
-import { MOCK_STOCK_SUMMARY } from "@/app/lib/mock/summaries";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
 
 import React, { useState } from "react";
 import {
@@ -15,7 +15,7 @@ import {
   Cell,
 } from "recharts";
 import { Activity, PieChart as PieIcon, Layers } from "lucide-react";
-import { MOCK_STOCK_HISTORY, MOCK_STOCK_ALLOCATION } from "@/app/lib/mock/stocks";
+import { MOCK_STOCK_HISTORY } from "@/app/lib/mock/stocks";
 
 type Timeframe = "1D" | "1W" | "1M" | "1Y" | "ALL";
 
@@ -23,6 +23,10 @@ export default function StockAnalytics() {
   const [chartView, setChartView] = useState<"PL" | "ALLOCATION">("PL");
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>("1M");
 
+  const { holdings, stockValue } = useTradingPortfolio();
+  const colors = ["#06b6d4", "#f59e0b", "#10b981", "#3b82f6"];
+  const sectors = holdings.reduce<Record<string, number>>((sum, item) => { sum[item.sector] = (sum[item.sector] ?? 0) + Math.round(item.shares * item.currentPrice * 100) / 100; return sum; }, {});
+  const allocation = Object.entries(sectors).map(([name, value], index) => ({ name, value, color: colors[index % colors.length] }));
   const timeframes: Timeframe[] = ["1D", "1W", "1M", "1Y", "ALL"];
 
   const formatYAxis = (value: number) => {
@@ -75,7 +79,7 @@ export default function StockAnalytics() {
             <div className="w-full h-full flex flex-col">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 shrink-0">
                 <span className="text-white/80 font-bold uppercase text-[10px] tracking-wider">
-                  Valuation Escalation
+                  Valuation · demo history
                 </span>
 
                 <div className="flex items-center bg-[#01030a] border border-blue-500/20 p-1 rounded-md">
@@ -100,7 +104,7 @@ export default function StockAnalytics() {
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={MOCK_STOCK_HISTORY[activeTimeframe]}
+                      data={MOCK_STOCK_HISTORY[activeTimeframe].map((point, index, points) => index === points.length - 1 ? { ...point, valoare: stockValue } : point)}
                       margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
                     >
                       <defs>
@@ -163,8 +167,8 @@ export default function StockAnalytics() {
                           boxShadow: "0 0 20px rgba(6,182,212,0.15)",
                         }}
                         itemStyle={{ color: "#06b6d4", fontWeight: "bold" }}
-                        formatter={(value: any) => [
-                          `$${value.toLocaleString()}`,
+                        formatter={(value) => [
+                          `$${Number(value).toLocaleString()}`,
                           "Capital",
                         ]}
                         labelStyle={{ color: "#64748b", marginBottom: "4px" }}
@@ -196,7 +200,7 @@ export default function StockAnalytics() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={MOCK_STOCK_ALLOCATION}
+                        data={allocation}
                         cx="50%"
                         cy="50%"
                         innerRadius="65%"
@@ -205,7 +209,7 @@ export default function StockAnalytics() {
                         dataKey="value"
                         stroke="none"
                       >
-                        {MOCK_STOCK_ALLOCATION.map((entry, idx) => (
+                        {allocation.map((entry, idx) => (
                           <Cell key={`cell-${idx}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -218,8 +222,8 @@ export default function StockAnalytics() {
                           fontSize: "11px",
                         }}
                         itemStyle={{ color: "#fff", fontWeight: "bold" }}
-                        formatter={(value: any) => [
-                          `$${value.toLocaleString()}`,
+                        formatter={(value) => [
+                          `$${Number(value).toLocaleString()}`,
                           "Allocation",
                         ]}
                       />
@@ -232,7 +236,7 @@ export default function StockAnalytics() {
                       Total
                     </span>
                     <span className="text-cyan-400 font-black text-sm">
-                      {MOCK_STOCK_SUMMARY.allocationTotalLabel}
+                      {stockValue.toLocaleString("en-US", { style: "currency", currency: "USD" })}
                     </span>
                   </div>
                 </div>
@@ -240,7 +244,7 @@ export default function StockAnalytics() {
 
               {/* LEGENDĂ DETALIATĂ */}
               <div className="flex flex-col gap-2 w-full md:w-1/2 justify-center max-h-[250px] md:max-h-full overflow-y-auto pr-1 scrollbar-thin">
-                {MOCK_STOCK_ALLOCATION.map((item, idx) => (
+                {allocation.map((item, idx) => (
                   <div
                     key={idx}
                     className="flex items-center justify-between p-2.5 rounded-lg bg-black/40 border border-white/5 hover:border-white/10 transition-colors"

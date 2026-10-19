@@ -3,7 +3,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useUser } from "@/app/context/UserContext";
 import { previewExchange } from "@/app/lib/markets/engine";
-import { executeExchange, useMarketsState } from "@/app/lib/markets/store";
+import { executeExchange } from "@/app/lib/markets/store";
+import { useMarketsState } from "@/app/lib/markets/use-markets";
 import { notifyOperation } from "../OperationNotification";
 import { buttonClass, primaryButtonClass } from "../admin/cards/presentation";
 export default function ExchangeReviewDialog({source,target,amount,onClose,onComplete}:{source:string;target:string;amount:number;onClose:()=>void;onComplete:()=>void}) {

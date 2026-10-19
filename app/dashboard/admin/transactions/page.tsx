@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import PageHeader from "@/app/components/ui/PageHeader";
 import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
+import AdminTransferMonitor from "@/app/components/ui/transfers/AdminTransferMonitor";
 import TransactionWidgets from "@/app/components/ui/admin/transactions/TransactionWidgets";
 import TransactionsTable from "@/app/components/ui/admin/transactions/TransactionsTable";
 import TransactionActionModal from "@/app/components/ui/admin/transactions/TransactionActionModal";
@@ -168,6 +169,7 @@ export default function AdminTransactionsPage() {
                 </div>
             </PageHeader>
 
+            <AdminTransferMonitor />
             <TransactionWidgets />
 
             <div className="w-full mt-3">

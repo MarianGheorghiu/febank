@@ -51,7 +51,7 @@ test('period filters include boundaries, exclude future records, and are nested 
   assert.ok(filterTransactions(report.transactions,'1Y',report.as_of).length > filterTransactions(report.transactions,'1M',report.as_of).length);
   assert.match(formatMoney('35000','JPY'), /35,000/);
 });
-test('repository persists per client, restores operations and recovers from corrupt browser storage', async () => {
+test('repository shares wallet persistence per client and rejects corrupt storage without resetting money', async () => {
   const storage = new Map();
   global.window = {};
   global.sessionStorage = { getItem: key => storage.get(key) ?? null, setItem: (key,value) => storage.set(key,value) };
@@ -64,7 +64,8 @@ test('repository persists per client, restores operations and recovers from corr
     assert.equal((await createOverviewRepository('test-b').getSnapshot()).summary.liquidity, report.summary.liquidity);
     storage.set('mbank_overview_v1:corrupt','{broken');
     const corrupt = createOverviewRepository('corrupt');
-    assert.equal((await corrupt.getSnapshot()).summary.liquidity, report.summary.liquidity);
-    assert.equal((await corrupt.submitOperation(deposit)).summary.liquidity,'142350.90');
+    await assert.rejects(corrupt.getSnapshot(), /could not be migrated/);
+    await assert.rejects(corrupt.submitOperation(deposit), /could not be migrated/);
+    assert.equal(storage.get('mbank_overview_v1:corrupt'), '{broken');
   } finally { delete global.window; delete global.sessionStorage; }
 });

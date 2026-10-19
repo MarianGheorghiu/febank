@@ -17,6 +17,8 @@
     "test:system-health": "node tests/system-health.test.cjs",
     "test:flags-config": "node tests/flags-config.test.cjs",
     "test:overview": "node tests/overview.test.cjs",
+    "test:wallet": "node tests/wallet.test.cjs",
+    "test:transfers": "node tests/transfers.test.cjs",
     "test:messages": "node tests/messages.test.cjs"
   },
   "dependencies": {

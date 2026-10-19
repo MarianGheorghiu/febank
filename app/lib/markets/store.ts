@@ -2,9 +2,11 @@
 import { useSyncExternalStore } from "react";
 import { readRiskForExecution } from "@/app/lib/risk/store";
 import { enforceMarketRisk } from "@/app/lib/risk/engine";
-import { MOCK_MARKETS_STATE } from "@/app/lib/mock/admin/markets";
-import { applyMarketAdminCommand, cancelCustomerOrder, exchangeAssets, submitTrade } from "./engine";
+import { MOCK_MARKETS_STATE } from "@/app/lib/markets/seed";
+import { applyMarketAdminCommand } from "./engine";
 import type { MarketActor, MarketAdminCommand, MarketsState, TradeRequest } from "@/app/lib/types/admin/markets";
+import { commitWallet, readWallet, walletCustomers, WALLET_EVENT } from "../wallet/store";
+import { applyTrading, applyTradingAdmin, projectTrading, type TradingCommand } from "../wallet/trading";
 const KEY = "mbank_markets_v1";
 let snapshot: MarketsState | null = null;
 let warning: string | null = null;
@@ -35,7 +37,7 @@ function subscribe(listener: () => void) {
   window.addEventListener("storage", changed);
   return () => { listeners.delete(listener); window.removeEventListener("storage", changed); };
 }
-export function useMarketsState() { return useSyncExternalStore(subscribe, getSnapshot, () => MOCK_MARKETS_STATE); }
+export function useGlobalMarketsState() { return useSyncExternalStore(subscribe, getSnapshot, () => MOCK_MARKETS_STATE); }
 export function marketStorageWarning() { return warning; }
 function mutate(operation: (state: MarketsState, now: string, id: string) => MarketsState, checkRisk = false) {
   const latest = read(); if (warning) throw new Error(warning);
@@ -44,9 +46,60 @@ function mutate(operation: (state: MarketsState, now: string, id: string) => Mar
   if (checkRisk) enforceMarketRisk(readRiskForExecution(), latest, next);
   try { localStorage.setItem(KEY, JSON.stringify(next)); }
   catch { throw new Error("Browser storage is unavailable or full. No changes were applied."); }
-  snapshot = next; listeners.forEach(notify => notify()); return next;
+  snapshot = next; listeners.forEach(notify => notify());
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(WALLET_EVENT));
+  return next;
 }
-export function executeMarketAdmin(command: MarketAdminCommand, actor: MarketActor) { return mutate((state, now, id) => applyMarketAdminCommand(state, command, actor, now, id), command.action === "PROCESS"); }
-export function executeTrade(request: TradeRequest, actor: MarketActor) { return mutate((state, now, id) => submitTrade(state, request, actor, now, id), true); }
-export function executeExchange(source: string, target: string, amount: number, revision: number, actor: MarketActor) { return mutate((state, now, id) => exchangeAssets(state, source, target, amount, revision, actor, now, id), true); }
-export function cancelOwnOrder(id: string, actor: MarketActor) { return mutate((state, now) => cancelCustomerOrder(state, id, actor, now)); }
+function customers(catalog: MarketsState) {
+  return [...new Set([...walletCustomers(), ...Object.keys(catalog.wallets), ...catalog.orders.map(order => order.userEmail)])];
+}
+/** Admin reads customer orders from their owner journal; never saves a second wallet. */
+export function projectAllCustomers(catalog: MarketsState): MarketsState {
+  const result = { ...catalog, wallets: {}, orders: [], audit: [...catalog.audit] } as MarketsState;
+  for (const customer of customers(catalog)) {
+    const view = projectTrading(readWallet(customer).state, catalog, customer);
+    Object.assign(result.wallets, view.wallets);
+    result.orders.push(...view.orders);
+    result.audit.push(...view.audit.filter(entry => !result.audit.some(old => old.id === entry.id)));
+  }
+  result.orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return result;
+}
+export function executeMarketAdmin(command: MarketAdminCommand, actor: MarketActor) {
+  if (actor.role !== "admin") throw new Error("Administrator access required.");
+  if (command.action !== "PROCESS" && command.action !== "CANCEL") return mutate((catalog, now, id) => {
+    const next = applyMarketAdminCommand(projectAllCustomers(catalog), command, actor, now, id);
+    return { ...next, wallets: catalog.wallets, orders: catalog.orders };
+  });
+  const catalog = read(); if (warning) throw new Error(warning);
+  const all = projectAllCustomers(catalog);
+  const targets = command.action === "CANCEL" ? [all.orders.find(order => order.id === command.orderId)?.userEmail].filter((email): email is string => !!email)
+    : [...new Set(all.orders.filter(order => order.domain === command.domain && order.status === "PENDING").map(order => order.userEmail))];
+  if (!targets.length) {
+    if (command.action === "CANCEL") throw new Error("Only pending orders can be cancelled.");
+    // Preserve validation and operational audit even for an empty queue.
+    return mutate((state, now, id) => ({ ...applyMarketAdminCommand({ ...state, orders: [] }, command, actor, now, id), orders: state.orders }));
+  }
+  for (const customer of targets) {
+    const at = new Date().toISOString(), key = crypto.randomUUID();
+    const execution = applyTradingAdmin(readWallet(customer).state, catalog, customer, command, actor, at, key);
+    enforceMarketRisk(readRiskForExecution(), execution.before, execution.after);
+    commitWallet(customer, { kind: "trading_admin", key, at, catalog, command, actor, customer });
+  }
+  return projectAllCustomers(catalog);
+}
+/** One canonical journal commit; never write a second balance to market localStorage. */
+export function executeCustomerCommand(command: TradingCommand, actor: MarketActor, key = crypto.randomUUID()) {
+  if ((process.env.NEXT_PUBLIC_TRANSFERS_MODE ?? "demo") !== "demo") throw new Error("Customer trading requires the shared wallet service adapter in HTTP mode.");
+  const catalog = read(); if (warning) throw new Error(warning);
+  const at = new Date().toISOString();
+  const { state, events } = readWallet(actor.email);
+  if (events.some(event => event.key === key)) return projectTrading(commitWallet(actor.email, { kind: "trading", key, at, catalog, command, actor }), catalog, actor.email);
+  const execution = applyTrading(state, catalog, command, actor, at, key);
+  enforceMarketRisk(readRiskForExecution(), execution.before, execution.after);
+  const next = commitWallet(actor.email, { kind: "trading", key, at, catalog, command, actor });
+  return projectTrading(next, catalog, actor.email);
+}
+export function executeTrade(request: TradeRequest, actor: MarketActor) { return executeCustomerCommand({ type: "trade", request }, actor); }
+export function executeExchange(source: string, target: string, amount: number, revision: number, actor: MarketActor) { return executeCustomerCommand({ type: "exchange", source, target, amount, revision }, actor); }
+export function cancelOwnOrder(id: string, actor: MarketActor) { return executeCustomerCommand({ type: "cancel_order", order_id: id }, actor); }

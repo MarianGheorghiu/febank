@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useUser } from "@/app/context/UserContext";
-import { cancelOwnOrder, marketStorageWarning, useMarketsState } from "@/app/lib/markets/store";
+import { cancelOwnOrder, marketStorageWarning } from "@/app/lib/markets/store";
+import { useMarketsState } from "@/app/lib/markets/use-markets";
 import { availableCash, walletFor } from "@/app/lib/markets/engine";
 import type { MarketDomain } from "@/app/lib/types/admin/markets";
 import { buttonClass, panelClass, formatCardDate } from "../admin/cards/presentation";

@@ -11,14 +11,15 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { MOCK_ASSETS_DATA } from "@/app/lib/mock/analytics";
+import { usePortfolio } from "@/app/lib/wallet/use-portfolio";
 import type { Timeframe, AssetCategory } from "@/app/lib/types/analytics";
 
 export default function AssetMatrix() {
+  const { assets } = usePortfolio();
   const [category, setCategory] = useState<AssetCategory | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string>(
-    MOCK_ASSETS_DATA[0]?.id || "",
+    "account-BTC",
   );
   const [chartTf, setChartTf] = useState<Timeframe>("1M");
 
@@ -32,20 +33,20 @@ export default function AssetMatrix() {
   const timeframes: Timeframe[] = ["1W", "1M", "3M", "6M", "1Y", "ALL"];
 
   const filteredAssets = useMemo(() => {
-    return MOCK_ASSETS_DATA.filter((asset) => {
+    return assets.filter((asset) => {
       const matchesCat = category === "all" || asset.category === category;
       const matchesSearch =
         asset.name.toLowerCase().includes(search.toLowerCase()) ||
         asset.symbol.toLowerCase().includes(search.toLowerCase());
       return matchesCat && matchesSearch;
     });
-  }, [category, search]);
+  }, [category, search, assets]);
 
   const currentAsset = useMemo(() => {
     return (
-      MOCK_ASSETS_DATA.find((a) => a.id === selectedId) || MOCK_ASSETS_DATA[0]
+      assets.find((a) => a.id === selectedId) || assets[0]
     );
-  }, [selectedId]);
+  }, [selectedId, assets]);
 
   // Maparea punctelor din istoric la date calendaristice reale înapoi din Iunie 2026
   const computedChartData = useMemo(() => {
@@ -145,7 +146,7 @@ export default function AssetMatrix() {
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/20 divide-y divide-cyan-500/10 bg-[#040814]">
           {filteredAssets.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-500 tracking-wider">
-              // NO_ASSETS_FOUND_IN_MATRIX
+              No assets found
             </div>
           ) : (
             filteredAssets.map((asset) => {
@@ -359,7 +360,7 @@ export default function AssetMatrix() {
                 />
 
                 <Tooltip
-                  formatter={(value: any) => [
+                  formatter={(value) => [
                     `$${Number(value).toLocaleString()}`,
                     "VALOARE",
                   ]}

@@ -8,6 +8,7 @@ interface PageHeaderProps {
   /** Legacy compatibility: all headers now use the same dimensions. */
   compact?: boolean;
   actionsPosition?: "left" | "right";
+  wrapActions?: boolean;
   children?: ReactNode;
   sessionId?: string;
   /** Legacy prop; login time comes from session metadata. */
@@ -16,7 +17,7 @@ interface PageHeaderProps {
   statusText?: string;
 }
 
-export default function PageHeader({ children, actionsPosition = "right", sessionId, lastLogin, statusText = "Secure Node Connected" }: PageHeaderProps) {
+export default function PageHeader({ children, actionsPosition = "right", wrapActions = false, sessionId, lastLogin, statusText = "Secure Node Connected" }: PageHeaderProps) {
   const { user } = useUser();
   const session = useSessionMetadata(user?.email ?? "demo");
   return (
@@ -36,7 +37,7 @@ export default function PageHeader({ children, actionsPosition = "right", sessio
           </div>
         </div>
       </div>
-      {children && <div data-header-actions className={`flex h-11 w-full min-w-0 items-center gap-2 overflow-x-auto scrollbar-thin xl:w-auto ${actionsPosition === "left" ? "order-1" : "order-2"} [&>*]:shrink-0 [&>button]:w-auto`}>{children}</div>}
+      {children && <div data-header-actions className={`flex w-full min-w-0 items-center gap-2 ${wrapActions ? "h-auto flex-wrap overflow-visible" : "h-11 overflow-x-auto scrollbar-thin"} xl:w-auto ${actionsPosition === "left" ? "order-1" : "order-2"} ${wrapActions ? "[&>*]:min-w-0" : "[&>*]:shrink-0"} [&>button]:w-auto`}>{children}</div>}
     </div>
   );
 }

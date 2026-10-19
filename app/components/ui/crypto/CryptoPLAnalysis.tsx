@@ -1,5 +1,5 @@
 "use client";
-import { MOCK_BALANCES } from "@/app/lib/mock/balances";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
 
 import React, { useState } from "react";
 import {
@@ -20,11 +20,11 @@ type Timeframe = "1D" | "1W" | "1M" | "1Y" | "ALL";
 export default function CryptoPLAnalysis() {
   const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>("1M");
 
-  const totalInvested = MOCK_BALANCES.cryptoInvestedUsd;
-  const currentPortfolioValue = MOCK_BALANCES.cryptoPortfolioUsd;
+  const { cryptoValue: currentPortfolioValue, cryptos, wallet, state } = useTradingPortfolio();
+  const totalInvested = cryptos.reduce((sum, asset) => sum + asset.balance * (wallet.costBasis[asset.symbol] ?? state.instruments.find(item => item.symbol === asset.symbol)?.priceUsd ?? 0), 0);
   const netProfitLoss = currentPortfolioValue - totalInvested;
-  const plPercentage = ((netProfitLoss / totalInvested) * 100).toFixed(1);
-  const estimatedTax = netProfitLoss * 0.1;
+  const plPercentage = (totalInvested ? (netProfitLoss / totalInvested) * 100 : 0).toFixed(1);
+  const estimatedTax = Math.max(0, netProfitLoss) * 0.1;
 
   const timeframes: Timeframe[] = ["1D", "1W", "1M", "1Y", "ALL"];
 
@@ -41,7 +41,7 @@ export default function CryptoPLAnalysis() {
             P&L Matrix Engine
           </h2>
           <span className="text-cyan-400 bg-[#02040f]/50 border border-blue-500/10 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest">
-            LIVE ANALYTICS
+            DEMO HISTORY
           </span>
         </div>
 
@@ -110,7 +110,7 @@ export default function CryptoPLAnalysis() {
           <div className="w-full flex-1 min-h-0 relative">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={MOCK_DATA_STORE[activeTimeframe]}
+                data={MOCK_DATA_STORE[activeTimeframe].map((point, index, points) => index === points.length - 1 ? { ...point, valoare: currentPortfolioValue } : point)}
                 margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
               >
                 <defs>

@@ -1,3 +1,4 @@
+import type { TransferAccount } from "../../transfers/contracts";
 export type MarketDomain = "CRYPTO" | "STOCK";
 export type MarketStatus = "ACTIVE" | "SELL_ONLY" | "HALTED";
 export interface TradingInstrument {
@@ -23,6 +24,8 @@ export interface MarketAudit {
   reason: string; timestamp: string; before: unknown; after: unknown;
 }
 export interface MarketsState {
+  /** Read-only canonical customer balances on customer projections. */
+  accountBalances?: TransferAccount[];
   revision: number; instruments: TradingInstrument[]; routing: Record<MarketDomain, MarketRouting>;
   wallets: Record<string, TradingWallet>; orders: MarketOrder[]; audit: MarketAudit[];
 }

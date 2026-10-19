@@ -1,8 +1,9 @@
 "use client";
-import { MOCK_BALANCES } from "@/app/lib/mock/balances";
+import { useWalletAccounts } from "@/app/lib/wallet/use-wallet";
+import { useRouter } from "next/navigation";
 
 import React, { useState, useEffect } from "react";
-import { X, Wallet, ArrowLeftRight, Loader2, Phone, User } from "lucide-react";
+import { X, Wallet, ArrowLeftRight, Loader2, Phone } from "lucide-react";
 import type { Friend } from "@/app/lib/types/friends"; // Presupunând că ai tipul definit aici
 
 interface QuickFriendTransferModalProps {
@@ -17,18 +18,12 @@ export default function QuickFriendTransferModal({
   friend,
 }: QuickFriendTransferModalProps) {
   const [amount, setAmount] = useState<string>("");
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const isProcessing = false;
 
-  const mockBalance = MOCK_BALANCES.transferAvailableUsd;
+  const { snapshot, error } = useWalletAccounts();
+  const router = useRouter();
+  const mockBalance = Number(snapshot?.accounts.find(account => account.asset === "USD")?.available ?? 0);
   const quickAmounts = [10, 20, 50, 100]; // Sume mai mici, specifice transferurilor rapide între prieteni
-
-  // Resetăm starea la închidere/deschidere
-  useEffect(() => {
-    if (!isOpen) {
-      setAmount("");
-      setIsProcessing(false);
-    }
-  }, [isOpen]);
 
   // Blocăm scroll-ul pe fundal
   useEffect(() => {
@@ -45,12 +40,9 @@ export default function QuickFriendTransferModal({
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) return;
 
-    setIsProcessing(true);
-
-    setTimeout(() => {
-      setIsProcessing(false);
-      onClose();
-    }, 1500);
+    router.push(`/dashboard/transfers?amount=${encodeURIComponent(amount)}&recipient=${encodeURIComponent(friend.phone)}&name=${encodeURIComponent(friend.name)}`);
+    setAmount("");
+    onClose();
   };
 
   return (
@@ -147,6 +139,7 @@ export default function QuickFriendTransferModal({
         </div>
 
         {/* DYNAMIC FORM */}
+        {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* INPUT SUMĂ */}
           <div className="relative group">
@@ -188,7 +181,7 @@ export default function QuickFriendTransferModal({
           {/* BUTTON PRINCIPAL */}
           <button
             type="submit"
-            disabled={isProcessing || !amount || parseFloat(amount) <= 0}
+            disabled={isProcessing || !snapshot || !!error || !amount || parseFloat(amount) <= 0}
             className={`
               relative w-full py-4 rounded-xl 
               font-mono font-black text-xs tracking-widest uppercase text-white
@@ -203,7 +196,7 @@ export default function QuickFriendTransferModal({
                 INITIATING P2P SEND...
               </span>
             ) : (
-              <span>SEND FUNDS NOW</span>
+              <span>REVIEW TRANSFER</span>
             )}
           </button>
         </form>

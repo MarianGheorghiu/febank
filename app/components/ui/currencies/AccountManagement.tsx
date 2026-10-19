@@ -1,28 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { Wallet, Plus, Trash2, Search, X } from "lucide-react";
+import { Wallet, Search, X } from "lucide-react";
 import type { FiatAccount } from "@/app/lib/types/currencies";
-import AddFiatAccount from "./AddFiatAccount";
 
 export default function AccountManagement({
   accounts,
 }: {
   accounts: FiatAccount[];
 }) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [localAccounts, setLocalAccounts] = useState<FiatAccount[]>(accounts);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const handleAddAccount = (newAccount: FiatAccount) => {
-    setLocalAccounts((prev) => [newAccount, ...prev]);
-  };
-
-  const handleDeleteAccount = (idToRemove: string) => {
-    setLocalAccounts((prev) => prev.filter((acc) => acc.id !== idToRemove));
-  };
-
-  const filteredAccounts = localAccounts.filter(
+  const filteredAccounts = accounts.filter(
     (acc) =>
       acc.currency.toLowerCase().includes(searchQuery.toLowerCase()) ||
       acc.iban.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -45,18 +33,12 @@ export default function AccountManagement({
                 Fiat Ledger
               </h2>
               <span className="text-[10px] font-mono text-slate-500 uppercase">
-                {filteredAccounts.length} / {localAccounts.length} Active
+                {filteredAccounts.length} / {accounts.length} Active
                 Accounts
               </span>
             </div>
 
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/20 hover:border-emerald-500/40 transition-all font-mono font-bold text-[10px] tracking-wider uppercase active:scale-95"
-            >
-              <Plus size={14} />
-              <span className="hidden sm:inline">Add new</span>
-            </button>
+
           </div>
 
           {/* SEARCH INPUT INTEGRAT IN CARD */}
@@ -116,13 +98,7 @@ export default function AccountManagement({
                       })}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleDeleteAccount(acc.id)}
-                    className="w-7 h-7 rounded bg-rose-500/10 text-rose-500/50 hover:text-rose-400 hover:bg-rose-500/20 flex items-center justify-center border border-transparent hover:border-rose-500/20 transition-all sm:opacity-0 group-hover/item:opacity-100"
-                    title="Close Account"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+
                 </div>
               </div>
             ))}
@@ -137,11 +113,7 @@ export default function AccountManagement({
         </div>
       </div>
 
-      <AddFiatAccount
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onAddAccount={handleAddAccount}
-      />
+
     </>
   );
 }

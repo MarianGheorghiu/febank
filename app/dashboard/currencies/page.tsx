@@ -13,16 +13,15 @@ import ExchangeForm from "@/app/components/ui/currencies/ExchangeForm";
 import EvolutionChart from "@/app/components/ui/currencies/EvolutionChart";
 
 // Date Mock
-import { MOCK_FIAT } from "@/app/lib/mock/currencies";
 import { useTradingPortfolio } from "@/app/lib/markets/projections";
 import TransferModal from "@/app/components/ui/dashboard/TransferModal";
 import { useState } from "react";
 
 export default function CurrenciesPage() {
-  const { cryptos, holdings, cashUsd } = useTradingPortfolio();
+  const { cryptos, holdings, cashUsd, fiatAccounts } = useTradingPortfolio();
   const stocks = holdings.map(item => ({ id: item.symbol, symbol: item.symbol, name: item.name, shares: item.shares, value: item.shares * item.currentPrice }));
   const stats = {
-    accounts: MOCK_FIAT.length,
+    accounts: fiatAccounts.length,
     stocks: stocks.length,
     crypto: cryptos.length,
   };
@@ -72,11 +71,11 @@ export default function CurrenciesPage() {
 
       {/* MATRIX GRID */}
       <div className="w-full flex flex-col gap-4 m-0 p-0 mt-4">
-        <p className="rounded-xl border border-cyan-500/20 p-3 font-mono text-[11px] text-slate-400">Shared demo trading cash available: <span className="text-cyan-300">${cashUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>. Crypto and stock positions reflect your executions. Bank accounts below remain separate demo snapshots until the backend ledger is connected.</p>
+        <p className="rounded-xl border border-cyan-500/20 p-3 font-mono text-[11px] text-slate-400">Available USD balance: <span className="text-cyan-300">${cashUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>. Shared across Overview, Transfers, Crypto, Stocks and Exchange.</p>
         {/* ROW 1: Cele 3 managere */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full h-auto lg:h-[420px] min-w-0">
           <div className="w-full h-[380px] lg:h-full min-w-0 overflow-hidden">
-            <AccountManagement accounts={MOCK_FIAT} />
+            <AccountManagement accounts={fiatAccounts} />
           </div>
           <div className="w-full h-[380px] lg:h-full min-w-0 overflow-hidden">
             <CryptoManagement cryptos={cryptos} />

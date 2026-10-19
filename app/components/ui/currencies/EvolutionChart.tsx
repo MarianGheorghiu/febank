@@ -1,4 +1,6 @@
 "use client";
+import { MOCK_TRADING_FX } from "@/app/lib/markets/seed";
+import { useTradingPortfolio } from "@/app/lib/markets/projections";
 import { generateMarketData } from "@/app/lib/mock/currency-history";
 import type { AssetClass, Timeframe } from "@/app/lib/types/currency-history";
 
@@ -15,12 +17,14 @@ import {
 } from "recharts";
 
 const ASSET_CONFIGS = {
-  FIAT: { color: "#10b981", label: "Fiat Capital", unit: "RON" },
+  FIAT: { color: "#10b981", label: "Fiat Capital", unit: "$" },
   CRYPTO: { color: "#06b6d4", label: "Crypto Core", unit: "$" },
   STOCKS: { color: "#f59e0b", label: "Equity Index", unit: "$" },
 };
 
 export default function EvolutionChart() {
+  const { cryptoValue, stockValue, fiatAccounts } = useTradingPortfolio();
+  const fiatValue = fiatAccounts.reduce((sum, account) => sum + account.balance * (MOCK_TRADING_FX[account.currency] ?? 0), 0);
   const [isMounted, setIsMounted] = useState(false);
   const [activeAsset, setActiveAsset] = useState<AssetClass>("CRYPTO");
   const [timeframe, setTimeframe] = useState<Timeframe>("1M");
@@ -35,8 +39,9 @@ export default function EvolutionChart() {
   }, []);
 
   const chartData = useMemo(() => {
-    return generateMarketData(activeAsset, timeframe);
-  }, [activeAsset, timeframe]);
+    const value = activeAsset === "CRYPTO" ? cryptoValue : activeAsset === "STOCKS" ? stockValue : fiatValue;
+    return generateMarketData(activeAsset, timeframe).map((point, index, points) => index === points.length - 1 ? { ...point, valoare: value } : point);
+  }, [activeAsset, timeframe, cryptoValue, stockValue, fiatValue]);
 
   const currentTheme = ASSET_CONFIGS[activeAsset];
 
@@ -47,7 +52,7 @@ export default function EvolutionChart() {
 
   const displayedLabel = useMemo(() => {
     if (hoveredPoint) return hoveredPoint.name;
-    return "LIVE INDEX FEED";
+    return "CURRENT VALUE · DEMO HISTORY";
   }, [hoveredPoint]);
 
   const xAxisInterval = useMemo(() => {

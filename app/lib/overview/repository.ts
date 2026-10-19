@@ -1,47 +1,45 @@
-import { MOCK_OVERVIEW } from "../mock/dashboard";
 import type { OverviewOperation, OverviewSnapshot } from "../types/dashboard";
-import { applyOperation } from "./engine";
+import { buildQuote } from "../transfers/engine";
+import { projectOverview } from "../wallet/engine";
+import { commitWallet, readWallet, WALLET_EVENT } from "../wallet/store";
 export interface OverviewRepository {
   getSnapshot(): Promise<OverviewSnapshot>;
   submitOperation(operation: OverviewOperation): Promise<OverviewSnapshot>;
 }
-/** Browser session-scoped mock. Replace this factory with a Go HTTP adapter. */
 export function createOverviewRepository(clientId: string): OverviewRepository {
-  let snapshot = structuredClone(MOCK_OVERVIEW);
-  const key = `mbank_overview_v1:${clientId}`;
-  let loaded = false;
-  let operations: { operation: OverviewOperation; at: string }[] = [];
-  async function getSnapshot() {
-    if (!loaded) {
-      loaded = true;
-      try {
-        const raw = typeof window !== "undefined" ? sessionStorage.getItem(key) : null;
-        // Replay validated operations; never trust a stored balance or report shape.
-        operations = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(operations)) throw new Error("Invalid mock session");
-        for (const entry of operations) {
-          if (!Number.isFinite(Date.parse(entry.at))) throw new Error("Invalid timestamp");
-          snapshot = applyOperation(snapshot, entry.operation, entry.at);
-        }
-      } catch { snapshot = structuredClone(MOCK_OVERVIEW); operations = []; }
+  const mode = process.env.NEXT_PUBLIC_TRANSFERS_MODE ?? "demo";
+  if (!["demo", "http"].includes(mode)) throw new Error("Unknown wallet mode.");
+  if (mode === "http") {
+    const base = (process.env.NEXT_PUBLIC_TRANSFERS_API_URL ?? "").replace(/\/$/, "");
+    async function request(operation?: OverviewOperation): Promise<OverviewSnapshot> {
+      const response = await fetch(`${base}/v1/me/overview${operation ? "/operations" : ""}`, { method: operation ? "POST" : "GET", credentials: "include", cache: "no-store", headers: { Accept: "application/json", ...(operation ? { "Content-Type": "application/json", "Idempotency-Key": operation.id } : {}) }, ...(operation ? { body: JSON.stringify(operation) } : {}) });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.error?.message ?? "Unable to load the shared wallet.");
+      }
+      const snapshot: OverviewSnapshot = await response.json();
+      if (snapshot.schema_version !== 1 || !snapshot.summary || !Array.isArray(snapshot.accounts)) throw new Error("Invalid overview service response.");
+      if (operation && typeof window !== "undefined") window.dispatchEvent(new Event(WALLET_EVENT));
+      return snapshot;
     }
-    return structuredClone(snapshot);
+    return { getSnapshot: () => request(), submitOperation: request };
   }
   return {
-    getSnapshot,
+    async getSnapshot() { return projectOverview(readWallet(clientId).state, new Date().toISOString()); },
     async submitOperation(operation) {
-      await getSnapshot();
-      const at = new Date().toISOString();
-      const next = applyOperation(snapshot, operation, at);
-      if (next === snapshot) return structuredClone(snapshot);
-      if (typeof window !== "undefined") {
-        try {
-          sessionStorage.setItem(key, JSON.stringify([...operations, { operation, at }]));
-        } catch { throw new Error("Unable to save the mock operation. Check browser storage and retry."); }
+      const { events, state } = readWallet(clientId);
+      const previous = events.find(event => event.key === operation.id);
+      if (previous) {
+        const original = previous.kind === "overview" ? previous.operation : previous.kind === "submit" ? previous.overview_operation : undefined;
+        if (JSON.stringify(original) !== JSON.stringify(operation)) throw new Error("Idempotency key already used for another request.");
+        return projectOverview(state, new Date().toISOString());
       }
-      operations.push({ operation, at });
-      snapshot = next;
-      return structuredClone(snapshot);
+      const at = new Date().toISOString();
+      if (operation.type === "transfer") {
+        const quote = buildQuote(state.transfers, { source_account_id: "account-USD", route_id: operation.recipient_kind === "phone" ? "phone-USD" : operation.recipient_kind === "iban" ? "route-USD" : "", amount: operation.amount, recipient_name: operation.recipient_name ?? "", destination: operation.recipient ?? "", reference: "Overview transfer" }, `quote-${operation.id}`, at);
+        return projectOverview(commitWallet(clientId, { kind: "submit", key: operation.id, at, quote, overview_operation: operation }), at);
+      }
+      return projectOverview(commitWallet(clientId, { kind: "overview", key: operation.id, at, operation }), at);
     },
   };
 }
