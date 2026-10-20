@@ -27,8 +27,8 @@ import {
     cardActionLabels,
 } from "@/app/components/ui/admin/cards/presentation";
 import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-import { MOCK_CARD_CUSTOMERS } from "@/app/lib/mock/admin/card-issuing";
 import {
+    cardCustomers,
     executeMockCardCommand,
     getCardStorageWarning,
     useCardIssuingState,
@@ -42,6 +42,7 @@ import type {
 
 function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
     const state = useCardIssuingState();
+    const customers = cardCustomers(state);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [intent, setIntent] = useState<CardDialogIntent | null>(null);
     const selectedCard =
@@ -49,7 +50,7 @@ function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
         state.cards[0] ??
         null;
     const selectedCustomer =
-        MOCK_CARD_CUSTOMERS.find(
+        customers.find(
             (customer) => customer.id === selectedCard?.userId,
         ) ?? null;
     const active = state.cards.filter(
@@ -83,7 +84,7 @@ function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
                       ? null
                       : next.cards.find((card) => card.id === command.cardId);
             if (target) setSelectedId(target.replacedByCardId ?? target.id);
-            const owner = MOCK_CARD_CUSTOMERS.find(
+            const owner = customers.find(
                 (customer) => customer.id === target?.userId,
             );
             const title =
@@ -112,7 +113,7 @@ function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
     const exportCards = (cards: IssuedCard[]) => {
         let url: string | null = null;
         try {
-            const csv = cardRegistryCsv(cards, MOCK_CARD_CUSTOMERS);
+            const csv = cardRegistryCsv(cards, customers);
             const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
             url = URL.createObjectURL(blob);
             executeMockCardCommand(
@@ -220,7 +221,7 @@ function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
             </div>
             <CardRegistry
                 cards={state.cards}
-                customers={MOCK_CARD_CUSTOMERS}
+                customers={customers}
                 selectedId={selectedCard?.id ?? null}
                 onSelect={setSelectedId}
                 onManage={(id) => {
@@ -245,7 +246,7 @@ function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
                 </div>
                 <CardAuditTrail
                     entries={state.audit}
-                    customers={MOCK_CARD_CUSTOMERS}
+                    customers={customers}
                     selectedId={selectedCard?.id ?? null}
                 />
             </div>
@@ -256,7 +257,7 @@ function CardIssuingWorkspace({ operator }: { operator: CardOperator }) {
                         ("card" in intent ? intent.card.id : "new")
                     }
                     intent={intent}
-                    customers={MOCK_CARD_CUSTOMERS}
+                    customers={customers}
                     operator={operator.email}
                     onClose={() => setIntent(null)}
                     onConfirm={confirm}

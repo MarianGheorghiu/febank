@@ -14,6 +14,7 @@ export interface CardCustomer {
 export interface CardLimits { daily: number; monthly: number; atmDaily: number }
 export interface CardChannels { online: boolean; atm: boolean; contactless: boolean; international: boolean }
 export interface IssuedCard {
+  customerDeletedAt?: string | null;
   id: string;
   userId: string;
   type: IssuedCardType;
@@ -47,7 +48,7 @@ export interface CardAuditEntry {
   before: IssuedCard | null;
   after: IssuedCard | null;
 }
-export interface CardIssuingState { revision: number; cards: IssuedCard[]; audit: CardAuditEntry[] }
+export interface CardIssuingState { customers?: CardCustomer[]; revision: number; cards: IssuedCard[]; audit: CardAuditEntry[] }
 export type CardCommand =
   | { action: "ISSUE"; userId: string; type: IssuedCardType; network: CardNetwork; currency: CardCurrency; limits: CardLimits; reason: string }
   | { action: "EXPORT"; reason: string }

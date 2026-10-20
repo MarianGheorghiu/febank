@@ -1,0 +1,866 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Cards Vault customer API",
+    "version": "1.0.0",
+    "description": "Go backend integration contract. Identity is derived from the session. Every authenticated customer can access the workspace. Mutations must enforce ownership, restrictions, optimistic concurrency, CSRF and atomic idempotency."
+  },
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "paths": {
+    "/v1/me/cards": {
+      "get": {
+        "operationId": "getMyCards",
+        "responses": {
+          "200": {
+            "description": "Complete authenticated customer snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Policy restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/cards/commands": {
+      "post": {
+        "operationId": "executeMyCardCommand",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete authenticated customer snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Policy restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/cards/{card_id}/details": {
+      "post": {
+        "operationId": "revealMyCardDetails",
+        "description": "Authenticated ownership-checked reveal. Require recent authentication per issuer policy. Return Cache-Control: no-store, redact response/access logs, never persist CVV. Client hides after at most 60 seconds. Demo adapter returns sample test data only.",
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Short-lived card details",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized or authentication too old"
+          },
+          "404": {
+            "description": "Card not found"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session"
+      }
+    },
+    "schemas": {
+      "Limits": {
+        "type": "object",
+        "required": [
+          "daily",
+          "monthly",
+          "atmDaily"
+        ],
+        "properties": {
+          "daily": {
+            "type": "number",
+            "minimum": 0,
+            "multipleOf": 0.01
+          },
+          "monthly": {
+            "type": "number",
+            "minimum": 0,
+            "multipleOf": 0.01
+          },
+          "atmDaily": {
+            "type": "number",
+            "minimum": 0,
+            "multipleOf": 0.01
+          }
+        }
+      },
+      "Channels": {
+        "type": "object",
+        "required": [
+          "online",
+          "atm",
+          "contactless",
+          "international"
+        ],
+        "properties": {
+          "online": {
+            "type": "boolean"
+          },
+          "atm": {
+            "type": "boolean"
+          },
+          "contactless": {
+            "type": "boolean"
+          },
+          "international": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Customer": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "accountStatus",
+          "kycStatus",
+          "deliveryAddress"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "accountStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "BLOCKED"
+            ]
+          },
+          "kycStatus": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "IN_REVIEW"
+            ]
+          },
+          "deliveryAddress": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Card": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "type",
+          "network",
+          "currency",
+          "last4",
+          "expiry",
+          "status",
+          "limits",
+          "channels",
+          "spentToday",
+          "spentThisMonth",
+          "delivery",
+          "deliveryAddress",
+          "trackingReference",
+          "createdAt",
+          "updatedAt",
+          "version",
+          "replacesCardId",
+          "replacedByCardId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "PHYSICAL",
+              "VIRTUAL"
+            ]
+          },
+          "network": {
+            "type": "string",
+            "enum": [
+              "VISA",
+              "MASTERCARD"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "EUR",
+              "USD",
+              "RON"
+            ]
+          },
+          "last4": {
+            "type": "string",
+            "pattern": "^\\d{4}$"
+          },
+          "expiry": {
+            "type": "string",
+            "pattern": "^(0[1-9]|1[0-2])/\\d{2}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACTIVE",
+              "FROZEN",
+              "BLOCKED",
+              "TERMINATED"
+            ]
+          },
+          "limits": {
+            "$ref": "#/components/schemas/Limits"
+          },
+          "channels": {
+            "$ref": "#/components/schemas/Channels"
+          },
+          "spentToday": {
+            "type": "number",
+            "minimum": 0,
+            "multipleOf": 0.01
+          },
+          "spentThisMonth": {
+            "type": "number",
+            "minimum": 0,
+            "multipleOf": 0.01
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "NOT_REQUIRED",
+              "ORDERED",
+              "DISPATCHED",
+              "DELIVERED"
+            ]
+          },
+          "deliveryAddress": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trackingReference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "replacesCardId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replacedByCardId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customerDeletedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Customer deletion tombstone. Deleted cards must be excluded from all customer snapshots and reveal endpoints; retain operational records for admin audit."
+          }
+        }
+      },
+      "Activity": {
+        "type": "object",
+        "required": [
+          "id",
+          "card_id",
+          "merchant",
+          "category",
+          "amount",
+          "currency",
+          "occurred_at",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "card_id": {
+            "type": "string"
+          },
+          "merchant": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "EUR",
+              "USD",
+              "RON"
+            ]
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "COMPLETED",
+              "PENDING",
+              "REVERSED"
+            ]
+          }
+        }
+      },
+      "Audit": {
+        "type": "object",
+        "required": [
+          "id",
+          "timestamp",
+          "actor",
+          "action",
+          "cardId",
+          "userId",
+          "reason",
+          "before",
+          "after"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "ISSUE",
+              "EXPORT",
+              "ACTIVATE",
+              "FREEZE",
+              "UNFREEZE",
+              "BLOCK",
+              "TERMINATE",
+              "REPLACE",
+              "DISPATCH",
+              "DELIVER",
+              "UPDATE_CONTROLS"
+            ]
+          },
+          "cardId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "userId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Card"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Card"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Snapshot": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "as_of",
+          "customer",
+          "cards",
+          "funding_accounts",
+          "activity",
+          "audit",
+          "policy",
+          "permissions"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "customer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Customer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "funding_accounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "currency",
+                "available",
+                "reserved"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "available": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d+)?$"
+                },
+                "reserved": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d+)?$"
+                }
+              }
+            }
+          },
+          "activity": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            }
+          },
+          "audit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Audit"
+            }
+          },
+          "policy": {
+            "type": "object",
+            "required": [
+              "maxOpenCardsPerCustomer",
+              "maxMonthlyLimit"
+            ],
+            "properties": {
+              "maxOpenCardsPerCustomer": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxMonthlyLimit": {
+                "type": "number",
+                "minimum": 0,
+                "multipleOf": 0.01
+              }
+            }
+          },
+          "permissions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "FREEZE",
+                  "UNFREEZE",
+                  "ACTIVATE",
+                  "UPDATE_CONTROLS",
+                  "TERMINATE"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "Command": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "type",
+              "network",
+              "currency"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "ISSUE"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "PHYSICAL",
+                  "VIRTUAL"
+                ]
+              },
+              "network": {
+                "type": "string",
+                "enum": [
+                  "VISA",
+                  "MASTERCARD"
+                ]
+              },
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "EUR",
+                  "USD",
+                  "RON"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "card_id",
+              "expected_version"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "FREEZE",
+                  "UNFREEZE",
+                  "ACTIVATE",
+                  "TERMINATE"
+                ]
+              },
+              "card_id": {
+                "type": "string"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "card_id",
+              "expected_version",
+              "limits",
+              "channels"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "UPDATE_CONTROLS"
+                ]
+              },
+              "card_id": {
+                "type": "string"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "limits": {
+                "$ref": "#/components/schemas/Limits"
+              },
+              "channels": {
+                "$ref": "#/components/schemas/Channels"
+              }
+            }
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CardDetails": {
+        "type": "object",
+        "required": [
+          "pan",
+          "cvv",
+          "expiry",
+          "holder_name",
+          "expires_at"
+        ],
+        "properties": {
+          "pan": {
+            "type": "string",
+            "description": "Ephemeral full card number. Never include in snapshots, audit, analytics or storage."
+          },
+          "cvv": {
+            "type": "string",
+            "pattern": "^[0-9]{3,4}$"
+          },
+          "expiry": {
+            "type": "string"
+          },
+          "holder_name": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}
