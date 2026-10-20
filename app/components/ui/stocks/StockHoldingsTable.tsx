@@ -1,223 +1,29 @@
 "use client";
-
-import { useState } from "react";
-import { Search, Briefcase, Zap } from "lucide-react";
-import { useTradingPortfolio } from "@/app/lib/markets/projections";
-import type { StockHolding } from "@/app/lib/types/stocks";
-import StockActionModal from "./StockActionModal";
-
-export default function StockHoldingsTable() {
-  const { holdings: MOCK_STOCK_HOLDINGS } = useTradingPortfolio();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [modalType, setModalType] = useState<"BUY" | "SELL" | null>(null);
-  const [selectedStock, setSelectedStock] = useState<StockHolding | null>(null);
-
-  const filteredHoldings = MOCK_STOCK_HOLDINGS.filter(
-    (stock) =>
-      stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      stock.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  const triggerAction = (type: "BUY" | "SELL", stock: StockHolding) => {
-    setSelectedStock(stock);
-    setModalType(type);
-  };
-
-  const PercentText = ({ val }: { val: number }) => {
-    const isPos = val >= 0;
-    return (
-      <span
-        className={`font-mono text-[10px] font-bold ${isPos ? "text-emerald-400" : "text-rose-400"}`}
-      >
-        {isPos ? "+" : ""}
-        {val.toFixed(2)}%
-      </span>
-    );
-  };
-
-  return (
-    <>
-      <div className="w-full h-full flex flex-col bg-gradient-to-br from-[#020617] to-[#040e29] border border-cyan-500/30 rounded-xl overflow-hidden relative transition-all duration-300 group hover:border-cyan-500/80 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)]">
-        {/* Glow Effect */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-1 bg-cyan-500/50 blur-[20px] pointer-events-none" />
-
-        {/* HEADER & SEARCH BAR */}
-        <div className="p-4 sm:p-5 border-b border-cyan-500/20 bg-[#020816]/80 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 relative z-10">
-          <div>
-            <div className="flex items-center gap-2">
-              <Briefcase size={16} className="text-cyan-400" />
-              <h2 className="text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-widest uppercase">
-                Holdings Ledger
-              </h2>
-            </div>
-            <p className="text-[9px] text-cyan-200/50 font-mono mt-1 uppercase tracking-widest ml-6">
-              Active Securities Portfolio
-            </p>
-          </div>
-
-          <div className="relative w-full sm:w-72">
-            <Search
-              size={14}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-cyan-500/50"
-            />
-            <input
-              type="text"
-              placeholder="Search assets (e.g. NVDA)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#03091e] border border-cyan-500/30 rounded-lg pl-10 pr-4 py-2.5 text-xs font-mono text-cyan-100 placeholder-cyan-500/30 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all"
-            />
-          </div>
-        </div>
-
-        {/* TABLE HEADERS Desktop */}
-        <div className="hidden lg:grid grid-cols-12 gap-2 xl:gap-4 py-2 border-b border-cyan-500/20 bg-cyan-950/20 text-[10px] font-mono font-bold text-white uppercase tracking-widest shrink-0 items-center relative z-10">
-          <div className="col-span-3 pl-5">Asset</div>
-          <div className="col-span-1 text-center">Sector</div>
-          <div className="col-span-1 text-right">Shares</div>
-          <div className="col-span-1 text-right">Avg Cost</div>
-          <div className="col-span-1 text-right">Price</div>
-          <div className="col-span-2 text-right">Total Equity</div>
-          <div className="col-span-3 text-right pr-5">Actions</div>
-        </div>
-
-        {/* MARKET LIST */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3 space-y-2.5 scrollbar-thin relative z-10">
-          {filteredHoldings.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-cyan-500/30 font-mono text-xs mt-10">
-              <Zap size={32} className="mb-3 opacity-30" />
-              <p>NO ASSETS MATCHING DESIGNATION</p>
-            </div>
-          ) : (
-            filteredHoldings.map((stock, idx) => {
-              const currentVal = stock.shares * stock.currentPrice;
-              const unrealizedPL = currentVal - stock.shares * stock.avgCost;
-              const plPercent =
-                (unrealizedPL / (stock.shares * stock.avgCost)) * 100;
-
-              return (
-                <div
-                  key={idx}
-                  className="group flex flex-col lg:grid lg:grid-cols-12 gap-3 lg:gap-2 xl:gap-4 items-center bg-[#050b1a]/60 p-4 sm:px-5 sm:py-2.5 rounded-lg border border-cyan-500/10 hover:border-cyan-500/40 hover:bg-[#071128] transition-all duration-300 shadow-sm hover:shadow-[0_0_20px_rgba(6,182,212,0.1)]"
-                >
-                  {/* MOBILE HEADER */}
-                  <div className="w-full flex lg:hidden justify-between items-center mb-2 border-b border-cyan-500/10 pb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-[#020510] border border-cyan-500/30 flex items-center justify-center font-mono font-black text-xs text-cyan-400">
-                        {stock.symbol[0]}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-white">
-                          {stock.name}
-                        </span>
-                        <span className="text-[10px] font-mono text-cyan-400">
-                          {stock.symbol} • {stock.sector}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                      <span className="text-sm font-mono font-bold text-white">
-                        $
-                        {currentVal.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                      <PercentText val={plPercent} />
-                    </div>
-                  </div>
-
-                  {/* DESKTOP COL 1: ASSET */}
-                  <div className="hidden lg:flex col-span-3 items-center gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-[#020510] border border-cyan-500/30 flex items-center justify-center font-mono font-black text-xs text-cyan-400 shrink-0 group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all duration-300">
-                      {stock.symbol[0]}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-white tracking-wide truncate">
-                        {stock.name}
-                      </span>
-                      <span className="text-[9px] font-mono font-bold text-cyan-400 bg-cyan-950/40 px-1.5 py-0.5 mt-0.5 rounded border border-cyan-500/20 inline-block w-fit">
-                        {stock.symbol}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* DESKTOP COL 2: SECTOR */}
-                  <div className="hidden lg:block col-span-1 text-center">
-                    <span className="text-[9px] font-mono text-slate-400/80 uppercase border border-white/5 bg-black/20 px-1.5 py-0.5 rounded">
-                      {stock.sector}
-                    </span>
-                  </div>
-
-                  {/* SHARES, AVG COST, PRICE (Grid on Mobile, Cols on Desktop) */}
-                  <div className="w-full lg:contents grid grid-cols-3 gap-2 text-center lg:text-right">
-                    <div className="col-span-1 lg:col-span-1 flex flex-col lg:block bg-black/20 lg:bg-transparent rounded py-1.5 lg:py-0">
-                      <span className="lg:hidden text-[9px] font-mono text-cyan-500/50 uppercase mb-0.5">
-                        Shares
-                      </span>
-                      <span className="text-xs font-mono font-bold text-slate-300">
-                        {stock.shares}
-                      </span>
-                    </div>
-                    <div className="col-span-1 lg:col-span-1 flex flex-col lg:block bg-black/20 lg:bg-transparent rounded py-1.5 lg:py-0">
-                      <span className="lg:hidden text-[9px] font-mono text-cyan-500/50 uppercase mb-0.5">
-                        Avg Cost
-                      </span>
-                      <span className="text-xs font-mono text-slate-400">
-                        ${stock.avgCost.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="col-span-1 lg:col-span-1 flex flex-col lg:block bg-black/20 lg:bg-transparent rounded py-1.5 lg:py-0">
-                      <span className="lg:hidden text-[9px] font-mono text-cyan-500/50 uppercase mb-0.5">
-                        Live Price
-                      </span>
-                      <span className="text-xs font-mono font-bold text-white group-hover:text-cyan-100 transition-colors">
-                        ${stock.currentPrice.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* DESKTOP TOTAL EQUITY */}
-                  <div className="hidden lg:flex flex-col col-span-2 text-right justify-center">
-                    <span className="text-xs font-mono font-bold text-white">
-                      $
-                      {currentVal.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                    <PercentText val={plPercent} />
-                  </div>
-
-                  {/* ACTION BUTTONS */}
-                  <div className="w-full lg:w-auto lg:col-span-3 flex items-center justify-between lg:justify-end gap-1.5 mt-2 lg:mt-0">
-                    <button
-                      onClick={() => triggerAction("BUY", stock)}
-                      className="cursor-pointer flex-1 lg:flex-none px-2 py-1.5 lg:px-4 lg:py-1.5 rounded border font-mono font-black text-[9px] lg:text-[10px] uppercase tracking-widest transition-all duration-300 text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500 hover:text-black hover:shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                    >
-                      Buy
-                    </button>
-                    <button
-                      onClick={() => triggerAction("SELL", stock)}
-                      className="cursor-pointer flex-1 lg:flex-none px-2 py-1.5 lg:px-4 lg:py-1.5 rounded border font-mono font-black text-[9px] lg:text-[10px] uppercase tracking-widest transition-all duration-300 text-rose-400 border-rose-500/30 bg-rose-500/10 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_rgba(244,63,94,0.4)]"
-                    >
-                      Sell
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      <StockActionModal
-        isOpen={modalType !== null}
-        onClose={() => setModalType(null)}
-        type={modalType}
-        stock={selectedStock}
-      />
-    </>
-  );
+import { useRef, useState } from "react";
+import { BriefcaseBusiness, FileText } from "lucide-react";
+import CardSurface from "../CardSurface";
+import SocialDialog from "../friends/SocialDialog";
+import { notifyOperation } from "../OperationNotification";
+import { StockTitle, StockSearch, Segments, Pager, Empty, match, money, quantity, pct, dateLabel, smallButton, button, buyButton, sellButton } from "./StockUI";
+import type { StockOrder, StocksSnapshot, StocksRepository } from "@/app/lib/stocks/contracts";
+import type { StockTradeSelection } from "./StockActionModal";
+export default function StockHoldingsTable({ snapshot, repository, onComplete, onAction, onAnalyze }: { snapshot: StocksSnapshot; repository: StocksRepository; onComplete: (value: StocksSnapshot) => void; onAction: (value: StockTradeSelection) => void; onAnalyze: (symbol: string) => void }) {
+  const [tab, setTab] = useState<"Positions" | "Orders">("Positions"), [search, setSearch] = useState(""), [page, setPage] = useState(0), [details, setDetails] = useState<StockOrder | null>(null), [busy, setBusy] = useState(false);
+  const cancelKeys = useRef(new Map<string, string>());
+  const holdings = snapshot.holdings.filter(a => match(search, a.symbol, a.name, a.sector));
+  const orders = snapshot.orders.filter(a => match(search, a.symbol, a.id, a.status, a.type, a.side));
+  const count = tab === "Positions" ? holdings.length : orders.length, current = Math.min(page, Math.max(0, Math.ceil(count / 4) - 1));
+  async function cancel(order: StockOrder) {
+    if (busy) return; setBusy(true);
+    const key = cancelKeys.current.get(order.id) ?? crypto.randomUUID(); cancelKeys.current.set(order.id, key);
+    try { onComplete(await repository.cancel(order.id, key)); setDetails(null); notifyOperation("Order cancelled", `${order.symbol} · Your reserved ${order.side === "BUY" ? "funds" : "shares"} are available again.`, false, "Stocks & Trading"); }
+    catch (cause) { notifyOperation("Cancellation failed", cause instanceof Error ? cause.message : "Unable to cancel this order.", true, "Stocks & Trading"); } finally { setBusy(false); }
+  }
+  return <CardSurface tone="purple" className="@container p-4 sm:p-5"><StockTitle icon={BriefcaseBusiness} aside={<Segments label="Portfolio view" value={tab} values={["Positions", "Orders"] as const} onChange={value => { setTab(value); setPage(0); setSearch(""); }} />}>Your portfolio</StockTitle>
+    <StockSearch label={tab === "Positions" ? "Search positions" : "Search orders"} value={search} onChange={value => { setSearch(value); setPage(0); }} />
+    <div className="mt-3 divide-y divide-white/10 @min-[710px]:hidden">{tab === "Positions" ? holdings.slice(current * 4, current * 4 + 4).map(a => { const item = snapshot.market.find(i => i.symbol === a.symbol); return <article key={a.symbol} className="py-3"><div className="flex justify-between gap-3"><div><button className="cursor-pointer text-sm font-semibold text-white" onClick={() => onAnalyze(a.symbol)}>{a.symbol}</button><p className="mt-1 text-[11px] text-slate-200">{quantity(a.quantity)} shares · {quantity(a.reserved)} reserved</p></div><div className="text-right"><p className="text-sm font-semibold text-white">{money(a.value_usd)}</p><p className={`mt-1 text-[11px] ${Number(a.unrealized_usd) < 0 ? "text-rose-200" : "text-emerald-200"}`}>{money(a.unrealized_usd)} · {pct(a.unrealized_percent)}</p></div></div><p className="mt-2 text-[10px] text-slate-200">Avg {money(a.average_cost_usd)} · Price {money(a.price_usd)} · {a.sector}</p><div className="mt-2 grid grid-cols-2 gap-2"><button className={buyButton} disabled={!item?.can_buy} onClick={() => onAction({ type: "BUY", symbol: a.symbol })}>Buy {a.symbol}</button><button className={sellButton} disabled={!item?.can_sell || Number(a.quantity) <= Number(a.reserved)} onClick={() => onAction({ type: "SELL", symbol: a.symbol })}>Sell {a.symbol}</button></div></article>; }) : orders.slice(current * 4, current * 4 + 4).map(o => <article key={o.id} className="flex items-center justify-between gap-3 py-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold text-white">{o.side} {o.symbol}</p><span className={`text-[9px] font-semibold ${o.status === "PENDING" ? "text-amber-200" : o.status === "FILLED" ? "text-emerald-200" : "text-slate-200"}`}>{o.status}</span></div><p className="mt-1 text-[11px] text-slate-200">{quantity(o.quantity)} shares · {o.type} · {money(o.total_usd)}</p><p className="mt-1 text-[10px] text-slate-200">Price {money(o.target_price_usd ?? o.price_usd, 4)} · Fee {money(o.fee_usd)}</p><p className="mt-1 text-[10px] text-slate-200">{dateLabel(o.created_at)} · {o.currency}</p></div><button className={smallButton} aria-label={`Details for ${o.symbol} order`} onClick={() => setDetails(o)}><FileText size={15} /></button></article>)}</div>
+    <div className="mt-3 hidden min-w-0 overflow-x-auto @min-[710px]:block">{tab === "Positions" ? <table className="w-full min-w-[710px] text-left text-xs"><thead className="border-b border-white/10 text-slate-200"><tr>{["Position / Shares", "Average / Price", "Value", "Unrealized P&L", "Actions"].map(h => <th key={h} className="px-2 py-3 font-medium first:pl-0 last:text-right">{h}</th>)}</tr></thead><tbody className="divide-y divide-white/10">{holdings.slice(current * 4, current * 4 + 4).map(a => { const item = snapshot.market.find(i => i.symbol === a.symbol); return <tr key={a.symbol} className="hover:bg-white/[0.025]"><td className="py-3 pr-2"><button className="cursor-pointer text-sm font-semibold text-white hover:text-cyan-200" onClick={() => onAnalyze(a.symbol)}>{a.symbol}</button><p className="mt-1 text-slate-200">{quantity(a.quantity)} shares · {a.sector}</p><p className="mt-1 text-[10px] text-slate-200">{quantity(a.reserved)} reserved</p></td><td className="px-2 py-3 tabular-nums"><p>{money(a.average_cost_usd)}</p><p className="mt-1 text-slate-200">{money(a.price_usd)}</p></td><td className="px-2 py-3 font-semibold tabular-nums">{money(a.value_usd)}</td><td className={`px-2 py-3 tabular-nums ${Number(a.unrealized_usd) < 0 ? "text-rose-200" : "text-emerald-200"}`}><p>{money(a.unrealized_usd)}</p><p className="mt-1">{pct(a.unrealized_percent)}</p></td><td className="py-3 pl-2"><div className="flex justify-end gap-1.5"><button className={buyButton} disabled={!item?.can_buy} title={item?.buy_restriction ?? "Buy shares"} onClick={() => onAction({ type: "BUY", symbol: a.symbol })}>Buy</button><button className={sellButton} disabled={!item?.can_sell || Number(a.quantity) <= Number(a.reserved)} title={item?.sell_restriction ?? "Sell available shares"} onClick={() => onAction({ type: "SELL", symbol: a.symbol })}>Sell</button></div></td></tr>; })}</tbody></table> : <table className="w-full min-w-[650px] text-left text-xs"><thead className="border-b border-white/10 text-slate-200"><tr>{["Order", "Shares / Price", "Total / Fee", "Status", "Details"].map(h => <th key={h} className="px-2 py-3 font-medium first:pl-0 last:text-right">{h}</th>)}</tr></thead><tbody className="divide-y divide-white/10">{orders.slice(current * 4, current * 4 + 4).map(o => <tr key={o.id} className="hover:bg-white/[0.025]"><td className="py-3 pr-2"><p className="font-semibold">{o.side} {o.symbol}</p><p className="mt-1 text-slate-200">{o.type} · {dateLabel(o.created_at)}</p></td><td className="px-2 py-3 tabular-nums"><p>{quantity(o.quantity)}</p><p className="mt-1 text-slate-200">{money(o.target_price_usd ?? o.price_usd, 4)}</p></td><td className="px-2 py-3 tabular-nums"><p>{money(o.total_usd)}</p><p className="mt-1 text-slate-200">{money(o.fee_usd)} fee</p></td><td className={`px-2 py-3 text-[10px] font-semibold ${o.status === "FILLED" ? "text-emerald-200" : o.status === "PENDING" ? "text-amber-200" : "text-slate-200"}`}>{o.status}</td><td className="py-3 pl-2 text-right"><button className={smallButton} aria-label={`Details for ${o.symbol} order`} onClick={() => setDetails(o)}><FileText size={15} /></button></td></tr>)}</tbody></table>}</div>
+    {!count && <Empty>{search ? "No matching results." : tab === "Orders" ? "Your orders will appear here." : "Your stock positions will appear here."}</Empty>}<Pager count={count} page={current} onChange={setPage} />
+    {details && <SocialDialog title={`${details.side} ${details.symbol}`} subtitle={`${details.type} order · ${details.status}`} busy={busy} icon={FileText} onClose={() => setDetails(null)}><dl className="space-y-3 text-sm text-white">{[["Order ID", details.id], ["Placed", new Date(details.created_at).toLocaleString()], ["Shares", quantity(details.quantity)], ["Price", money(details.price_usd, 4)], ["Target", details.target_price_usd ? money(details.target_price_usd, 4) : "Market"], ["Total", money(details.total_usd)], ["Fee", money(details.fee_usd)], ["Settlement", details.currency], ["Reserved funds", `${quantity(details.reserved_cash)} ${details.currency}`]].map(([label, value]) => <div key={label} className="flex flex-wrap justify-between gap-3"><dt className="text-slate-200">{label}</dt><dd className="max-w-full break-all text-right">{value}</dd></div>)}</dl><p className="mt-5 text-sm leading-relaxed text-slate-200">{details.note}</p>{details.status === "PENDING" && <button className={`${button} mt-5 w-full text-rose-200`} disabled={busy} onClick={() => void cancel(details)}>{busy ? "Cancelling…" : "Cancel order"}</button>}</SocialDialog>}
+  </CardSurface>;
 }

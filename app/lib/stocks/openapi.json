@@ -1,0 +1,1568 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank Stocks & Trading",
+    "version": "1.0.0",
+    "description": "Decimal strings and authenticated customer scope. All money/quantity/reservation changes must commit atomically into the common wallet ledger; five-minute quotes; idempotent order, cancellation and plan mutations. Plan execution and dividend crediting are server-owned jobs."
+  },
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "paths": {
+    "/v1/me/stocks": {
+      "get": {
+        "operationId": "getStocksSnapshot",
+        "summary": "getStocksSnapshot",
+        "responses": {
+          "200": {
+            "description": "Authoritative result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StocksSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission or risk restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, quote or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient balance or liquidity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/stocks/quotes": {
+      "post": {
+        "operationId": "quoteStockOrder",
+        "summary": "quoteStockOrder",
+        "responses": {
+          "200": {
+            "description": "Authoritative result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockQuote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission or risk restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, quote or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient balance or liquidity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockOrderDraft"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/stocks/orders": {
+      "post": {
+        "operationId": "submitStockOrder",
+        "summary": "submitStockOrder",
+        "responses": {
+          "200": {
+            "description": "Authoritative result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StocksSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission or risk restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, quote or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient balance or liquidity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "quote_id"
+                ],
+                "properties": {
+                  "quote_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/stocks/orders/{id}/cancel": {
+      "post": {
+        "operationId": "cancelStockOrder",
+        "summary": "cancelStockOrder",
+        "responses": {
+          "200": {
+            "description": "Authoritative result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StocksSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission or risk restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, quote or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient balance or liquidity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [],
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/stocks/plans": {
+      "post": {
+        "operationId": "createStockPlan",
+        "summary": "createStockPlan",
+        "responses": {
+          "200": {
+            "description": "Authoritative result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StocksSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission or risk restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, quote or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient balance or liquidity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockPlanDraft"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/stocks/plans/{id}": {
+      "patch": {
+        "operationId": "updateStockPlan",
+        "summary": "updateStockPlan",
+        "responses": {
+          "200": {
+            "description": "Authoritative result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StocksSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission or risk restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, quote or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient balance or liquidity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockPlanUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/stocks/plans/{id}/status": {
+      "post": {
+        "operationId": "setStockPlanStatus",
+        "summary": "setStockPlanStatus",
+        "responses": {
+          "200": {
+            "description": "Authoritative result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StocksSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission or risk restriction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, quote or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient balance or liquidity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockPlanStatus"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session"
+      }
+    },
+    "schemas": {
+      "StockCandle": {
+        "type": "object",
+        "required": [
+          "label",
+          "open",
+          "high",
+          "low",
+          "close"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "open": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "high": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "low": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "close": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          }
+        }
+      },
+      "StockCharts": {
+        "type": "object",
+        "required": [
+          "1D",
+          "1W",
+          "1M",
+          "1Y",
+          "ALL"
+        ],
+        "properties": {
+          "1D": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockCandle"
+            }
+          },
+          "1W": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockCandle"
+            }
+          },
+          "1M": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockCandle"
+            }
+          },
+          "1Y": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockCandle"
+            }
+          },
+          "ALL": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockCandle"
+            }
+          }
+        }
+      },
+      "StockInstrument": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "exchange",
+          "price_usd",
+          "change_24h",
+          "change_7d",
+          "volume",
+          "market_cap",
+          "category",
+          "sector",
+          "region",
+          "fractional",
+          "can_buy",
+          "can_sell",
+          "buy_restriction",
+          "sell_restriction",
+          "min_order_usd",
+          "max_order_usd",
+          "fee_bps",
+          "spread_bps",
+          "stats",
+          "news",
+          "charts"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "exchange": {
+            "type": "string"
+          },
+          "price_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "change_24h": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change_7d": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volume": {
+            "type": "string"
+          },
+          "market_cap": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "sector": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "fractional": {
+            "type": "boolean"
+          },
+          "can_buy": {
+            "type": "boolean"
+          },
+          "can_sell": {
+            "type": "boolean"
+          },
+          "buy_restriction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sell_restriction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_order_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "max_order_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "fee_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "spread_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "stats": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "value",
+                "unit",
+                "icon"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string",
+                  "enum": [
+                    "Globe",
+                    "Activity",
+                    "DollarSign",
+                    "PieChart",
+                    "Flame",
+                    "ShieldCheck"
+                  ]
+                },
+                "highlight": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "news": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "source",
+                "time",
+                "title",
+                "sentiment"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "time": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "sentiment": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "charts": {
+            "$ref": "#/components/schemas/StockCharts"
+          }
+        }
+      },
+      "StockPosition": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "sector",
+          "quantity",
+          "reserved",
+          "average_cost_usd",
+          "price_usd",
+          "value_usd",
+          "cost_usd",
+          "unrealized_usd",
+          "unrealized_percent"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sector": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "reserved": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "average_cost_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "price_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "value_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "cost_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "unrealized_usd": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d{1,18})?$"
+          },
+          "unrealized_percent": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d{1,18})?$"
+          }
+        }
+      },
+      "StockOrder": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "symbol",
+          "side",
+          "type",
+          "status",
+          "quantity",
+          "price_usd",
+          "target_price_usd",
+          "fee_usd",
+          "total_usd",
+          "currency",
+          "reserved_cash",
+          "note"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY",
+              "SELL"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MARKET",
+              "LIMIT",
+              "STOP"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "FILLED",
+              "CANCELLED",
+              "REJECTED"
+            ]
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "price_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "target_price_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+(\\.\\d{1,18})?$",
+                "example": "123.45000000"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fee_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "total_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "reserved_cash": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "StockPlanDraft": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "amount_usd",
+          "frequency",
+          "starts_on"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "amount_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "Daily",
+              "Weekly",
+              "Bi-Weekly",
+              "Monthly"
+            ]
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "StockPlan": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StockPlanDraft"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "status",
+              "version",
+              "next_run",
+              "day"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "PAUSED"
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "next_run": {
+                "type": "string",
+                "format": "date"
+              },
+              "day": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "StockPlanUpdate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StockPlanDraft"
+          },
+          {
+            "type": "object",
+            "required": [
+              "expected_version"
+            ],
+            "properties": {
+              "expected_version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        ]
+      },
+      "StockPlanStatus": {
+        "type": "object",
+        "required": [
+          "expected_version",
+          "status"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED"
+            ]
+          }
+        }
+      },
+      "StockDividend": {
+        "type": "object",
+        "required": [
+          "id",
+          "symbol",
+          "company",
+          "ex_date",
+          "pay_date",
+          "amount_per_share_usd",
+          "eligible_quantity",
+          "estimated_payout_usd",
+          "paid_amount_usd",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "ex_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "pay_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount_per_share_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "eligible_quantity": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "estimated_payout_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "paid_amount_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "UPCOMING",
+              "PAID"
+            ]
+          }
+        }
+      },
+      "StockOrderDraft": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "side",
+          "type",
+          "quantity",
+          "currency",
+          "target_price_usd"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY",
+              "SELL"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MARKET",
+              "LIMIT",
+              "STOP"
+            ]
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "target_price_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+(\\.\\d{1,18})?$",
+                "example": "123.45000000"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "StockQuote": {
+        "type": "object",
+        "required": [
+          "id",
+          "draft",
+          "execution_price_usd",
+          "fee_usd",
+          "total_usd",
+          "settlement_amount",
+          "status",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/StockOrderDraft"
+          },
+          "execution_price_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "fee_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "total_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "settlement_amount": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "example": "123.45000000"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "FILLED"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StocksSnapshot": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "as_of",
+          "wallet",
+          "market",
+          "holdings",
+          "orders",
+          "plans",
+          "dividends",
+          "portfolio_history"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "wallet": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Snapshot"
+          },
+          "market": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockInstrument"
+            }
+          },
+          "holdings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockPosition"
+            }
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockOrder"
+            }
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockPlan"
+            }
+          },
+          "dividends": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StockDividend"
+            }
+          },
+          "portfolio_history": {
+            "type": "object",
+            "required": [
+              "1D",
+              "1W",
+              "1M",
+              "1Y",
+              "ALL"
+            ],
+            "properties": {
+              "1D": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "value_usd"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value_usd": {
+                      "type": "string",
+                      "pattern": "^\\d+(\\.\\d{1,18})?$",
+                      "example": "123.45000000"
+                    }
+                  }
+                }
+              },
+              "1W": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "value_usd"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value_usd": {
+                      "type": "string",
+                      "pattern": "^\\d+(\\.\\d{1,18})?$",
+                      "example": "123.45000000"
+                    }
+                  }
+                }
+              },
+              "1M": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "value_usd"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value_usd": {
+                      "type": "string",
+                      "pattern": "^\\d+(\\.\\d{1,18})?$",
+                      "example": "123.45000000"
+                    }
+                  }
+                }
+              },
+              "1Y": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "value_usd"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value_usd": {
+                      "type": "string",
+                      "pattern": "^\\d+(\\.\\d{1,18})?$",
+                      "example": "123.45000000"
+                    }
+                  }
+                }
+              },
+              "ALL": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "value_usd"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value_usd": {
+                      "type": "string",
+                      "pattern": "^\\d+(\\.\\d{1,18})?$",
+                      "example": "123.45000000"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

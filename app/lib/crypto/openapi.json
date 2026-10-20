@@ -1,0 +1,280 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank Crypto Terminal \u2014 proposed Go service contract",
+    "version": "1.0.0"
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/v1/me/crypto": {
+      "get": {
+        "operationId": "getCryptoTerminal",
+        "responses": {
+          "200": {
+            "description": "Authenticated customer crypto snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CryptoSnapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../currencies/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Customer access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../currencies/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../currencies/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/currencies/quotes": {
+      "$ref": "../currencies/openapi.json#/paths/~1v1~1me~1currencies~1quotes"
+    },
+    "/v1/me/currencies/exchanges": {
+      "$ref": "../currencies/openapi.json#/paths/~1v1~1me~1currencies~1exchanges"
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session"
+      }
+    },
+    "schemas": {
+      "CryptoInstrument": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "price_usd",
+          "change_1h",
+          "change_24h",
+          "change_7d",
+          "volume_24h",
+          "market_cap",
+          "sparkline",
+          "can_buy",
+          "can_sell",
+          "buy_restriction",
+          "sell_restriction"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "price_usd": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Decimal"
+          },
+          "change_1h": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change_24h": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change_7d": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volume_24h": {
+            "type": "string",
+            "minLength": 1
+          },
+          "market_cap": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sparkline": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 500,
+            "items": {
+              "$ref": "../currencies/openapi.json#/components/schemas/Decimal"
+            }
+          },
+          "can_buy": {
+            "type": "boolean"
+          },
+          "can_sell": {
+            "type": "boolean"
+          },
+          "buy_restriction": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sell_restriction": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "CryptoOrder": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "symbol",
+          "side",
+          "status",
+          "quantity",
+          "price_usd",
+          "fee_usd",
+          "total_usd",
+          "settlement_currency"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "created_at": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Timestamp"
+          },
+          "symbol": {
+            "type": "string",
+            "minLength": 1
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY",
+              "SELL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "FILLED",
+              "CANCELLED",
+              "REJECTED"
+            ]
+          },
+          "quantity": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Decimal"
+          },
+          "price_usd": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Decimal"
+          },
+          "fee_usd": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Decimal"
+          },
+          "total_usd": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Decimal"
+          },
+          "settlement_currency": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "CryptoSnapshot": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "as_of",
+          "wallet",
+          "market",
+          "orders"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "as_of": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Timestamp"
+          },
+          "wallet": {
+            "$ref": "../currencies/openapi.json#/components/schemas/Snapshot"
+          },
+          "market": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CryptoInstrument"
+            }
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CryptoOrder"
+            }
+          }
+        }
+      }
+    }
+  }
+}

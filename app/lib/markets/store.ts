@@ -30,6 +30,11 @@ function read(): MarketsState {
   try { const raw = localStorage.getItem(KEY); if (!raw) return MOCK_MARKETS_STATE; const data: unknown = JSON.parse(raw); if (!valid(data)) throw new Error("Invalid market data"); return data; }
   catch { warning = "Saved market data could not be restored. Demo defaults are shown and operations are blocked until browser storage is repaired."; return MOCK_MARKETS_STATE; }
 }
+export function readMarketCatalog(): MarketsState {
+  const catalog = read();
+  if (warning) throw new Error(warning);
+  return structuredClone(catalog);
+}
 function getSnapshot() { if (typeof window === "undefined") return MOCK_MARKETS_STATE; return snapshot ??= read(); }
 function subscribe(listener: () => void) {
   listeners.add(listener);

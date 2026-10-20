@@ -1,0 +1,12 @@
+.arc {
+  animation: reveal 1s cubic-bezier(.2,.8,.2,1) both;
+  transition: opacity 180ms ease, stroke-width 180ms ease;
+}
+.entry { animation: enter 500ms ease both; }
+.bar { animation: grow 800ms cubic-bezier(.2,.8,.2,1) both; transform-origin: left; }
+@keyframes reveal { from { stroke-dasharray: 0 100; opacity: 0; } }
+@keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .arc, .entry, .bar { animation: none; transition: none; }
+}

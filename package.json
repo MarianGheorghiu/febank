@@ -20,7 +20,10 @@
     "test:wallet": "node tests/wallet.test.cjs",
     "test:transfers": "node tests/transfers.test.cjs",
     "test:messages": "node tests/messages.test.cjs",
-    "test:social": "node tests/social.test.cjs"
+    "test:social": "node tests/social.test.cjs",
+    "test:currencies": "node tests/currencies.test.cjs",
+    "test:crypto": "node tests/crypto.test.cjs",
+    "test:stocks": "node tests/stocks.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

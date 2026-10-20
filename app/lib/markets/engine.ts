@@ -37,8 +37,24 @@ export function quoteTrade(item: TradingInstrument, side: "BUY" | "SELL", quanti
   if (!finite(price, 0.00000001) || notionalUsd < item.minOrderUsd || notionalUsd > item.maxOrderUsd || totalUsd <= 0) throw new Error(`Order value must be between $${item.minOrderUsd} and $${item.maxOrderUsd}, before fees.`);
   return { price, notionalUsd, feeUsd, totalUsd, cashAmount: money(totalUsd / MOCK_TRADING_FX[currency]) };
 }
-export function quantityForBudget(item: TradingInstrument, amount: number, currency = "USD") {
-  return Math.floor(amount * (MOCK_TRADING_FX[currency] ?? 0) / (item.priceUsd * (1 + item.spreadBps / 10000) * (1 + item.feeBps / 10000)) * 1e8) / 1e8;
+export function quantityForBudget(item: TradingInstrument, amount: number, currency = "USD", strictBudget = false) {
+  const precision = item.fractional ? 1e8 : 1;
+  const price = item.priceUsd * (1 + item.spreadBps / 10000);
+  const fx = MOCK_TRADING_FX[currency] ?? 0;
+  if (!finite(amount, 0, 1e12) || !fx || !Number.isFinite(price) || price <= 0) return 0;
+  let high = Math.min(Number.MAX_SAFE_INTEGER, Math.floor(amount * fx / (price * (1 + item.feeBps / 10000)) * precision));
+  if (!strictBudget) return Math.floor(amount * fx / (price * (1 + item.feeBps / 10000)) * precision) / precision;
+  let low = 0;
+  // Notional, fees and settlement round separately. Never let the rounded buy
+  // consume pre-existing cash beyond the selected source budget.
+  while (low < high) {
+    const middle = low + Math.ceil((high - low) / 2);
+    const notional = money(middle / precision * price);
+    const cost = money(money(notional + money(notional * item.feeBps / 10000)) / fx);
+    if (cost <= amount) low = middle;
+    else high = middle - 1;
+  }
+  return low / precision;
 }
 function validateInstrument(item: TradingInstrument) {
   if (MOCK_TRADING_FX[item.symbol]) throw new Error("Settlement currency symbols cannot be registered as trading instruments.");
@@ -143,7 +159,7 @@ export function applyMarketAdminCommand(state: MarketsState, command: MarketAdmi
   next.audit.unshift({ id, domain, action: command.action, target, actor: actor.email, reason, timestamp: now, before, after }); next.revision++; return next;
 }
 
-export function previewExchange(state: MarketsState, source: string, target: string, amount: number) {
+export function previewExchange(state: MarketsState, source: string, target: string, amount: number, pricingVersion = 1) {
   if (source === target || !finite(amount, 0.00000001)) throw new Error("Select different assets and enter a positive amount.");
   const sourceItem = state.instruments.find(item => item.symbol === source);
   const targetItem = state.instruments.find(item => item.symbol === target);
@@ -157,16 +173,16 @@ export function previewExchange(state: MarketsState, source: string, target: str
   let received = money(proceedsUsd / (MOCK_TRADING_FX[target] ?? 1));
   if (targetItem) {
     const restriction = tradingRestriction(state, targetItem, "BUY"); if (restriction) throw new Error(restriction);
-    received = quantityForBudget(targetItem, proceedsUsd);
+    received = quantityForBudget(targetItem, proceedsUsd, "USD", pricingVersion >= 2);
     feeUsd += quoteTrade(targetItem, "BUY", received).feeUsd;
   }
   if (received <= 0) throw new Error("The amount is too small to exchange.");
   return { received, feeUsd: money(feeUsd), proceedsUsd };
 }
-export function exchangeAssets(state: MarketsState, source: string, target: string, amount: number, expectedRevision: number, actor: MarketActor, now: string, id: string): MarketsState {
+export function exchangeAssets(state: MarketsState, source: string, target: string, amount: number, expectedRevision: number, actor: MarketActor, now: string, id: string, pricingVersion = 1): MarketsState {
   if (actor.role !== "client") throw new Error("Use a customer session to trade.");
   if (state.revision !== expectedRevision) throw new Error("Market conditions changed. Review the refreshed quote before confirming again.");
-  const preview = previewExchange(state, source, target, amount);
+  const preview = previewExchange(state, source, target, amount, pricingVersion);
   const sourceItem = state.instruments.find(item => item.symbol === source);
   const targetItem = state.instruments.find(item => item.symbol === target);
   let next = structuredClone(state);

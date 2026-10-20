@@ -7,7 +7,7 @@ import type { WalletState } from "./engine";
 
 export type TradingCommand =
   | { type: "trade"; request: TradeRequest }
-  | { type: "exchange"; source: string; target: string; amount: number; revision: number }
+  | { type: "exchange"; source: string; target: string; amount: number; revision: number; pricing_version?: 2 }
   | { type: "cancel_order"; order_id: string };
 export interface WalletTrading {
   orders: MarketOrder[];
@@ -81,7 +81,7 @@ export function applyTrading(state: WalletState, catalog: MarketsState, command:
   if (!actor.email.trim() || actor.role !== "client") throw new Error("Customer session required.");
   const before = projectTrading(state, catalog, actor.email);
   const after = command.type === "trade" ? submitTrade(before, command.request, actor, at, key)
-    : command.type === "exchange" ? exchangeAssets(before, command.source, command.target, command.amount, command.revision, actor, at, key)
+    : command.type === "exchange" ? exchangeAssets(before, command.source, command.target, command.amount, command.revision, actor, at, key, command.pricing_version ?? 1)
     : cancelCustomerOrder(before, command.order_id, actor, at);
   return { state: settleTrading(state, before, after, actor.email), before, after };
 }

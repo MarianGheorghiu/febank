@@ -1,108 +1,55 @@
 "use client";
-import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-
-import { Wallet, TrendingUp, Coins, ArrowLeftRight } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpRight, RefreshCw } from "lucide-react";
+import { useUser } from "@/app/context/UserContext";
 import PageHeader from "@/app/components/ui/PageHeader";
+import CardSurface from "@/app/components/ui/CardSurface";
 import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
-
-// Componente
 import AccountManagement from "@/app/components/ui/currencies/AccountManagement";
-import CryptoManagement from "@/app/components/ui/currencies/CryptoManagement";
 import StockManagement from "@/app/components/ui/currencies/StockManagement";
+import AssetPanel from "@/app/components/ui/currencies/AssetPanel";
 import ExchangeForm from "@/app/components/ui/currencies/ExchangeForm";
 import EvolutionChart from "@/app/components/ui/currencies/EvolutionChart";
-
-// Date Mock
-import { useTradingPortfolio } from "@/app/lib/markets/projections";
-import TransferModal from "@/app/components/ui/dashboard/TransferModal";
-import { useState } from "react";
-
+import CurrencyTransferDialog from "@/app/components/ui/currencies/CurrencyTransferDialog";
+import { createCurrencyRepository } from "@/app/lib/currencies/repository";
+import type { CurrencySnapshot } from "@/app/lib/currencies/contracts";
+import { WALLET_EVENT } from "@/app/lib/wallet/store";
+function CurrenciesWorkspace({ customer }: { customer: string }) {
+  const repository = useMemo(() => createCurrencyRepository(customer), [customer]);
+  const [snapshot, setSnapshot] = useState<CurrencySnapshot | null>(null);
+  const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [transfer, setTransfer] = useState(false);
+  const revision = useRef(0);
+  const refresh = useCallback(async (signal?: AbortSignal) => {
+    const request = ++revision.current; setRefreshing(true);
+    try { const next = await repository.getSnapshot(signal); if (!signal?.aborted && request === revision.current) { setSnapshot(next); setError(""); } }
+    catch (cause) { if (!signal?.aborted && request === revision.current) setError(cause instanceof Error ? cause.message : "Unable to load your currencies."); }
+    finally { if (!signal?.aborted && request === revision.current) setRefreshing(false); }
+  }, [repository]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => { void refresh(controller.signal); }; load();
+    window.addEventListener(WALLET_EVENT, load); window.addEventListener("focus", load);
+    const timer = window.setInterval(load, 30000);
+    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener(WALLET_EVENT, load); window.removeEventListener("focus", load); };
+  }, [refresh]);
+  return <div data-currencies-workspace className="w-full min-w-0 space-y-4 text-white">
+    <h1 className="sr-only">Currencies</h1>
+    <PageHeader inlineActions actionsPosition="right" statusText="Currencies">
+      <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2"><button type="button" aria-label="Refresh currencies" title="Refresh currencies" disabled={refreshing} onClick={() => void refresh()} className="inline-flex cursor-pointer disabled:cursor-not-allowed h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-blue-400/5 text-slate-400 transition-colors hover:border-blue-300/30 hover:text-white focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:opacity-40"><RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /></button><ActionButton autoWidth variant="purple" aria-label="Quick transfer" title="Quick transfer" className="min-w-11" labelClassName="hidden md:inline" icon={<ArrowUpRight size={15} />} disabled={!snapshot} onClick={() => setTransfer(true)}>Quick transfer</ActionButton></div>
+    </PageHeader>
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-400/20 bg-rose-400/5 p-4 text-sm text-rose-200"><p className="min-w-0 break-words">{error}</p><button type="button" disabled={refreshing} className="min-h-11 cursor-pointer underline" onClick={() => void refresh()}>Retry</button></div>}
+    {!snapshot ? <CardSurface role="status" className="p-8 text-sm text-slate-400">{error ? "Currencies are currently unavailable." : "Loading your wallet…"}</CardSurface> : <>
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3"><AccountManagement accounts={snapshot.accounts.filter(a => a.kind === "fiat")} /><AssetPanel kind="crypto" accounts={snapshot.accounts.filter(a => a.kind === "crypto" && (Number(a.available) > 0 || Number(a.reserved) > 0))} /><div className="min-w-0 lg:col-span-2 xl:col-span-1"><StockManagement accounts={snapshot.accounts.filter(a => a.kind === "stock" && (Number(a.available) > 0 || Number(a.reserved) > 0))} /></div></div>
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3"><ExchangeForm snapshot={snapshot} repository={repository} onComplete={next => { revision.current++; setSnapshot(next); setRefreshing(false); setError(""); }} /><div className="min-w-0 xl:col-span-2"><EvolutionChart snapshot={snapshot} /></div></div>
+    </>}
+    {transfer && <CurrencyTransferDialog customer={customer} onClose={() => setTransfer(false)} onComplete={() => void refresh()} />}
+  </div>;
+}
 export default function CurrenciesPage() {
-  const { cryptos, holdings, cashUsd, fiatAccounts } = useTradingPortfolio();
-  const stocks = holdings.map(item => ({ id: item.symbol, symbol: item.symbol, name: item.name, shares: item.shares, value: item.shares * item.currentPrice }));
-  const stats = {
-    accounts: fiatAccounts.length,
-    stocks: stocks.length,
-    crypto: cryptos.length,
-  };
-  const [modalType, setModalType] = useState<"transfer" | null>(null);
-
-  return (
-    <div className="w-full flex flex-col bg-[#02050e] text-white antialiased p-0 m-0 overflow-x-hidden">
-      {/* HEADER ZONE */}
-      <div className="w-full shrink-0 m-0 p-0">
-        <PageHeader
-          systemDate={MOCK_PAGE_DATES.currencies}
-          statusText="Currency Ledger Sync Active"
-        >
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center p-1 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md w-full sm:w-auto gap-1 sm:gap-0 font-mono text-[11px]">
-            <div className="flex items-center justify-center gap-2 px-3 py-1.5 sm:py-2 text-emerald-400 font-bold min-w-0">
-              <Wallet size={13} className="text-emerald-400/80 shrink-0" />
-              <span className="truncate">
-                ACCOUNTS:{" "}
-                <span className="text-white font-black">{stats.accounts}</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-center gap-2 px-3 py-1.5 sm:py-2 text-amber-400 font-bold border-t sm:border-t-0 sm:border-l border-white/[0.06] min-w-0">
-              <TrendingUp size={13} className="text-amber-400/80 shrink-0" />
-              <span className="truncate">
-                STOCKS:{" "}
-                <span className="text-white font-black">{stats.stocks}</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-center gap-2 px-3 py-1.5 sm:py-2 text-cyan-400 font-bold border-t sm:border-t-0 sm:border-l border-white/[0.06] min-w-0">
-              <Coins size={13} className="text-cyan-400/80 shrink-0" />
-              <span className="truncate">
-                CRYPTO:{" "}
-                <span className="text-white font-black">{stats.crypto}</span>
-              </span>
-            </div>
-          </div>
-
-          <ActionButton
-            variant="purple"
-            icon={<ArrowLeftRight size={15} />}
-            onClick={() => setModalType("transfer")}
-          >
-            QUICK TRANSFER
-          </ActionButton>
-        </PageHeader>
-      </div>
-
-      {/* MATRIX GRID */}
-      <div className="w-full flex flex-col gap-4 m-0 p-0 mt-4">
-        <p className="rounded-xl border border-cyan-500/20 p-3 font-mono text-[11px] text-slate-400">Available USD balance: <span className="text-cyan-300">${cashUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>. Shared across Overview, Transfers, Crypto, Stocks and Exchange.</p>
-        {/* ROW 1: Cele 3 managere */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full h-auto lg:h-[420px] min-w-0">
-          <div className="w-full h-[380px] lg:h-full min-w-0 overflow-hidden">
-            <AccountManagement accounts={fiatAccounts} />
-          </div>
-          <div className="w-full h-[380px] lg:h-full min-w-0 overflow-hidden">
-            <CryptoManagement cryptos={cryptos} />
-          </div>
-          <div className="w-full h-[380px] lg:h-full min-w-0 overflow-hidden">
-            <StockManagement stocks={stocks} />
-          </div>
-        </div>
-
-        {/* ROW 2: Formular Exchange + Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full h-auto lg:h-[340px] min-w-0">
-          <div className="lg:col-span-1 w-full h-auto lg:h-full min-w-0 overflow-hidden">
-            <ExchangeForm />
-          </div>
-
-          {/* FIXED: Replaced h-full min-h-[300px] with h-[340px] lg:h-full */}
-          <div className="lg:col-span-2 w-full h-[340px] lg:h-full min-w-0 overflow-hidden">
-            <EvolutionChart />
-          </div>
-        </div>
-      </div>
-      {/* MODAL SYSTEM */}
-      <TransferModal
-        isOpen={modalType !== null}
-        onClose={() => setModalType(null)}
-        type={modalType}
-      />
-    </div>
-  );
+  const { user, loading } = useUser();
+  if (loading || !user) return <p role="status" className="p-6 text-slate-400">Loading your currencies…</p>;
+  if (user.role !== "client") return <p className="p-6 text-slate-400">Switch to a customer account to access Currencies.</p>;
+  return <CurrenciesWorkspace key={user.email} customer={user.email} />;
 }

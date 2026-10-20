@@ -10,7 +10,7 @@ import { amountLabel, units, estimateFee } from "@/app/lib/transfers/engine";
 
 const field = "w-full min-w-0 rounded-xl border border-white/10 bg-[#050b19] px-3 py-3 text-sm text-white outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-60";
 const button = "min-h-11 rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed";
-export default function TransferForm({ snapshot, repository, onUpdate, blocked = false, onBusyChange }: { snapshot: TransferSnapshot; repository: TransferRepository; onUpdate: (value: TransferSnapshot) => void; blocked?: boolean; onBusyChange?: (busy: boolean) => void }) {
+export default function TransferForm({ snapshot, repository, onUpdate, blocked = false, onBusyChange, embedded = false }: { snapshot: TransferSnapshot; repository: TransferRepository; onUpdate: (value: TransferSnapshot) => void; blocked?: boolean; onBusyChange?: (busy: boolean) => void; embedded?: boolean }) {
   const [kind, setKind] = useState<TransferKind>("fiat");
   const accounts = snapshot.accounts.filter(a => a.kind === kind);
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
@@ -59,8 +59,8 @@ export default function TransferForm({ snapshot, repository, onUpdate, blocked =
     const selected = snapshot.accounts.find(a => a.id === id);
     setRouteId(snapshot.routes.find(r => r.enabled && r.asset === selected?.asset)?.id ?? "");
   }
-  return <CardSurface as="section" tone="blue" className="@container p-4 sm:p-6" aria-labelledby="transfer-form-title">
-    <div className="mb-5 flex min-h-12 items-start justify-between gap-3"><div><p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-blue-300">Move your assets</p><h2 id="transfer-form-title" className="text-xl font-bold">New transfer</h2></div><span className="rounded-xl border border-blue-400/20 bg-blue-400/10 p-2.5 text-blue-300"><ArrowUpRight size={20} /></span></div>
+  return <CardSurface as="section" tone="blue" className={embedded ? "@container !border-0 !bg-none !shadow-none" : "@container p-4 sm:p-6"} aria-label={embedded ? "Transfer details" : undefined} aria-labelledby={embedded ? undefined : "transfer-form-title"}>
+    {!embedded && <div className="mb-5 flex min-h-12 items-start justify-between gap-3"><div><p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-blue-300">Move your assets</p><h2 id="transfer-form-title" className="text-xl font-bold">New transfer</h2></div><span className="rounded-xl border border-blue-400/20 bg-blue-400/10 p-2.5 text-blue-300"><ArrowUpRight size={20} /></span></div>}
     <form noValidate onSubmit={e => { e.preventDefault(); void (quote ? confirm() : review()); }} className="space-y-5">
       <fieldset disabled={busy || blocked || !!quote} className="min-w-0 space-y-4 disabled:opacity-70">
         <legend className="sr-only">Transfer details</legend>
@@ -84,7 +84,7 @@ export default function TransferForm({ snapshot, repository, onUpdate, blocked =
       {quote && <div className="space-y-3 rounded-xl border border-cyan-400/25 bg-cyan-400/5 p-4" role="region" aria-label="Review transfer" tabIndex={-1} ref={node => node?.focus()}>
         <h3 className="flex items-center gap-2 font-semibold text-cyan-200"><ShieldCheck size={16} /> Review your transfer</h3>
         <dl className="space-y-2 text-sm"><div className="flex flex-wrap justify-between gap-2"><dt className="text-slate-400">Recipient</dt><dd className="break-all">{quote.draft.recipient_name}</dd></div><div><dt className="text-slate-400">Destination</dt><dd className="break-all font-mono text-xs">{quote.draft.destination}</dd></div>{quote.draft.reference && <div><dt className="text-slate-400">Reference</dt><dd className="break-words">{quote.draft.reference}</dd></div>}<div className="flex flex-wrap justify-between gap-2"><dt className="text-slate-400">Amount</dt><dd>{amountLabel(quote.draft.amount, quote.asset)}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className="text-slate-400">Fee</dt><dd>{amountLabel(quote.fee, quote.fee_asset ?? quote.asset)}</dd></div><div className="flex flex-wrap justify-between gap-2 border-t border-white/10 pt-2 font-bold"><dt>Total reserved</dt><dd className="break-all">{amountLabel(quote.total, quote.asset)}{quote.fee_account_id && quote.fee_account_id !== quote.draft.source_account_id ? ` + ${amountLabel(quote.fee, quote.fee_asset ?? quote.asset)}` : ""}</dd></div></dl>
-        <p className="text-xs text-slate-400">{quote.eta}. Quote expires at {new Date(quote.expires_at).toLocaleTimeString("en-GB")}. {snapshot.mode === "demo" ? "Demo only: no assets leave this browser." : "Final settlement depends on processing and compliance checks."}</p>
+        <p className="text-xs text-slate-400">{quote.eta}. Quote expires at {new Date(quote.expires_at).toLocaleTimeString("en-GB")}. {snapshot.mode === "demo" ? "Funds are reserved on confirmation." : "Final settlement depends on processing and compliance checks."}</p>
       </div>}
       <div className="flex flex-wrap gap-2">{quote && <button type="button" disabled={busy || blocked} className={`${button} border-emerald-400/30 bg-emerald-500/15 text-emerald-200 enabled:hover:bg-emerald-500/25`} onClick={() => { setQuote(null); }}>{submissionAttempted ? "New review" : "Edit details"}</button>}<button type="submit" disabled={busy || blocked || !account || !route || (!quote && !canReview)} className={`${button} flex-1 border-blue-400/30 bg-blue-600 text-white enabled:hover:bg-blue-500`}>{busy ? "Please wait…" : quote ? "Confirm transfer" : "Review transfer"}</button></div>
     </form>

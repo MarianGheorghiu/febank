@@ -9,6 +9,7 @@ import type { TransferQuote, TransferSnapshot } from "../transfers/contracts";
 import type { OverviewOperation, OverviewSnapshot, TransferTransaction } from "../types/dashboard";
 
 export type WalletEvent = (
+  | { kind: "cost_basis"; key: string; at: string; basis: Record<string, string>; actor: MarketActor }
   | { kind: "trading_admin"; key: string; at: string; catalog: MarketsState; command: MarketAdminCommand; actor: MarketActor; customer: string }
   | { kind: "trading_migration"; key: string; at: string; catalog: MarketsState; wallet: TradingWallet; orders: MarketOrder[]; customer: string }
   | { kind: "trading"; key: string; at: string; catalog: MarketsState; command: TradingCommand; actor: MarketActor }
@@ -36,6 +37,15 @@ export function applyWalletEvent(state: WalletState, event: WalletEvent): Wallet
   if (event.prices) {
     state = structuredClone(state);
     for (const account of state.transfers.accounts) if (event.prices[account.asset] !== undefined) { units(event.prices[account.asset], 8); account.usd_price = event.prices[account.asset]; }
+  }
+  if (event.kind === "cost_basis") {
+    if (event.actor.role !== "client" || !event.actor.email.trim()) throw new Error("Customer session required.");
+    const next = structuredClone(state);
+    for (const [symbol, basis] of Object.entries(event.basis)) {
+      if (!next.transfers.accounts.some(account => account.kind === "stock" && account.asset === symbol) || units(basis, 8) <= BigInt(0)) throw new Error("Invalid opening stock cost basis.");
+      next.trading.cost_basis[symbol] ??= Number(basis);
+    }
+    return next;
   }
   if (event.kind === "trading_admin") return applyTradingAdmin(state, event.catalog, event.customer, event.command, event.actor, event.at, event.key).state;
   if (event.kind === "trading_migration") return importLegacyTrading(state, event.catalog, event.wallet, event.orders, event.customer);

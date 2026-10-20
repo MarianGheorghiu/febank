@@ -1,232 +1,25 @@
 "use client";
-
 import { useState } from "react";
-import { Search, Globe, Flame } from "lucide-react";
-import { useTradingPortfolio } from "@/app/lib/markets/projections";
-import type { MarketAsset } from "@/app/lib/types/stocks";
-import StockActionModal from "./StockActionModal";
-
-export default function MarketExplorerTable() {
-  const { stockMarket: MOCK_MARKET_ASSETS } = useTradingPortfolio();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("All");
-  const [modalType, setModalType] = useState<"BUY" | "SELL" | null>(null);
-  const [selectedAsset, setSelectedAsset] = useState<MarketAsset | null>(null);
-
-  const categories = [
-    "All",
-    "Top Movers",
-    "AI & Robotics",
-    "Big Tech",
-    "Metals",
-    "Oil & Gas",
-    "ETFs",
-  ];
-
-  // Sistem de filtrare combinat
-  const filteredAssets = MOCK_MARKET_ASSETS.filter((asset) => {
-    const matchesSearch =
-      asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.name.toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchesSearch) return false;
-
-    if (activeCategory === "All") return true;
-    if (activeCategory === "Top Movers") return Math.abs(asset.change24h) > 3; // Mișcări majore
-    return asset.category === activeCategory;
-  }).sort((a, b) =>
-    activeCategory === "Top Movers" ? b.change24h - a.change24h : 0,
-  );
-
-  const PercentText = ({ val }: { val: number }) => {
-    const isPos = val >= 0;
-    return (
-      <span
-        className={`font-mono text-[10px] font-bold ${isPos ? "text-emerald-400" : "text-rose-400"}`}
-      >
-        {isPos ? "+" : ""}
-        {val.toFixed(2)}%
-      </span>
-    );
-  };
-
-  return (
-    <>
-      <div className="w-full flex flex-col bg-gradient-to-br from-[#020617] to-[#040e29] border border-blue-500/30 rounded-xl overflow-hidden relative transition-all duration-300 group hover:border-blue-500/80 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]">
-        {/* Glow & Title */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-1 bg-blue-500/50 blur-[20px] pointer-events-none" />
-
-        <div className="p-4 sm:p-5 border-b border-blue-500/20 bg-[#020816]/80 backdrop-blur-md flex flex-col gap-4 relative z-10">
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <Globe size={16} className="text-blue-400" />
-                <h2 className="text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500 tracking-widest uppercase">
-                  Market Explorer
-                </h2>
-              </div>
-              <p className="text-[9px] text-blue-200/50 font-mono mt-1 uppercase tracking-widest ml-6">
-                Global Equities • Fractional • Thematics
-              </p>
-            </div>
-
-            <div className="relative w-full sm:w-72">
-              <Search
-                size={14}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Find global assets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#03091e] border border-blue-500/40 rounded-lg pl-10 pr-4 py-2 text-xs font-mono text-blue placeholder-white-500 focus:outline-none focus:border-blue-400 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* CHIP FILTERS PENTRU CATEGORII */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`whitespace-nowrap cursor-pointer px-3 py-1.5 rounded border font-mono text-[9px] font-bold uppercase tracking-wider transition-all ${
-                  activeCategory === cat
-                    ? "bg-blue-500/20 border-blue-400 text-white"
-                    : "bg-black/20 border-white/5 text-white hover:text-blue-400 hover:border-blue-500/30"
-                }`}
-              >
-                {cat === "Top Movers" && (
-                  <Flame size={10} className="inline mr-1 text-orange-400" />
-                )}
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* HEADERS DESKTOP (Grid 12) */}
-        <div className="hidden lg:grid grid-cols-12 gap-2 xl:gap-4 py-2 border-b border-blue-500/20 bg-blue-950/20 text-[10px] font-mono font-bold text-white uppercase tracking-widest px-5 items-center">
-          <div className="col-span-3">Instrument</div>
-          <div className="col-span-2">Thematic / Region</div>
-          <div className="col-span-1 text-right">Price</div>
-          <div className="col-span-1 text-right">24h Change</div>
-          <div className="col-span-1 text-right">7d Change</div>
-          <div className="col-span-2 text-right">Volume</div>
-          <div className="col-span-2 text-right">Action</div>
-        </div>
-
-        {/* ASSETS LIST */}
-        <div className="flex-1 min-h-[300px] max-h-[500px] overflow-y-auto p-2 sm:p-3 space-y-2.5 scrollbar-thin">
-          {filteredAssets.map((asset) => (
-            <div
-              key={asset.id}
-              className="group flex flex-col lg:grid lg:grid-cols-12 gap-3 lg:gap-2 xl:gap-4 items-center bg-[#050b1a]/60 p-4 sm:px-5 sm:py-2.5 rounded-lg border border-blue-500/10 hover:border-blue-500/40 hover:bg-[#071128] transition-all duration-300 shadow-sm"
-            >
-              {/* MOBILE VIEW */}
-              <div className="w-full flex lg:hidden justify-between items-center mb-1 border-b border-blue-500/10 pb-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded bg-[#020510] border border-blue-500/30 flex items-center justify-center font-mono font-black text-xs text-blue-400 relative">
-                    {asset.symbol[0]}
-                    {asset.isFractional && (
-                      <span className="absolute -top-1 -right-1 bg-blue-500 text-black text-[8px] px-1 rounded-sm leading-none pt-0.5">
-                        ƒ
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-white">
-                      {asset.name}
-                    </span>
-                    <span className="text-[9px] font-mono text-blue-400">
-                      {asset.symbol} • {asset.region}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right flex flex-col items-end">
-                  <span className="text-sm font-mono font-bold text-white">
-                    ${asset.price.toFixed(2)}
-                  </span>
-                  <PercentText val={asset.change24h} />
-                </div>
-              </div>
-
-              {/* DESKTOP COLUMNS */}
-              <div className="hidden lg:flex col-span-3 items-center gap-3">
-                <div className="h-9 w-9 rounded bg-[#020510] border border-blue-500/30 flex items-center justify-center font-mono font-black text-xs text-blue-400 relative shrink-0">
-                  {asset.symbol[0]}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-bold text-white truncate">
-                    {asset.name}
-                  </span>
-                  <span className="text-[9px] font-mono text-blue-400">
-                    {asset.symbol}
-                  </span>
-                </div>
-              </div>
-
-              <div className="hidden lg:flex flex-col col-span-2">
-                <span className="text-[9px] font-mono text-slate-300 uppercase">
-                  {asset.category}
-                </span>
-                <span className="text-[8px] font-mono text-slate-500 uppercase">
-                  {asset.region} MARKET
-                </span>
-              </div>
-
-              <div className="hidden lg:block col-span-1 text-right font-mono font-bold text-white">
-                ${asset.price.toFixed(2)}
-              </div>
-
-              <div className="hidden lg:flex col-span-1 justify-end">
-                <PercentText val={asset.change24h} />
-              </div>
-              <div className="hidden lg:flex col-span-1 justify-end">
-                <PercentText val={asset.change7d} />
-              </div>
-
-              <div className="hidden lg:block col-span-2 text-right font-mono text-[10px] text-slate-400">
-                Vol: {asset.volume}
-              </div>
-
-              {/* ACTIONS */}
-              <div className="w-full lg:col-span-2 flex items-center justify-end gap-2 mt-2 lg:mt-0">
-                {asset.isFractional && (
-                  <span className="hidden lg:inline-flex px-1.5 py-0.5 border border-blue-500/20 bg-blue-500/20 text-white text-[8px] font-mono rounded mr-1">
-                    Fractional
-                  </span>
-                )}
-                <button
-                  onClick={() => {
-                    setSelectedAsset(asset);
-                    setModalType("BUY");
-                  }}
-                  className="cursor-pointer flex-1 lg:flex-none px-4 py-1.5 rounded border font-mono font-black text-[9px] uppercase tracking-widest transition-all text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500 hover:text-black"
-                >
-                  BUY
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedAsset(asset);
-                    setModalType("SELL");
-                  }}
-                  className="cursor-pointer flex-1 lg:flex-none px-2 py-1.5 lg:px-4 lg:py-1.5 rounded border font-mono font-black text-[9px] lg:text-[10px] uppercase tracking-widest transition-all duration-300 text-rose-400 border-rose-500/30 bg-rose-500/10 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_rgba(244,63,94,0.4)]"
-                >
-                  SELL
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <StockActionModal
-        isOpen={modalType !== null}
-        onClose={() => setModalType(null)}
-        type={modalType}
-        stock={selectedAsset}
-      />
-    </>
-  );
+import { Globe, ChartNoAxesCombined, Plus, Minus } from "lucide-react";
+import CardSurface from "../CardSurface";
+import { StockTitle, StockSearch, Pager, Empty, match, money, pct, smallButton, buyButton, sellButton } from "./StockUI";
+import type { StocksSnapshot } from "@/app/lib/stocks/contracts";
+import type { StockTradeSelection } from "./StockActionModal";
+export default function MarketExplorerTable({ snapshot, onAction, onAnalyze }: { snapshot: StocksSnapshot; onAction: (value: StockTradeSelection) => void; onAnalyze: (symbol: string) => void }) {
+  const [search, setSearch] = useState(""), [category, setCategory] = useState("All"), [page, setPage] = useState(0);
+  const categories = ["All", "Top movers", ...new Set(snapshot.market.map(a => a.category))];
+  const filtered = snapshot.market.filter(a => match(search, a.symbol, a.name, a.region, a.sector) && (category === "All" || category === "Top movers" || a.category === category));
+  if (category === "Top movers") filtered.sort((a, b) => Math.abs(Number(b.change_24h)) - Math.abs(Number(a.change_24h)));
+  const current = Math.min(page, Math.max(0, Math.ceil(filtered.length / 4) - 1));
+  return <CardSurface tone="blue" className="@container p-4 sm:p-5">
+    <StockTitle icon={Globe} aside={<span className="text-xs text-slate-200">{snapshot.market.length} instruments</span>}>Market explorer</StockTitle>
+    <div className="mb-4 space-y-3"><div role="group" aria-label="Market category" className="flex flex-wrap justify-start gap-2">{categories.map(name => <button key={name} type="button" aria-pressed={category === name} onClick={() => { setCategory(name); setPage(0); }} className={`min-h-10 cursor-pointer rounded-xl border px-3 py-2 text-[11px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-blue-300 ${category === name ? "border-blue-300/40 bg-blue-400/15 text-blue-100 shadow-[inset_0_1px_0_#ffffff12]" : "border-white/10 bg-white/[0.025] text-slate-200 hover:border-white/25 hover:bg-white/5"}`}>{name}</button>)}</div><StockSearch value={search} onChange={value => { setSearch(value); setPage(0); }} /></div>
+    <div className="divide-y divide-white/10 @min-[730px]:hidden">{filtered.slice(current * 4, current * 4 + 4).map(a => { const available = Number(snapshot.wallet.accounts.find(account => account.asset === a.symbol)?.available ?? 0); return <article key={a.symbol} className="py-3"><div className="flex justify-between gap-3"><div className="min-w-0"><button className="cursor-pointer text-sm font-semibold text-white hover:text-cyan-200" onClick={() => onAnalyze(a.symbol)}>{a.symbol}</button><p className="truncate text-[11px] text-slate-200">{a.name}</p></div><div className="shrink-0 text-right"><p className="text-sm font-semibold text-white">{money(a.price_usd)}</p><p className={`mt-0.5 text-[11px] ${Number(a.change_24h) < 0 ? "text-rose-200" : "text-emerald-200"}`}>{pct(a.change_24h)} <span className="text-slate-200">24h</span></p></div></div><p className="mt-2 text-[10px] text-slate-200">{a.category} · {a.region} · {a.fractional ? "Fractional" : "Whole shares"}</p><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-100"><span>7d {pct(a.change_7d)}</span><span>Vol {a.volume}</span><span>Cap {a.market_cap}</span></div><div className="mt-2 grid grid-cols-3 gap-2"><button className={smallButton} onClick={() => onAnalyze(a.symbol)} aria-label={`Analyze ${a.symbol}`}><ChartNoAxesCombined size={14} />Chart</button><button className={buyButton} disabled={!a.can_buy} title={a.buy_restriction ?? `Buy ${a.symbol}`} aria-label={`Buy ${a.symbol}`} onClick={() => onAction({ type: "BUY", symbol: a.symbol })}>Buy</button><button className={sellButton} disabled={!a.can_sell || !available} title={a.sell_restriction ?? "Sell shares"} aria-label={`Sell ${a.symbol}`} onClick={() => onAction({ type: "SELL", symbol: a.symbol })}>Sell</button></div></article>; })}</div>
+    <div className="hidden min-w-0 overflow-x-auto @min-[730px]:block"><table className="w-full min-w-[730px] text-left text-xs"><thead className="border-b border-white/10 text-slate-200"><tr>{["Instrument", "Price", "24h / 7d", "Volume / Cap", "Actions"].map(h => <th key={h} className="px-2 py-3 font-medium first:pl-0 last:text-right">{h}</th>)}</tr></thead><tbody className="divide-y divide-white/10">{filtered.slice(current * 4, current * 4 + 4).map(a => {
+      const available = Number(snapshot.wallet.accounts.find(account => account.asset === a.symbol)?.available ?? 0);
+      return <tr key={a.symbol} className="hover:bg-white/[0.025]"><td className="py-3 pr-2"><div className="flex items-center gap-2.5"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-300/20 bg-blue-300/5 text-[10px] font-bold text-blue-100">{a.symbol.slice(0, 4)}</span><div><button className="cursor-pointer text-sm font-semibold text-white hover:text-cyan-200" onClick={() => onAnalyze(a.symbol)}>{a.symbol}</button><p className="max-w-44 truncate text-slate-200" title={a.name}>{a.name}</p><p className="mt-1 text-[10px] text-slate-200">{a.category} · {a.region} · {a.fractional ? "Fractional" : "Whole shares"}</p></div></div></td><td className="px-2 py-3 font-semibold tabular-nums text-white">{money(a.price_usd)}</td><td className="px-2 py-3 tabular-nums"><p className={Number(a.change_24h) < 0 ? "text-rose-200" : "text-emerald-200"}>{pct(a.change_24h)}</p><p className={`mt-1 ${Number(a.change_7d) < 0 ? "text-rose-200" : "text-emerald-200"}`}>{pct(a.change_7d)}</p></td><td className="px-2 py-3 text-slate-100"><p>{a.volume}</p><p className="mt-1">{a.market_cap}</p></td><td className="py-3 pl-2"><div className="flex justify-end gap-1.5"><button className={smallButton} aria-label={`Analyze ${a.symbol}`} title="Analyze" onClick={() => onAnalyze(a.symbol)}><ChartNoAxesCombined size={14} /></button><button className={buyButton} aria-label={`Buy ${a.symbol}`} title={a.buy_restriction ?? `Buy ${a.symbol}`} disabled={!a.can_buy} onClick={() => onAction({ type: "BUY", symbol: a.symbol })}><Plus size={14} />Buy</button><button className={sellButton} aria-label={`Sell ${a.symbol}`} title={a.sell_restriction ?? (!available ? "No available shares" : `Sell ${a.symbol}`)} disabled={!a.can_sell || !available} onClick={() => onAction({ type: "SELL", symbol: a.symbol })}><Minus size={14} />Sell</button></div></td></tr>;
+    })}</tbody></table></div>
+    {!filtered.length && <Empty>No instruments match your search.</Empty>}
+    <Pager count={filtered.length} page={current} onChange={setPage} />
+  </CardSurface>;
 }

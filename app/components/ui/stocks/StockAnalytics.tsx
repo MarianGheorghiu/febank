@@ -1,276 +1,38 @@
 "use client";
-import { useTradingPortfolio } from "@/app/lib/markets/projections";
-
-import React, { useState } from "react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
-import { Activity, PieChart as PieIcon, Layers } from "lucide-react";
-import { MOCK_STOCK_HISTORY } from "@/app/lib/mock/stocks";
-
-type Timeframe = "1D" | "1W" | "1M" | "1Y" | "ALL";
-
-export default function StockAnalytics() {
-  const [chartView, setChartView] = useState<"PL" | "ALLOCATION">("PL");
-  const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>("1M");
-
-  const { holdings, stockValue } = useTradingPortfolio();
-  const colors = ["#06b6d4", "#f59e0b", "#10b981", "#3b82f6"];
-  const sectors = holdings.reduce<Record<string, number>>((sum, item) => { sum[item.sector] = (sum[item.sector] ?? 0) + Math.round(item.shares * item.currentPrice * 100) / 100; return sum; }, {});
-  const allocation = Object.entries(sectors).map(([name, value], index) => ({ name, value, color: colors[index % colors.length] }));
-  const timeframes: Timeframe[] = ["1D", "1W", "1M", "1Y", "ALL"];
-
-  const formatYAxis = (value: number) => {
-    if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
-    return `$${value}`;
-  };
-
-  return (
-    <div className="relative bg-[#0a1024] border border-cyan-500/30 sm:backdrop-blur-xl rounded-xl p-4 sm:p-5 transition-all duration-300 group hover:border-cyan-500/80 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] flex flex-col w-full min-h-[450px] h-full overflow-hidden font-mono text-xs">
-      {/* Background Glow */}
-      <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-      <div className="relative z-10 flex flex-col h-full w-full">
-        {/* CONTROL PANEL HEADER */}
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4 pb-3 border-b border-cyan-500/10 shrink-0">
-          <h2 className="text-cyan-400 font-bold text-xs uppercase tracking-widest flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#02040f] border border-cyan-500/20 text-cyan-400 shadow-inner">
-              <Activity size={14} />
-            </div>
-            Intelligence Matrix
-          </h2>
-
-          <div className="flex items-center gap-1 bg-[#01030a] border border-blue-500/20 p-1 rounded-lg">
-            <button
-              onClick={() => setChartView("PL")}
-              className={`px-3 py-1.5 rounded font-mono text-[10px] font-black tracking-widest transition-all cursor-pointer flex items-center gap-1.5 ${
-                chartView === "PL"
-                  ? "bg-[#06b6d4]/20 text-cyan-400 border border-cyan-500/60 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
-                  : "bg-transparent border border-transparent text-slate-500 hover:text-cyan-400"
-              }`}
-            >
-              <Layers size={10} /> TREND
-            </button>
-            <button
-              onClick={() => setChartView("ALLOCATION")}
-              className={`px-3 py-1.5 rounded font-mono text-[10px] font-black tracking-widest transition-all cursor-pointer flex items-center gap-1.5 ${
-                chartView === "ALLOCATION"
-                  ? "bg-[#06b6d4]/20 text-cyan-400 border border-cyan-500/60 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
-                  : "bg-transparent border border-transparent text-slate-500 hover:text-cyan-400"
-              }`}
-            >
-              <PieIcon size={10} /> SECTORS
-            </button>
-          </div>
-        </div>
-
-        {/* DYNAMIC CHART CONTAINER */}
-        <div className="flex-1 bg-[#02040f]/60 border border-blue-500/10 rounded-lg p-3 sm:p-4 flex flex-col w-full h-full min-h-[300px]">
-          {chartView === "PL" ? (
-            <div className="w-full h-full flex flex-col">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 shrink-0">
-                <span className="text-white/80 font-bold uppercase text-[10px] tracking-wider">
-                  Valuation · demo history
-                </span>
-
-                <div className="flex items-center bg-[#01030a] border border-blue-500/20 p-1 rounded-md">
-                  {timeframes.map((tf) => (
-                    <button
-                      key={tf}
-                      onClick={() => setActiveTimeframe(tf)}
-                      className={`px-2.5 py-1 rounded font-mono text-[9px] font-black tracking-widest transition-all cursor-pointer ${
-                        activeTimeframe === tf
-                          ? "bg-[#06b6d4]/20 text-cyan-300 border border-cyan-500/40"
-                          : "bg-transparent text-slate-500 hover:text-white"
-                      }`}
-                    >
-                      {tf}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* RENDER AREA CHART - SOLUȚIA CU ABSOLUTE INSET-0 */}
-              <div className="w-full flex-1 relative min-h-[220px]">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={MOCK_STOCK_HISTORY[activeTimeframe].map((point, index, points) => index === points.length - 1 ? { ...point, valoare: stockValue } : point)}
-                      margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="cyberCyanStocks"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#06b6d4"
-                            stopOpacity={0.4}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#06b6d4"
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid
-                        strokeDasharray="4 4"
-                        stroke="rgba(6,182,212,0.08)"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="date"
-                        stroke="transparent"
-                        tick={{
-                          fill: "#64748b",
-                          fontSize: 10,
-                          fontFamily: "monospace",
-                        }}
-                        axisLine={false}
-                        tickLine={false}
-                        dy={10}
-                      />
-                      <YAxis
-                        stroke="transparent"
-                        tick={{
-                          fill: "#64748b",
-                          fontSize: 10,
-                          fontFamily: "monospace",
-                        }}
-                        axisLine={false}
-                        tickLine={false}
-                        tickFormatter={formatYAxis}
-                        domain={["auto", "auto"]}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#020512",
-                          borderColor: "rgba(6,182,212,0.4)",
-                          color: "#fff",
-                          fontFamily: "monospace",
-                          fontSize: "11px",
-                          borderRadius: "8px",
-                          boxShadow: "0 0 20px rgba(6,182,212,0.15)",
-                        }}
-                        itemStyle={{ color: "#06b6d4", fontWeight: "bold" }}
-                        formatter={(value) => [
-                          `$${Number(value).toLocaleString()}`,
-                          "Capital",
-                        ]}
-                        labelStyle={{ color: "#64748b", marginBottom: "4px" }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="valoare"
-                        stroke="#06b6d4"
-                        strokeWidth={2.5}
-                        fillOpacity={1}
-                        fill="url(#cyberCyanStocks)"
-                        activeDot={{
-                          r: 5,
-                          fill: "#fff",
-                          stroke: "#06b6d4",
-                          strokeWidth: 2,
-                        }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="w-full h-full flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4 p-2">
-              {/* RENDER PIE CHART - SOLUȚIA CU ABSOLUTE INSET-0 */}
-              <div className="w-full md:w-1/2 relative min-h-[220px] md:h-full flex justify-center items-center">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={allocation}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius="65%"
-                        outerRadius="90%"
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {allocation.map((entry, idx) => (
-                          <Cell key={`cell-${idx}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#020512",
-                          borderColor: "rgba(6,182,212,0.3)",
-                          borderRadius: "8px",
-                          fontFamily: "monospace",
-                          fontSize: "11px",
-                        }}
-                        itemStyle={{ color: "#fff", fontWeight: "bold" }}
-                        formatter={(value) => [
-                          `$${Number(value).toLocaleString()}`,
-                          "Allocation",
-                        ]}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-
-                  {/* Text în centrul gogoșii */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-white/50 text-[9px] uppercase tracking-widest font-bold">
-                      Total
-                    </span>
-                    <span className="text-cyan-400 font-black text-sm">
-                      {stockValue.toLocaleString("en-US", { style: "currency", currency: "USD" })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* LEGENDĂ DETALIATĂ */}
-              <div className="flex flex-col gap-2 w-full md:w-1/2 justify-center max-h-[250px] md:max-h-full overflow-y-auto pr-1 scrollbar-thin">
-                {allocation.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-2.5 rounded-lg bg-black/40 border border-white/5 hover:border-white/10 transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="w-2.5 h-2.5 rounded-sm shadow-[0_0_10px_currentColor]"
-                        style={{
-                          backgroundColor: item.color,
-                          color: item.color,
-                        }}
-                      />
-                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider truncate max-w-[100px] sm:max-w-[140px]">
-                        {item.name}
-                      </span>
-                    </div>
-                    <span className="text-cyan-300 font-mono font-bold text-[11px] tabular-nums">
-                      ${item.value.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+import { useId, useState } from "react";
+import { Activity, Layers3 } from "lucide-react";
+import { Bar, Cell, ComposedChart, CartesianGrid, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import CardSurface from "../CardSurface";
+import { StockTitle, Segments, money, pct, useReducedStockMotion } from "./StockUI";
+import { STOCK_PERIODS, type StockPeriod, type StocksSnapshot } from "@/app/lib/stocks/contracts";
+import styles from "./StockVisuals.module.css";
+const colors = ["#818cf8", "#fbbf24", "#38bdf8", "#fb7185", "#2dd4bf", "#a78bfa"];
+const compactMoney = (value: number) => Math.abs(value) >= 1000 ? `$${(value / 1000).toFixed(1)}k` : `$${value.toFixed(0)}`;
+export default function StockAnalytics({ snapshot }: { snapshot: StocksSnapshot }) {
+  const [view, setView] = useState<"Performance" | "Sectors">("Performance"), [period, setPeriod] = useState<StockPeriod>("1M"), [active, setActive] = useState<string | null>(null);
+  const id = useId().replace(/:/g, ""), reducedMotion = useReducedStockMotion();
+  const total = snapshot.holdings.reduce((sum, a) => sum + Number(a.value_usd), 0), profit = snapshot.holdings.reduce((sum, a) => sum + Number(a.unrealized_usd), 0), cost = snapshot.holdings.reduce((sum, a) => sum + Number(a.cost_usd), 0);
+  const history = snapshot.portfolio_history[period], values = history.map(p => Number(p.value_usd));
+  const minimum = Math.max(0, Math.min(...values) * .97), maximum = Math.max(...values) * 1.02 || 1;
+  const points = history.map((p, i) => ({ index: i, label: p.label, value: Number(p.value_usd), range: [minimum, Number(p.value_usd)], up: !i || Number(p.value_usd) >= Number(history[i - 1].value_usd) }));
+  const anchors = points.filter(p => !p.label.includes(" · ")).map(p => p.index);
+  const ticks = [...new Set([...anchors.filter((_, i) => i % Math.max(1, Math.ceil(anchors.length / 5)) === 0), points.length - 1])];
+  const sectors = snapshot.holdings.reduce<Record<string, number>>((sum, a) => ({ ...sum, [a.sector]: (sum[a.sector] ?? 0) + Number(a.value_usd) }), {});
+  const entries = Object.entries(sectors).sort((a, b) => b[1] - a[1]);
+  const allocation = entries.map(([name, value], index) => ({ name, value, share: value / (total || 1) * 100, offset: entries.slice(0, index).reduce((sum, [, previous]) => sum + previous, 0) / (total || 1) * 100, color: colors[index % colors.length] }));
+  const selected = allocation.find(a => a.name === active) ?? allocation[0];
+  return <CardSurface tone="blue" className="@container flex min-h-[400px] flex-col p-4 sm:p-5">
+    <StockTitle icon={Activity} aside={<Segments label="Portfolio chart view" value={view} values={["Performance", "Sectors"] as const} onChange={setView} />}>Portfolio performance</StockTitle>
+    <div className="mb-3 flex flex-wrap items-end justify-between gap-3"><div><p className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{money(total)}</p><p className={`mt-1 text-xs ${profit < 0 ? "text-rose-200" : "text-emerald-200"}`}>{money(profit)} ({pct(cost ? profit / cost * 100 : 0)}) <span className="text-slate-200">unrealized</span></p></div>{view === "Performance" && <div className="ml-auto"><Segments label="Portfolio chart period" value={period} values={STOCK_PERIODS} onChange={setPeriod} /></div>}</div>
+    {view === "Performance" ? <div className="h-[250px] min-w-0" role="img" aria-label={`${period} portfolio value chart. Current value ${money(total)}.`}><ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 640, height: 250 }}><ComposedChart key={period} data={points} margin={{ top: 12, left: 0, right: 12, bottom: 0 }} barCategoryGap="24%" accessibilityLayer>
+      <defs><linearGradient id={`columns-${id}`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#818cf8" stopOpacity=".9" /><stop offset="1" stopColor="#3b82f6" stopOpacity=".08" /></linearGradient></defs>
+      <CartesianGrid vertical={false} stroke="#ffffff0d" strokeDasharray="2 6" /><XAxis dataKey="index" ticks={ticks} axisLine={false} tickLine={false} interval={0} tickFormatter={value => points[Number(value)]?.label ?? ""} tick={{ fill: "#cbd5e1", fontSize: 10 }} dy={8} /><YAxis domain={[minimum, maximum]} tickCount={4} width={62} tickFormatter={compactMoney} axisLine={false} tickLine={false} tick={{ fill: "#cbd5e1", fontSize: 10 }} />
+      <ReferenceLine y={values[0]} stroke="#a5b4fc" strokeOpacity={.22} strokeDasharray="4 5" />
+      <Tooltip cursor={{ fill: "#818cf80a" }} content={({ active, payload }) => { const point = payload?.[0]?.payload; return active && point ? <div className="rounded-xl border border-indigo-300/25 bg-[#0b1428]/95 px-4 py-3 text-xs shadow-xl"><p className="text-slate-200">{point.label}</p><p className="mt-1 font-semibold text-white">{money(point.value)}</p></div> : null; }} />
+      <Bar dataKey="range" radius={[4,4,0,0]} maxBarSize={28} isAnimationActive={!reducedMotion} animationDuration={900} animationEasing="ease-out">{points.map((point, i) => <Cell key={i} fill={`url(#columns-${id})`} fillOpacity={point.up ? 1 : .45} />)}</Bar><Line type="monotoneX" dataKey="value" stroke="#c7d2fe" strokeWidth={1.8} dot={false} activeDot={{ r: 5, fill: "#e0e7ff", stroke: "#6366f1", strokeWidth: 3 }} isAnimationActive={!reducedMotion} animationDuration={1100} animationEasing="ease-out" />
+    </ComposedChart></ResponsiveContainer></div> : <div key="allocation" className={`${styles.entry} grid min-w-0 flex-1 items-center gap-5 @min-[480px]:grid-cols-[190px_minmax(0,1fr)]`}>
+      <div className="relative mx-auto h-48 w-48"><svg viewBox="0 0 200 200" className="h-full w-full" role="img" aria-label={allocation.map(a => `${a.name} ${a.share.toFixed(1)}%`).join(", ")}><circle cx="100" cy="100" r="78" fill="none" stroke="#ffffff08" strokeWidth="16" />{allocation.map((a, i) => <circle key={a.name} pathLength="100" cx="100" cy="100" r="78" fill="none" stroke={a.color} strokeWidth={active === a.name ? 19 : 15} strokeLinecap="round" strokeDasharray={`${Math.max(.1, a.share - 2)} ${100 - Math.max(.1, a.share - 2)}`} strokeDashoffset={-a.offset} transform="rotate(-90 100 100)" className={styles.arc} style={{ animationDelay: `${i * 100}ms`, opacity: active && active !== a.name ? .3 : 1 }} onPointerEnter={() => setActive(a.name)} onPointerLeave={() => setActive(null)}><title>{a.name}: {money(a.value)}, {a.share.toFixed(1)}%</title></circle>)}</svg><div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-9 text-center"><Layers3 size={17} className="mb-2 text-indigo-300" /><p className="text-2xl font-semibold tracking-tight text-white">{selected?.share.toFixed(1) ?? 0}%</p><p className="mt-1 text-[10px] leading-relaxed text-slate-200">{selected?.name ?? "No positions"}</p></div></div>
+      <div className="min-w-0 space-y-2.5">{allocation.map((a, i) => <button key={a.name} type="button" aria-label={`${a.name}, ${a.share.toFixed(1)}%, ${money(a.value)}`} className={`${styles.entry} w-full cursor-pointer rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-indigo-300`} style={{ borderColor: `${a.color}${active === a.name ? "65" : "25"}`, background: `linear-gradient(110deg, ${a.color}10, transparent)`, animationDelay: `${i * 100}ms` }} onFocus={() => setActive(a.name)} onBlur={() => setActive(null)} onPointerEnter={() => setActive(a.name)} onPointerLeave={() => setActive(null)} onClick={() => setActive(active === a.name ? null : a.name)}><div className="mb-2 flex items-start justify-between gap-3"><span className="flex min-w-0 items-start gap-2 text-xs font-medium text-white"><span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: a.color }} />{a.name}</span><span className="shrink-0 text-xs font-semibold" style={{ color: a.color }}>{a.share.toFixed(1)}%</span></div><div className="flex items-center gap-3"><div className="h-1 flex-1 overflow-hidden rounded-full bg-white/5"><div className={`${styles.bar} h-full rounded-full`} style={{ width: `${a.share}%`, background: a.color }} /></div><span className="shrink-0 text-xs tabular-nums text-slate-100">{money(a.value)}</span></div></button>)}{!allocation.length && <p className="text-sm text-slate-200">No stock allocation yet.</p>}</div>
+    </div>}
+  </CardSurface>;
 }

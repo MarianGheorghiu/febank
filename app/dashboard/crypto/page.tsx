@@ -1,106 +1,77 @@
 "use client";
-import CustomerMarketStatus from "@/app/components/ui/markets/CustomerMarketStatus";
-import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-
-
-import { Download } from "lucide-react";
-import PageHeader from "@/app/components/ui/PageHeader";
-import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Download, Plus, RefreshCw } from "lucide-react";
 import { useUser } from "@/app/context/UserContext";
-import { downloadMarketOrders } from "@/app/lib/markets/report";
-import { notifyOperation } from "@/app/components/ui/OperationNotification";
-
-// Componente Modul Crypto
+import PageHeader from "@/app/components/ui/PageHeader";
+import CardSurface from "@/app/components/ui/CardSurface";
+import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
 import CryptoManagement from "@/app/components/ui/currencies/CryptoManagement";
 import CryptoPLAnalysis from "@/app/components/ui/crypto/CryptoPLAnalysis";
 import CryptoOperations from "@/app/components/ui/crypto/CryptoOperations";
-
-// Date Mock Crypto
-import { useTradingPortfolio } from "@/app/lib/markets/projections";
-
 import CryptoMarketTable from "@/app/components/ui/crypto/CryptoMarketTable";
+import CryptoActionModal, { type CryptoTradeSelection } from "@/app/components/ui/crypto/CryptoActionModal";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
+import { createCryptoRepository } from "@/app/lib/crypto/repository";
+import { downloadCryptoOrders } from "@/app/lib/crypto/report";
+import { WALLET_EVENT } from "@/app/lib/wallet/store";
+import type { CryptoSnapshot } from "@/app/lib/crypto/contracts";
+import type { CurrencySnapshot } from "@/app/lib/currencies/contracts";
 
+function CryptoWorkspace({ customer }: { customer: string }) {
+  const repository = useMemo(() => createCryptoRepository(customer), [customer]);
+  const [snapshot, setSnapshot] = useState<CryptoSnapshot | null>(null);
+  const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [selection, setSelection] = useState<CryptoTradeSelection | null>(null);
+  const revision = useRef(0);
+  const refresh = useCallback(async (signal?: AbortSignal) => {
+    const request = ++revision.current; setRefreshing(true);
+    try { const next = await repository.getSnapshot(signal); if (!signal?.aborted && request === revision.current) { setSnapshot(next); setError(""); } }
+    catch (cause) { if (!signal?.aborted && request === revision.current) setError(cause instanceof Error ? cause.message : "Unable to load your crypto portfolio."); }
+    finally { if (!signal?.aborted && request === revision.current) setRefreshing(false); }
+  }, [repository]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => { void refresh(controller.signal); }; load();
+    window.addEventListener(WALLET_EVENT, load); window.addEventListener("focus", load);
+    const timer = window.setInterval(load, 30000);
+    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener(WALLET_EVENT, load); window.removeEventListener("focus", load); };
+  }, [refresh]);
+  function settled(wallet: CurrencySnapshot) {
+    revision.current++; setRefreshing(false); setError("");
+    setSnapshot(current => current ? { ...current, wallet } : current);
+    void refresh();
+  }
+  async function exportReport() {
+    if (exporting || pending) return;
+    setExporting(true);
+    try { const current = await repository.getSnapshot(); downloadCryptoOrders(current.orders); notifyOperation("Crypto activity exported", "Your crypto transactions have been downloaded as CSV.", false, "Crypto Terminal", "cyan"); }
+    catch (cause) { notifyOperation("Export failed", cause instanceof Error ? cause.message : "The report could not be downloaded.", true, "Crypto Terminal"); }
+    finally { setExporting(false); }
+  }
+  const buyAsset = snapshot?.market.find(asset => asset.can_buy && asset.symbol === "BTC") ?? snapshot?.market.find(asset => asset.can_buy);
+  return <div data-crypto-workspace className="w-full min-w-0 space-y-4 text-white">
+    <h1 className="sr-only">Crypto Terminal</h1>
+    <PageHeader inlineActions actionsPosition="right" statusText="Crypto Terminal">
+      <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+        <button type="button" aria-label="Refresh crypto terminal" title="Refresh crypto terminal" disabled={refreshing || pending} onClick={() => void refresh()} className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-blue-400/5 text-slate-400 transition-colors hover:border-blue-300/30 hover:text-white focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /></button>
+        <ActionButton autoWidth variant="blue" aria-label="Download crypto report" title="Download crypto report" className="min-w-11" labelClassName="hidden md:inline" icon={<Download size={15} />} disabled={!snapshot || exporting || pending} onClick={() => void exportReport()}>Export</ActionButton>
+        <ActionButton autoWidth variant="cyan" aria-label="Buy crypto" title="Buy crypto" className="min-w-11" labelClassName="hidden md:inline" icon={<Plus size={15} />} disabled={!buyAsset || pending} onClick={() => { if (buyAsset) setSelection({ type: "BUY", symbol: buyAsset.symbol }); }}>Buy crypto</ActionButton>
+      </div>
+    </PageHeader>
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-400/20 bg-rose-400/5 p-4 text-sm text-rose-200"><p className="min-w-0 break-words">{error}</p><button type="button" disabled={refreshing || pending} className="min-h-11 cursor-pointer underline disabled:cursor-not-allowed" onClick={() => void refresh()}>Retry</button></div>}
+    {!snapshot ? <CardSurface role="status" className="p-8 text-sm text-slate-400">{error ? "Your crypto portfolio is currently unavailable." : "Loading your crypto portfolio…"}</CardSurface> : <>
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3"><CryptoManagement accounts={snapshot.wallet.accounts} /><div className="min-w-0 xl:col-span-2"><CryptoPLAnalysis wallet={snapshot.wallet} /></div></div>
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3"><CryptoOperations wallet={snapshot.wallet} repository={repository.exchange} onComplete={settled} onBusyChange={setPending} /><div className="min-w-0 xl:col-span-2"><CryptoMarketTable market={snapshot.market} accounts={snapshot.wallet.accounts} busy={pending} onAction={setSelection} /></div></div>
+      {selection && <CryptoActionModal key={`${selection.type}-${selection.symbol}`} selection={selection} wallet={snapshot.wallet} repository={repository.exchange} onComplete={settled} onClose={() => setSelection(null)} />}
+    </>}
+  </div>;
+}
 export default function CryptoPage() {
-  const { cryptos, cryptoValue, cryptoMarket, state } = useTradingPortfolio();
-  const { user } = useUser();
-
-  return (
-    // REPARAT: Container curat, fără h-screen sau restricții de overflow dăunătoare
-    <div className="w-full flex flex-col bg-[#02050e] text-white antialiased">
-      {/* HEADER ZONE */}
-      <div className="w-full shrink-0 m-0 p-0 overflow-hidden">
-        <PageHeader systemDate={MOCK_PAGE_DATES.crypto} statusText="Crypto Terminal Live">
-          {/* Am scos w-full de aici pentru a lăsa flexbox-ul să curgă natural */}
-          <div className="flex flex-wrap items-center justify-center lg:justify-between gap-3 mt-3 lg:mt-0">
-            {/* STÂNGA */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md text-indigo-400 font-mono text-[11px] font-bold max-w-full">
-              {/* Adaugă conținutul tău aici */}
-            </div>
-
-            {/* DREAPTA */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-3 lg:ml-auto max-w-full">
-              {/* PORTFOLIO: Am înlocuit whitespace-nowrap cu truncate și max-w-full */}
-              {/* Dacă ecranul e extrem de mic, va pune "..." în loc să strice pagina */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md text-emerald-400 font-mono text-[11px] font-bold max-w-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span className="truncate">
-                  PORTFOLIO:{" "}
-                  <span className="text-white font-black">
-                    {cryptoValue.toLocaleString("en-US", { style: "currency", currency: "USD" })}
-                  </span>
-                </span>
-              </div>
-
-              {/* BTC PRICE */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/60 rounded-xl border border-white/[0.04] backdrop-blur-md text-amber-500 font-mono text-[11px] font-bold max-w-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                <span className="truncate">
-                  BTC PRICE:{" "}
-                  <span className="text-white font-black">{cryptoMarket.find(item => item.symbol === "BTC")?.price.toLocaleString("en-US", { style: "currency", currency: "USD" })}</span>
-                </span>
-              </div>
-
-              {/* DOWNLOAD REPORT */}
-              <ActionButton
-                variant="cyan"
-                icon={<Download size={15} />}
-                onClick={() => { try { downloadMarketOrders(state, user?.email ?? "", "CRYPTO"); notifyOperation("Demo orders exported", "CSV includes your crypto orders recorded in this browser."); } catch { notifyOperation("Export failed", "The report could not be downloaded.", true); } }}
-              >
-                DOWNLOAD REPORT
-              </ActionButton>
-            </div>
-          </div>
-        </PageHeader>
-      </div>
-
-      <div className="mt-4"><CustomerMarketStatus domain="CRYPTO" /></div>
-      {/* MATRIX GRID SPA */}
-      {/* Folosim space-y-4 pentru o gestionare curată a spațiului pe verticală */}
-      <div className="w-full flex flex-col space-y-4 mt-4">
-        {/* ROW 1: PORTOFEL (STÂNGA) + CHART P&L (DREAPTA) */}
-        {/* REPARAT: S-a eliminat înălțimea fixă de pe grid și s-a adăugat items-start */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full items-start min-w-0">
-          {/* Înălțimile sunt acum controlate direct și sigur de containerele copiilor */}
-          <div className="lg:col-span-1 w-full h-[400px] min-w-0 overflow-hidden">
-            <CryptoManagement cryptos={cryptos} />
-          </div>
-          <div className="lg:col-span-2 w-full h-[400px] min-w-0 overflow-hidden">
-            <CryptoPLAnalysis />
-          </div>
-        </div>
-
-        {/* ROW 2: MODUL FIAT BRIDGE & TAXE (STÂNGA) + TABEL TRANZACȚII (DREAPTA) */}
-        {/* REPARAT: Grid flexibil, lasă componentele să își păstreze dimensiunile proprii */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full items-start min-w-0">
-          <div className="lg:col-span-1 w-full h-auto lg:h-[390px] min-w-0 relative z-30">
-            <CryptoOperations />
-          </div>
-
-          <div className="lg:col-span-2 w-full h-[600px] lg:h-[390px] min-w-0">
-            <CryptoMarketTable />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const { user, loading } = useUser();
+  if (loading || !user) return <p role="status" className="p-6 text-slate-400">Loading your crypto terminal…</p>;
+  if (user.role !== "client") return <p className="p-6 text-slate-400">Switch to a customer account to access Crypto Terminal.</p>;
+  return <CryptoWorkspace key={user.email} customer={user.email} />;
 }

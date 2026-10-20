@@ -73,6 +73,7 @@ export function readWallet(clientId: string) {
 }
 function sameCommand(a: WalletEvent, b: WalletEvent) {
   if (a.kind !== b.kind) return false;
+  if (a.kind === "cost_basis" && b.kind === "cost_basis") return JSON.stringify(a.basis) === JSON.stringify(b.basis) && a.actor.email.toLowerCase() === b.actor.email.toLowerCase();
   if (a.kind === "trading_admin" && b.kind === "trading_admin") return a.customer === b.customer && JSON.stringify(a.command) === JSON.stringify(b.command) && a.actor.email.toLowerCase() === b.actor.email.toLowerCase();
   if (a.kind === "trading" && b.kind === "trading") return JSON.stringify(a.command) === JSON.stringify(b.command) && a.actor.email.toLowerCase() === b.actor.email.toLowerCase();
   if (a.kind === "submit" && b.kind === "submit") return a.quote.id === b.quote.id && JSON.stringify(a.quote.draft) === JSON.stringify(b.quote.draft);
@@ -82,6 +83,7 @@ function sameCommand(a: WalletEvent, b: WalletEvent) {
 /** One synchronous read/validate/write; no cross-store balance mirroring or partial commits. */
 export function commitWallet(clientId: string, event: WalletEvent): WalletState {
   clientId = clientId.trim().toLowerCase();
+  if (event.kind === "cost_basis" && (event.actor.role !== "client" || event.actor.email.trim().toLowerCase() !== clientId)) throw new Error("Wallet customer mismatch.");
   if (event.kind === "trading" && event.actor.email.trim().toLowerCase() !== clientId) throw new Error("Wallet customer mismatch.");
   if (event.kind === "trading_admin" && event.customer.toLowerCase() !== clientId) throw new Error("Wallet customer mismatch.");
   const { state, events } = readWallet(clientId);

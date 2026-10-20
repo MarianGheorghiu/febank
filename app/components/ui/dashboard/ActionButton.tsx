@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-export type ActionButtonVariant = "cyan" | "rose" | "red" | "amber" | "purple" | "blue";
+export type ActionButtonVariant = "green" | "cyan" | "rose" | "red" | "amber" | "purple" | "blue";
 interface ActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant: ActionButtonVariant;
   icon?: ReactNode;
@@ -14,6 +14,7 @@ interface ActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const themes: Record<ActionButtonVariant, { color: string; classes: string }> = {
+  green: { color: "#34d399", classes: "from-emerald-500/20 text-emerald-200 enabled:hover:border-emerald-400/50 enabled:hover:shadow-[0_8px_24px_rgba(16,185,129,0.16)] focus-visible:outline-emerald-300" },
   cyan: { color: "#22d3ee", classes: "from-cyan-500/10 text-cyan-300 enabled:hover:border-cyan-400/40 enabled:hover:shadow-[0_8px_24px_rgba(34,211,238,0.12)] focus-visible:outline-cyan-300" },
   rose: { color: "#fb7185", classes: "from-rose-500/10 text-rose-300 enabled:hover:border-rose-400/40 enabled:hover:shadow-[0_8px_24px_rgba(244,63,94,0.12)] focus-visible:outline-rose-300" },
   red: { color: "#f87171", classes: "from-red-500/10 text-red-300 enabled:hover:border-red-400/40 enabled:hover:shadow-[0_8px_24px_rgba(239,68,68,0.12)] focus-visible:outline-red-300" },
