@@ -1,5 +1,6 @@
 // app/dashboard/layout.tsx
 import { UserProvider } from "@/app/context/UserContext";
+import SettingsProvider from "@/app/context/SettingsProvider";
 import DashboardShell from "./DashboardShell";
 
 export default function DashboardLayout({
@@ -9,7 +10,7 @@ export default function DashboardLayout({
 }) {
     return (
         <UserProvider>
-            <DashboardShell>{children}</DashboardShell>
+            <SettingsProvider><DashboardShell>{children}</DashboardShell></SettingsProvider>
         </UserProvider>
     );
 }

@@ -1,0 +1,1606 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank customer credit API",
+    "version": "1.0.0",
+    "description": "Customer-scoped credit workspace. Use one SQL transaction for wallet posting, principal, application state, audit and idempotency. The backend revalidates every estimate and permission."
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/v1/me/credit": {
+      "get": {
+        "operationId": "getCustomerCredit",
+        "responses": {
+          "200": {
+            "description": "Committed credit snapshot; same authenticated wallet revision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope membership or permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable; never fall back to demo money",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/credit/commands": {
+      "post": {
+        "operationId": "executeCreditCommand",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{8,120}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed credit snapshot; same authenticated wallet revision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope membership or permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable; never fall back to demo money",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict or idempotency key reused with different payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed, nothing posted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session",
+        "description": "Example cookie name. Configure the bank authenticated session middleware, CSRF and authorized origins."
+      }
+    },
+    "schemas": {
+      "Money": {
+        "type": "string",
+        "pattern": "^\\d{1,12}\\.\\d{2}$",
+        "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+      },
+      "Scope": {
+        "type": "string",
+        "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+        "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+      },
+      "Policy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "lombard_base_rate_bps",
+          "lombard_min_months",
+          "lombard_max_months",
+          "revenue_min_amount",
+          "revenue_min_share_bps",
+          "revenue_max_share_bps",
+          "revenue_factor_threshold_bps",
+          "revenue_low_factor_bps",
+          "revenue_high_factor_bps"
+        ],
+        "properties": {
+          "lombard_base_rate_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "lombard_min_months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "lombard_max_months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "revenue_min_amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "revenue_min_share_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "revenue_max_share_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "revenue_factor_threshold_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "revenue_low_factor_bps": {
+            "type": "integer",
+            "minimum": 10000,
+            "maximum": 20000
+          },
+          "revenue_high_factor_bps": {
+            "type": "integer",
+            "minimum": 10000,
+            "maximum": 20000
+          }
+        }
+      },
+      "Business": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "verified",
+          "cash"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "cash": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "segment",
+          "name",
+          "min_amount",
+          "max_amount",
+          "step_amount",
+          "min_months",
+          "max_months",
+          "annual_rate_bps"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "business"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "min_amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "max_amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "step_amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "min_months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "max_months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "annual_rate_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        }
+      },
+      "Loan": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope",
+          "name",
+          "principal",
+          "annual_rate_bps",
+          "remaining_months",
+          "next_due",
+          "pauses_used"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "principal": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "annual_rate_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "remaining_months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "next_due": {
+            "type": "string",
+            "format": "date"
+          },
+          "pauses_used": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          }
+        }
+      },
+      "Facility": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope",
+          "name",
+          "limit",
+          "drawn",
+          "annual_rate_bps",
+          "enabled",
+          "requirement"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "limit": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "drawn": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "annual_rate_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "RevenueSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope",
+          "name",
+          "monthly_revenue",
+          "verified_limit",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "monthly_revenue": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "verified_limit": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "syncing",
+              "offline"
+            ]
+          }
+        }
+      },
+      "Invoice": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope",
+          "reference",
+          "debtor",
+          "currency",
+          "amount",
+          "advance_bps",
+          "fee_bps",
+          "due",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "debtor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "RON"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "advance_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "fee_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "due": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "eligible",
+              "requested",
+              "funded"
+            ]
+          }
+        }
+      },
+      "Discount": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "description",
+          "discount_bps",
+          "achieved"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "discount_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "achieved": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Matching": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "enabled",
+          "anonymous"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "anonymous": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Collateral": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "symbol",
+          "name",
+          "value",
+          "max_ltv_bps",
+          "capacity"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "symbol": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "max_ltv_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "capacity": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          }
+        }
+      },
+      "Fund": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope",
+          "name",
+          "focus",
+          "ticket",
+          "match_percent"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "focus": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "ticket": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "match_percent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      },
+      "TermDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "product_id",
+          "amount",
+          "months",
+          "purpose"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "term"
+            ]
+          },
+          "product_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500
+          }
+        }
+      },
+      "LombardDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "asset_ids",
+          "amount",
+          "months",
+          "purpose"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "lombard"
+            ]
+          },
+          "asset_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500
+          }
+        }
+      },
+      "RevenueDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "source_ids",
+          "amount",
+          "sales_share_bps",
+          "purpose"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "revenue"
+            ]
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "sales_share_bps": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 10000
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500
+          }
+        }
+      },
+      "FactoringDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "invoice_ids"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "factoring"
+            ]
+          },
+          "invoice_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      },
+      "PauseDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "loan_id"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pause"
+            ]
+          },
+          "loan_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        }
+      },
+      "RefinanceDraft": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "amount",
+          "currency",
+          "purpose"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "refinance"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "EUR",
+              "GBP",
+              "JPY"
+            ]
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500
+          }
+        }
+      },
+      "Draft": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TermDraft"
+          },
+          {
+            "$ref": "#/components/schemas/LombardDraft"
+          },
+          {
+            "$ref": "#/components/schemas/RevenueDraft"
+          },
+          {
+            "$ref": "#/components/schemas/FactoringDraft"
+          },
+          {
+            "$ref": "#/components/schemas/PauseDraft"
+          },
+          {
+            "$ref": "#/components/schemas/RefinanceDraft"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "term": "#/components/schemas/TermDraft",
+            "lombard": "#/components/schemas/LombardDraft",
+            "revenue": "#/components/schemas/RevenueDraft",
+            "factoring": "#/components/schemas/FactoringDraft",
+            "pause": "#/components/schemas/PauseDraft",
+            "refinance": "#/components/schemas/RefinanceDraft"
+          }
+        }
+      },
+      "Estimate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "amount",
+          "currency",
+          "annual_rate_bps",
+          "months",
+          "payment",
+          "total",
+          "cost",
+          "explanation"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "RON",
+              "EUR",
+              "GBP",
+              "JPY"
+            ]
+          },
+          "annual_rate_bps": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "months": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,12}\\.\\d{2}$",
+                "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,12}\\.\\d{2}$",
+                "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,12}\\.\\d{2}$",
+                "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "explanation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "Application": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope",
+          "draft",
+          "estimate",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "draft": {
+            "$ref": "#/components/schemas/Draft"
+          },
+          "estimate": {
+            "$ref": "#/components/schemas/Estimate"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "under_review",
+              "funded",
+              "declined",
+              "cancelled"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Activity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope",
+          "action",
+          "description",
+          "amount",
+          "at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "apply",
+              "cancel",
+              "draw",
+              "repay_facility",
+              "repay_loan",
+              "buffer_toggle",
+              "matching"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,12}\\.\\d{2}$",
+                "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Snapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "as_of",
+          "mode",
+          "version",
+          "policy",
+          "businesses",
+          "products",
+          "loans",
+          "facilities",
+          "sources",
+          "invoices",
+          "discounts",
+          "matching",
+          "applications",
+          "activity",
+          "personal_cash",
+          "collateral",
+          "funds"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1,
+            "type": "integer"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "http"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "policy": {
+            "$ref": "#/components/schemas/Policy"
+          },
+          "businesses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Business"
+            },
+            "maxItems": 20000
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "maxItems": 20000
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Loan"
+            },
+            "maxItems": 20000
+          },
+          "facilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Facility"
+            },
+            "maxItems": 20000
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueSource"
+            },
+            "maxItems": 20000
+          },
+          "invoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Invoice"
+            },
+            "maxItems": 20000
+          },
+          "discounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Discount"
+            },
+            "maxItems": 20000
+          },
+          "matching": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Matching"
+            },
+            "maxItems": 20000
+          },
+          "applications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Application"
+            },
+            "maxItems": 20000
+          },
+          "activity": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            },
+            "maxItems": 20000
+          },
+          "personal_cash": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          },
+          "collateral": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Collateral"
+            },
+            "maxItems": 20000
+          },
+          "funds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Fund"
+            },
+            "maxItems": 20000
+          }
+        }
+      },
+      "ApplyCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "expected_version",
+          "action",
+          "draft"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "apply"
+            ]
+          },
+          "draft": {
+            "$ref": "#/components/schemas/Draft"
+          }
+        }
+      },
+      "CancelCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "expected_version",
+          "action",
+          "application_id"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "cancel"
+            ]
+          },
+          "application_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        }
+      },
+      "DrawCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "expected_version",
+          "action",
+          "facility_id",
+          "amount"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "draw"
+            ]
+          },
+          "facility_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          }
+        }
+      },
+      "RepayFacilityCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "expected_version",
+          "action",
+          "facility_id",
+          "amount"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "repay_facility"
+            ]
+          },
+          "facility_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          }
+        }
+      },
+      "RepayLoanCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "expected_version",
+          "action",
+          "loan_id",
+          "amount"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "repay_loan"
+            ]
+          },
+          "loan_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact nonnegative decimal, two minor-unit digits. Do not decode as float64."
+          }
+        }
+      },
+      "BufferCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "expected_version",
+          "action",
+          "enabled"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "buffer_toggle"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MatchingCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "expected_version",
+          "action",
+          "enabled",
+          "anonymous"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "pattern": "^(personal|business:[A-Za-z0-9_-]+)$",
+            "description": "Borrower scope. Resolve membership and permissions from the authenticated session."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "matching"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "anonymous": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Command": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ApplyCommand"
+          },
+          {
+            "$ref": "#/components/schemas/CancelCommand"
+          },
+          {
+            "$ref": "#/components/schemas/DrawCommand"
+          },
+          {
+            "$ref": "#/components/schemas/RepayFacilityCommand"
+          },
+          {
+            "$ref": "#/components/schemas/RepayLoanCommand"
+          },
+          {
+            "$ref": "#/components/schemas/BufferCommand"
+          },
+          {
+            "$ref": "#/components/schemas/MatchingCommand"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "action",
+          "mapping": {
+            "apply": "#/components/schemas/ApplyCommand",
+            "cancel": "#/components/schemas/CancelCommand",
+            "draw": "#/components/schemas/DrawCommand",
+            "repay_facility": "#/components/schemas/RepayFacilityCommand",
+            "repay_loan": "#/components/schemas/RepayLoanCommand",
+            "buffer_toggle": "#/components/schemas/BufferCommand",
+            "matching": "#/components/schemas/MatchingCommand"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

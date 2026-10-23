@@ -1,153 +1,96 @@
 "use client";
-import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-
-import { useState } from "react";
-import { Download, User, Building } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Building2, Coins, Download, Landmark, ListChecks, Plus, RefreshCw, User, Wallet } from "lucide-react";
+import { useUser } from "@/app/context/UserContext";
+import type { CreditCommand, CreditDraft, CreditRepository, CreditScope, CreditSnapshot } from "@/app/lib/loans/contracts";
+import { createCreditRepository } from "@/app/lib/loans/repository";
+import { isPendingCredit, outstanding, sumMoney } from "@/app/lib/loans/engine";
+import { creditReport } from "@/app/lib/loans/report";
+import { WALLET_EVENT } from "@/app/lib/wallet/store";
 import PageHeader from "@/app/components/ui/PageHeader";
+import MetricCard from "@/app/components/ui/MetricCard";
+import CardSurface from "@/app/components/ui/CardSurface";
+import CardSelect from "@/app/components/ui/admin/cards/CardSelect";
+import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
+import { button } from "@/app/components/ui/stocks/StockUI";
+import { creditMoney } from "@/app/components/ui/loans/CreditUI";
+import PersonalCredit from "@/app/components/ui/loans/PersonalCredit";
+import BusinessCredit from "@/app/components/ui/loans/BusinessCredit";
+import CreditCalculator from "@/app/components/ui/loans/CreditCalculator";
+import CreditActionDialog from "@/app/components/ui/loans/CreditActionDialog";
+import { CreditApplications, CreditHistory, CreditRepayments } from "@/app/components/ui/loans/CreditRepayments";
 
-// Core data mapping infrastructure
-import { mockRetailLoans } from "@/app/lib/mock/loans/retail";
-
-// Neon Tokyo UI Component Matrix
-import LombardDashboard from "@/app/components/ui/loans/LombardDashboard";
-import BufferLineWidget from "@/app/components/ui/loans/BufferLineWidget";
-import SmartPricingEngine from "@/app/components/ui/loans/SmartPricingEngine";
-import StandardLoansDashboard from "@/app/components/ui/loans/StandardLoansDashboard";
-import RevenueFinancingDashboard from "@/app/components/ui/loans/RevenueFinancingDashboard";
-import CorporateCreditMatrix from "@/app/components/ui/loans/CorporateCreditMatrix";
-import BusinessHealthEngine from "@/app/components/ui/loans/BusinessHealthEngine";
-import BusinessLiquidityMatrix from "@/app/components/ui/loans/BusinessLiquidityMatrix";
-import SmartCapitalMatching from "@/app/components/ui/loans/SmartCapitalMatching";
-import FlexibilityWowConsole from "@/app/components/ui/loans/FlexibilityWowConsole";
-
-export default function LoansCapitalPage() {
-  const [activeSegment, setActiveSegment] = useState<"retail" | "business">(
-    "retail",
-  );
-  const [isDownloading, setIsDownloading] = useState(false);
-
-  const handleDownloadDocuments = () => {
-    setIsDownloading(true);
-    setTimeout(() => setIsDownloading(false), 1500);
+function LoansWorkspace({ customer }: { customer: string }) {
+  const configuration = useMemo<{ repository?: CreditRepository; error?: string }>(() => {
+    try { return { repository: createCreditRepository(customer) }; } catch (cause) { return { error: cause instanceof Error ? cause.message : "Credit service configuration is unavailable." }; }
+  }, [customer]);
+  const repository = configuration.repository;
+  const [snapshot, setSnapshot] = useState<CreditSnapshot | null>(null), [error, setError] = useState(""), [reload, setReload] = useState(0), [status, setStatus] = useState("");
+  const [scope, setScope] = useState<CreditScope>("personal"), [command, setCommand] = useState<CreditCommand | null>(null);
+  const initialAction = useRef(false);
+  useEffect(() => {
+    if (!repository) return;
+    let cancelled = false, revision = 0;
+    const controller = new AbortController();
+    const load = () => {
+      const request = ++revision;
+      repository.getSnapshot(controller.signal).then(value => { if (!cancelled && revision === request) { setSnapshot(value); setError("");
+        if (!initialAction.current) {
+          initialAction.current = true;
+          if (new URLSearchParams(window.location.search).get("action") === "apply") {
+            window.requestAnimationFrame(() => {
+              const calculator = document.querySelector<HTMLElement>("[data-credit-calculator]");
+              calculator?.scrollIntoView({ block: "start" });
+              calculator?.querySelector<HTMLInputElement>("input[data-loan-amount]")?.focus({ preventScroll: true });
+            });
+          }
+        } } }).catch(cause => { if (!cancelled && revision === request) setError(cause instanceof Error ? cause.message : "Unable to load your credit workspace."); });
+    };
+    load();
+    window.addEventListener(WALLET_EVENT, load); window.addEventListener("focus", load); window.addEventListener("storage", load);
+    return () => { cancelled = true; controller.abort(); window.removeEventListener(WALLET_EVENT, load); window.removeEventListener("focus", load); window.removeEventListener("storage", load); };
+  }, [repository, reload]);
+  const failure = configuration.error ?? error;
+  if (failure) return <CardSurface className="p-6"><p role="alert" className="text-sm text-rose-200">{failure}</p><button className={`${button} mt-4`} onClick={() => setReload(value => value + 1)}>Retry loading credit data</button></CardSurface>;
+  if (!snapshot || !repository) return <p role="status" className="p-6 text-sm text-cyan-200">Loading your loans & capital workspace…</p>;
+  const businesses = snapshot.businesses.filter(business => business.verified);
+  const business = businesses.find(item => scope === `business:${item.id}`);
+  const activeScope: CreditScope = scope === "personal" || business ? scope : "personal";
+  const cash = activeScope === "personal" ? snapshot.personal_cash : business!.cash;
+  const facilities = snapshot.facilities.filter(facility => facility.scope === activeScope);
+  const available = sumMoney(facilities.filter(item => item.enabled).map(facility => (Number(facility.limit) - Number(facility.drawn)).toFixed(2)));
+  const requests = snapshot.applications.filter(application => application.scope === activeScope && isPendingCredit(application.status)).length;
+  const apply = (draft: CreditDraft) => setCommand({ action: "apply", scope: activeScope, expected_version: snapshot.version, draft });
+  const newApplication = () => {
+    const calculator = document.querySelector<HTMLElement>("[data-credit-calculator]");
+    calculator?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    calculator?.querySelector<HTMLInputElement>("input[data-loan-amount]")?.focus({ preventScroll: true });
   };
-
-  const primaryActiveLombard = mockRetailLoans.activeLombardLoans[0] || null;
-
-  return (
-    <div className="w-full min-h-screen flex flex-col bg-[#02050e] text-white antialiased m-0 p-0 overflow-x-hidden">
-      {/* HEADER ZONE - FULL WIDTH FLUSH */}
-      <div className="w-full shrink-0 m-0 p-0 overflow-hidden border-b border-indigo-500/10">
-        <PageHeader systemDate={MOCK_PAGE_DATES.loans} statusText="Active">
-          <div className="flex flex-wrap items-center justify-between gap-4 mt-3 lg:mt-0 w-full">
-            {/* RIGHT: Premium Cyberpunk Controls */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-2.5 lg:ml-auto">
-              {/* 1. Retail Switch */}
-              <button
-                onClick={() => setActiveSegment("retail")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium tracking-tight transition-all duration-150 cursor-pointer border ${
-                  activeSegment === "retail"
-                    ? "bg-[#5E5CE6] text-white border-white/[0.15] shadow-[0_4px_12px_rgba(94,92,230,0.4)]"
-                    : "bg-[#5E5CE6]/10 text-[#9896FF] border-[#5E5CE6]/20 hover:bg-[#5E5CE6]/20"
-                }`}
-              >
-                <User size={13} />
-                <span>Retail & Wealth</span>
-              </button>
-
-              {/* 2. Business Switch */}
-              <button
-                onClick={() => setActiveSegment("business")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium tracking-tight transition-all duration-150 cursor-pointer border ${
-                  activeSegment === "business"
-                    ? "bg-[#64D2FF] text-black border-white/[0.15] shadow-[0_4px_12px_rgba(100,210,255,0.4)] font-bold"
-                    : "bg-[#64D2FF]/10 text-[#64D2FF] border-[#64D2FF]/20 hover:bg-[#64D2FF]/20"
-                }`}
-              >
-                <Building size={13} />
-                <span>Business & SMEs</span>
-              </button>
-
-              {/* 3. Download Action */}
-              <button
-                onClick={handleDownloadDocuments}
-                disabled={isDownloading}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-800 text-white text-xs font-semibold tracking-tight transition-all duration-150 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-transparent"
-              >
-                <Download size={13} className="stroke-[2.5]" />
-                <span>
-                  {isDownloading ? "Downloading..." : "Download Docs"}
-                </span>
-              </button>
-            </div>
-          </div>
-        </PageHeader>
-      </div>
-
-      {/* DYNAMIC CONTENT AREA - FULL EDGE-TO-EDGE NO INDENTATION */}
-      <div className="w-full flex flex-col m-0 p-0 mt-4 flex-1">
-        {activeSegment === "retail" ? (
-          <>
-            {/* 1. TOP SECTION: THE WEALTH BENTO GRID (Lombard, Buffer, Pricing) */}
-            <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 m-0 p-0 items-start animate-in fade-in duration-200">
-              <div className="lg:col-span-2 w-full m-0 p-0">
-                <LombardDashboard
-                  portfolio={mockRetailLoans.collateralPortfolio}
-                  activeLoan={primaryActiveLombard}
-                  currency={mockRetailLoans.currency}
-                />
-              </div>
-              <div className="flex flex-col gap-6 w-full m-0 p-0">
-                <BufferLineWidget
-                  bufferData={mockRetailLoans.bufferLine}
-                  currency={mockRetailLoans.currency}
-                />
-                <SmartPricingEngine
-                  pricingData={mockRetailLoans.smartPricing}
-                />
-              </div>
-            </div>
-
-            {/* 2. BOTTOM SECTION: THE STANDARD CREDIT MACHINE */}
-            <div className="w-full mt-4 m-0 p-0 animate-in fade-in duration-300">
-              <StandardLoansDashboard mode="RETAIL" />
-            </div>
-          </>
-        ) : (
-          /* BUSINESS SEGMENT - CLEAN MATRIX FALLBACK */
-          <div className="w-full flex flex-col m-0 p-0 animate-in fade-in duration-200 gap-6">
-            {/* DECK 1: REVENUE FLOW & OPERATIONAL RISK (Înălțime fixă: 484px) */}
-            <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 m-0 p-0 items-start">
-              {/* STÂNGA: REVENUE-BASED FINANCING ENGINE (Dedicated View) */}
-              <div className="lg:col-span-2 w-full m-0 p-0">
-                <RevenueFinancingDashboard />
-              </div>
-
-              {/* DREAPTA: FACILITĂȚI CORPORATE & OPTIMIZARE RISK RATINGS */}
-              <div className="flex flex-col gap-6 w-full m-0 p-0">
-                <CorporateCreditMatrix />
-                <BusinessHealthEngine />
-              </div>
-            </div>
-
-            {/* DECK 2: LIQUIDITY ROUTING & STRATEGIC EQUITY (Înălțime fixă: 484px) */}
-            <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 m-0 p-0 items-start">
-              {/* STÂNGA: LIQUIDITY ADVANCE ENGINE (Multi-Tab RBF + RO E-Factura Factoring) */}
-              <div className="lg:col-span-2 w-full m-0 p-0">
-                <BusinessLiquidityMatrix />
-              </div>
-
-              {/* DREAPTA: VENTURE MATCHING CORRIDOR & FLEXIBILITY SOLUTIONS */}
-              <div className="flex flex-col gap-6 w-full m-0 p-0">
-                <SmartCapitalMatching />
-                <FlexibilityWowConsole />
-              </div>
-            </div>
-            <div className="w-full m-0 p-0 animate-in fade-in duration-300">
-              <StandardLoansDashboard mode="BUSINESS" />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const exportReport = () => {
+    try {
+      const url = URL.createObjectURL(new Blob([creditReport(snapshot, activeScope)], { type: "text/csv;charset=utf-8" }));
+      const anchor = document.createElement("a"); anchor.href = url; anchor.download = `credit-${activeScope.replace(":", "-")}-${snapshot.as_of.slice(0, 10)}.csv`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); setStatus("Credit report downloaded.");
+    } catch { setStatus("The report could not be downloaded. Please try again."); }
+  };
+  return <div className="w-full min-w-0 space-y-4 animate-fade-in"><h1 className="sr-only">Loans & Capital</h1>
+    <PageHeader inlineActions statusText="Loans & Capital"><div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+      <ActionButton autoWidth variant="cyan" aria-label="Apply for a loan" title="Apply for a loan" labelClassName="hidden xl:inline" className="h-11 min-w-11 max-w-11 xl:min-w-32 xl:max-w-32" icon={<Plus size={15} />} disabled={!snapshot.products.some(item => item.segment === (activeScope === "personal" ? "personal" : "business"))} onClick={newApplication}>New loan</ActionButton>
+      <ActionButton autoWidth variant="blue" aria-label="Export credit report" title="Export credit report" labelClassName="hidden xl:inline" className="h-11 min-w-11 max-w-11 xl:min-w-32 xl:max-w-32" icon={<Download size={15} />} onClick={exportReport}>Export</ActionButton>
+      <ActionButton autoWidth variant="blue" aria-label="Refresh credit workspace" title="Refresh" labelClassName="hidden xl:inline" className="h-11 min-w-11 max-w-11 xl:min-w-32 xl:max-w-32" icon={<RefreshCw size={15} />} onClick={() => setReload(value => value + 1)}>Refresh</ActionButton>
+    </div></PageHeader>
+    <CardSurface className="flex flex-wrap items-center justify-between gap-4 p-4"><div className="flex min-w-0 flex-wrap items-center gap-3"><div role="group" aria-label="Borrower type" className="flex flex-wrap gap-2"><button className={`${button} ${activeScope === "personal" ? "border-purple-300/30 bg-purple-300/10 text-purple-100" : ""}`} aria-pressed={activeScope === "personal"} onClick={() => { setScope("personal"); setCommand(null); }}><User size={15} />Retail & Wealth</button><button className={`${button} ${activeScope !== "personal" ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100" : ""}`} aria-pressed={activeScope !== "personal"} disabled={!businesses.length} title={businesses.length ? "Business credit" : "No verified business linked to your account"} onClick={() => { setScope(`business:${businesses[0].id}`); setCommand(null); }}><Building2 size={15} />Business & SMEs</button></div>{activeScope !== "personal" && <label className="min-w-0 text-xs text-slate-400"><span className="sr-only">Business borrower</span><CardSelect aria-label="Select business" value={activeScope} onChange={event => { setScope(event.target.value as CreditScope); setCommand(null); }}>{businesses.map(item => <option key={item.id} value={`business:${item.id}`}>{item.name}</option>)}</CardSelect></label>}</div><p className="text-xs text-slate-400">{snapshot.mode === "demo" ? "Demo data · browser session" : "Connected credit service"} · as of {snapshot.as_of.slice(0, 10)}</p>{!businesses.length && <p className="w-full text-xs text-slate-400">Business credit becomes available when a verified company is linked to your account.</p>}</CardSurface>
+    <div role="status" aria-live="polite" className={status ? "text-xs text-cyan-200" : "sr-only"}>{status}</div>
+    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><MetricCard title="Outstanding principal" value={creditMoney(outstanding(snapshot, activeScope))} icon={Coins} tone="cyan" subtext="USD · loans + drawn facilities" /><MetricCard title="Available facility credit" value={creditMoney(available)} icon={Landmark} tone="cyan" subtext="Approved USD limits · excludes applications" /><MetricCard title={activeScope === "personal" ? "Personal USD cash" : "Business USD cash"} value={creditMoney(cash)} icon={Wallet} tone="blue" subtext={activeScope === "personal" ? "Shared with Overview & Wallet" : "Separate from your personal wallet"} /><MetricCard title="Pending requests" value={requests} icon={ListChecks} tone="purple" subtext="Awaiting lender review · no funds released" /></div>
+    {activeScope === "personal" ? <PersonalCredit snapshot={snapshot} onApply={apply} onCommand={setCommand} /> : <BusinessCredit key={activeScope} snapshot={snapshot} scope={activeScope} onApply={apply} onCommand={setCommand} />}
+    <CreditCalculator key={`calculator-${activeScope}`} snapshot={snapshot} scope={activeScope} onApply={apply} />
+    <CreditRepayments key={`repayments-${activeScope}`} snapshot={snapshot} scope={activeScope} onCommand={setCommand} />
+    <div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2"><CreditApplications key={`applications-${activeScope}`} snapshot={snapshot} scope={activeScope} onCommand={setCommand} /><CreditHistory key={`history-${activeScope}`} snapshot={snapshot} scope={activeScope} /></div>
+    {command && <CreditActionDialog key={JSON.stringify(command)} initialCommand={command} snapshot={snapshot} repository={repository} onClose={() => setCommand(null)} onComplete={next => { setSnapshot(next); setStatus(command.action === "apply" ? "Your request was submitted for lender review." : "Credit workspace updated successfully."); }} />}
+  </div>;
+}
+export default function LoansCapitalPage() {
+  const { user, loading } = useUser();
+  if (loading || !user) return <p role="status" className="p-6 text-sm text-slate-300">Loading your customer session…</p>;
+  if (user.role !== "client") return <p className="p-6 text-sm text-slate-300">Switch to a customer account to access Loans & Capital.</p>;
+  return <LoansWorkspace key={user.email} customer={user.email} />;
 }

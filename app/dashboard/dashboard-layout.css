@@ -66,3 +66,6 @@
 [data-social-workspace] :where(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]):is(:disabled, [aria-disabled="true"]) {
   cursor: not-allowed;
 }
+
+/* Customer-selected reduced motion also applies when the OS preference is unchanged. */
+[data-motion="reduce"] *, [data-motion="reduce"] *::before, [data-motion="reduce"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }

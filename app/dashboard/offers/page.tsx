@@ -1,192 +1,62 @@
 "use client";
-import { MOCK_PAGE_DATES } from "@/app/lib/mock/page-dates";
-
-import React, { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Coins, Download, Gift, Plane, RefreshCw } from "lucide-react";
+import { useUser } from "@/app/context/UserContext";
+import type { MerchantOffer, OffersRepository, OffersSnapshot } from "@/app/lib/offers/contracts";
+import { createOffersRepository } from "@/app/lib/offers/repository";
+import { offerIsLive, offerMoney, pointsLabel, totalCashback } from "@/app/lib/offers/engine";
+import { offersReport } from "@/app/lib/offers/report";
+import { WALLET_EVENT } from "@/app/lib/wallet/store";
+import { CARDS_EVENT } from "@/app/lib/cards/repository";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
 import PageHeader from "@/app/components/ui/PageHeader";
+import CardSurface from "@/app/components/ui/CardSurface";
+import MetricCard from "@/app/components/ui/MetricCard";
+import { ActionButton } from "@/app/components/ui/dashboard/ActionButton";
+import { button } from "@/app/components/ui/stocks/StockUI";
+import OfferDiscovery from "@/app/components/ui/offers/OfferDiscovery";
+import RewardChart from "@/app/components/ui/offers/RewardChart";
+import { MembershipSummary, RedemptionPanel, ResearchPanel, TravelBenefits } from "@/app/components/ui/offers/MemberBenefits";
+import { BenefitRequests, RewardsActivity } from "@/app/components/ui/offers/RewardsActivity";
+import RewardsActionDialog, { type OfferDialog } from "@/app/components/ui/offers/RewardsActionDialog";
 
-// Core mock schema dataset mapping
-import { mockPremiumOffers } from "@/app/lib/mock/offers";
-
-// Neon Tokyo components list
-import LifestyleTravelConsole from "@/app/components/ui/offers/LifestyleTravelConsole";
-import ConciergeTerminal from "@/app/components/ui/offers/ConciergeTerminal";
-import IntelligentAssistantWidget from "@/app/components/ui/offers/IntelligentAssistantWidget";
-import FinancialLoyaltyMatrix from "@/app/components/ui/offers/FinancialLoyaltyMatrix";
-import PointsConversionHub from "@/app/components/ui/offers/PointsConversionHub"; // IMPORT NOU UTENTIC
-
-interface ToastState {
-  message: string;
-  type: "success" | "info";
-  id: number;
+function OffersWorkspace({ email, name }: { email: string; name: string }) {
+  const configuration = useMemo<{ repository?: OffersRepository; error?: string }>(() => { try { return { repository: createOffersRepository(email, name) }; } catch (cause) { return { error: cause instanceof Error ? cause.message : "Offers service configuration is unavailable." }; } }, [email, name]);
+  const repository = configuration.repository;
+  const [snapshot, setSnapshot] = useState<OffersSnapshot | null>(null), [error, setError] = useState(""), [refreshing, setRefreshing] = useState(false), [reload, setReload] = useState(0), [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<"Offers" | "Travel & experiences" | "Rewards & activity">("Offers"), [dialog, setDialog] = useState<OfferDialog | null>(null);
+  const saveLock = useRef(false), saveRetry = useRef<{ fingerprint: string; key: string } | null>(null);
+  useEffect(() => {
+    if (!repository) return;
+    let cancelled = false, revision = 0;
+    const controller = new AbortController();
+    const load = () => { const request = ++revision; setRefreshing(true); repository.getSnapshot(controller.signal).then(value => { if (!cancelled && request === revision) { setSnapshot(value); setError(""); } }).catch(cause => { if (!cancelled && request === revision) setError(cause instanceof Error ? cause.message : "Unable to load your offers."); }).finally(() => { if (!cancelled && request === revision) setRefreshing(false); }); };
+    load(); window.addEventListener(WALLET_EVENT, load); window.addEventListener(CARDS_EVENT, load); window.addEventListener("focus", load); window.addEventListener("storage", load);
+    const timer = window.setInterval(load, 60000);
+    return () => { cancelled = true; controller.abort(); window.clearInterval(timer); window.removeEventListener(WALLET_EVENT, load); window.removeEventListener(CARDS_EVENT, load); window.removeEventListener("focus", load); window.removeEventListener("storage", load); };
+  }, [repository, reload]);
+  const failure = configuration.error ?? error;
+  if (failure) return <CardSurface className="p-6"><p role="alert" className="text-sm text-rose-200">{failure}</p><button className={`${button} mt-4`} onClick={() => setReload(value => value + 1)}>Retry loading offers</button></CardSurface>;
+  if (!snapshot || !repository) return <p role="status" className="p-6 text-sm text-cyan-200">Loading your membership, offers and rewards…</p>;
+  const activated = snapshot.activations.filter(activation => snapshot.catalog.offers.some(offer => offer.id === activation.offer_id && offerIsLive(offer, snapshot.as_of))).length;
+  async function save(offer: MerchantOffer) {
+    if (!repository || !snapshot || saveLock.current) return;
+    const command = { action: "save" as const, expected_version: snapshot.version, catalog_version: snapshot.catalog.version, offer_id: offer.id, saved: !snapshot.saved_offer_ids.includes(offer.id) };
+    const fingerprint = JSON.stringify(command); if (saveRetry.current?.fingerprint !== fingerprint) saveRetry.current = { fingerprint, key: crypto.randomUUID() };
+    saveLock.current = true; setBusy(true);
+    try { setSnapshot(await repository.execute(command, saveRetry.current.key)); saveRetry.current = null; notifyOperation(command.saved ? "Offer saved" : "Offer removed", command.saved ? `${offer.merchant} is in your saved offers. Activate it before making a qualifying purchase.` : `${offer.merchant} was removed from your saved offers.`, false, "Premium Offers"); }
+    catch (cause) { notifyOperation("Offer not saved", cause instanceof Error ? cause.message : "Unable to save this offer.", true, "Premium Offers"); }
+    finally { saveLock.current = false; setBusy(false); }
+  }
+  function exportReport() {
+    if (!snapshot) return;
+    try { const url = URL.createObjectURL(new Blob([offersReport(snapshot)], { type: "text/csv;charset=utf-8" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `premium-rewards-${snapshot.as_of.slice(0,10)}.csv`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); notifyOperation("Report exported", "Your rewards report was downloaded.", false, "Premium Offers"); } catch { notifyOperation("Export failed", "The report could not be downloaded. Try again.", true, "Premium Offers"); }
+  }
+  return <div className="w-full min-w-0 space-y-4"><h1 className="sr-only">Premium Offers</h1><PageHeader inlineActions statusText="Premium Offers"><div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2"><ActionButton autoWidth variant="cyan" aria-label="Redeem points" title="Redeem points" labelClassName="hidden xl:inline" className="h-11 min-w-11 max-w-11 xl:min-w-32 xl:max-w-32" icon={<Gift size={15} />} disabled={!snapshot.membership.active || snapshot.available_points < snapshot.catalog.policy.cash_min_points} onClick={() => setDialog({ kind: "cash" })}>Redeem</ActionButton><ActionButton autoWidth variant="blue" aria-label="Export rewards report" title="Export rewards report" labelClassName="hidden xl:inline" className="h-11 min-w-11 max-w-11 xl:min-w-32 xl:max-w-32" icon={<Download size={15} />} onClick={exportReport}>Export</ActionButton><ActionButton autoWidth variant="blue" aria-label="Refresh offers" title="Refresh offers" labelClassName="hidden xl:inline" className="h-11 min-w-11 max-w-11 xl:min-w-32 xl:max-w-32" disabled={refreshing} icon={<RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />} onClick={() => setReload(value => value + 1)}>Refresh</ActionButton></div></PageHeader>
+    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><MetricCard title="Available points" value={pointsLabel(snapshot.available_points)} icon={Coins} tone="cyan" subtext={snapshot.expiring_points ? `${pointsLabel(snapshot.expiring_points)} expire within 30 days` : "Ready to redeem · no points expiring soon"} /><MetricCard title="Cashback received" value={offerMoney(totalCashback(snapshot))} icon={Gift} tone="blue" subtext="Posted merchant rewards · USD" /><MetricCard title="Activated offers" value={activated} icon={Check} tone="purple" subtext="Use your enrolled card before expiry" /><MetricCard title="Lounge visits left" value={snapshot.lounge_remaining} icon={Plane} tone="cyan" subtext={`${snapshot.catalog.policy.lounge_year} membership allowance`} /></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div role="tablist" aria-label="Premium offers workspace" className="flex max-w-full flex-wrap gap-1 rounded-xl border border-white/10 bg-[#030918]/60 p-1">{(["Offers", "Travel & experiences", "Rewards & activity"] as const).map((item, index) => <button key={item} id={`offers-tab-${index}`} role="tab" tabIndex={tab === item ? 0 : -1} onKeyDown={event => { const tabs = ["Offers", "Travel & experiences", "Rewards & activity"] as const; let next = index; if (event.key === "ArrowRight") next = (index + 1) % tabs.length; else if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length; else if (event.key === "Home") next = 0; else if (event.key === "End") next = tabs.length - 1; else return; event.preventDefault(); setTab(tabs[next]); document.getElementById(`offers-tab-${next}`)?.focus(); }} aria-selected={tab === item} aria-controls="offers-content" type="button" onClick={() => setTab(item)} className={`min-h-11 cursor-pointer rounded-lg px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-cyan-300 ${tab === item ? "bg-cyan-300/15 text-cyan-100" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>{item}</button>)}</div><p className="text-[11px] text-slate-400">{snapshot.mode === "demo" ? "Demo benefits · illustrative partners" : "Connected member benefits"} · {snapshot.as_of.slice(0,10)}</p></div>
+    <div id="offers-content" role="tabpanel" aria-labelledby={`offers-tab-${tab === "Offers" ? 0 : tab === "Travel & experiences" ? 1 : 2}`} className="space-y-4">{tab === "Offers" ? <><OfferDiscovery snapshot={snapshot} busy={busy} onView={offer => setDialog({ kind: "offer", id: offer.id })} onSave={offer => void save(offer)} /><div className="grid min-w-0 items-stretch gap-4 lg:grid-cols-2"><MembershipSummary snapshot={snapshot} /><RedemptionPanel snapshot={snapshot} onAction={setDialog} /></div></> : tab === "Travel & experiences" ? <TravelBenefits snapshot={snapshot} onAction={setDialog} onActivity={() => setTab("Rewards & activity")} /> : <><div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2"><RewardChart snapshot={snapshot} /><RedemptionPanel snapshot={snapshot} onAction={setDialog} /></div><div className="grid min-w-0 items-stretch gap-4 xl:grid-cols-2"><RewardsActivity snapshot={snapshot} /><BenefitRequests snapshot={snapshot} onAction={setDialog} /></div><ResearchPanel snapshot={snapshot} onAction={setDialog} /></>}</div>
+    {dialog && <RewardsActionDialog key={JSON.stringify(dialog)} dialog={dialog} snapshot={snapshot} repository={repository} onClose={() => setDialog(null)} onComplete={next => { setSnapshot(previous => previous && previous.version > next.version ? previous : next); }} />}
+  </div>;
 }
-
-export default function PremiumOffersPage() {
-  // LIFTED OPERATIONAL STATES - CREIERUL CENTRAL DYNAMIC
-  const [pointsBalance, setPointsBalance] = useState(
-    mockPremiumOffers.userPointsBalance,
-  );
-  const [eventsList, setEventsList] = useState(mockPremiumOffers.events);
-  const [assetsList, setAssetsList] = useState(
-    mockPremiumOffers.restrictedInvestments,
-  );
-  const [toast, setToast] = useState<ToastState | null>(null);
-
-  const triggerToast = (message: string, type: "success" | "info") => {
-    const id = Date.now();
-    setToast({ message, type, id });
-    setTimeout(() => {
-      setToast((prev) => (prev?.id === id ? null : prev));
-    }, 5000);
-  };
-
-  // CALLBACK: Gestionează rezervările de evenimente exclusive cu return de puncte
-  const handleUpdateEventStatus = (
-    id: string,
-    newStatus: "AVAILABLE" | "RESERVED",
-    pointCost: number,
-  ) => {
-    if (newStatus === "RESERVED" && pointsBalance < pointCost) {
-      triggerToast(
-        "TRANSACTION DENIED: Insufficient tokens balance allocation.",
-        "info",
-      );
-      return;
-    }
-
-    setEventsList((prev) =>
-      prev.map((evt) => (evt.id === id ? { ...evt, status: newStatus } : evt)),
-    );
-
-    if (newStatus === "RESERVED") {
-      setPointsBalance((prev) => prev - pointCost);
-      triggerToast(
-        `VIP ACCESS LOCKED: Successfully reserved entry. Deducted ${pointCost.toLocaleString()} Pts.`,
-        "success",
-      );
-    } else {
-      setPointsBalance((prev) => prev + pointCost);
-      triggerToast(
-        `RESERVATION REVOKED: Entry ticket cancelled. Refunded ${pointCost.toLocaleString()} Pts to pool.`,
-        "info",
-      );
-    }
-  };
-
-  // CALLBACK: Ștergere de tranzacție din extrasul de cont
-  const handlePurgeCharges = (costAmount: number, brandName: string) => {
-    setPointsBalance((prev) => prev - costAmount);
-    triggerToast(
-      `LEDGER PURGED: Erased active statement charges at ${brandName}. Spent ${costAmount.toLocaleString()} Pts.`,
-      "success",
-    );
-  };
-
-  // CALLBACK: Deblocare active restricționate
-  const handleUnlockAssetNode = (id: string) => {
-    setAssetsList((prev) =>
-      prev.map((as) => (as.id === id ? { ...as, isLocked: false } : as)),
-    );
-    const targetAsset = assetsList.find((a) => a.id === id);
-    triggerToast(
-      `SECURITY CLEARANCE UNLOCKED: Access granted for ${targetAsset?.name || "Asset node"}.`,
-      "success",
-    );
-  };
-
-  // CALLBACK NOU INTERACTIV: Conversia de puncte în Air Miles / Crypto direct executabilă
-  const handleExecutePointsSwap = (
-    pointsDeducted: number,
-    successText: string,
-  ) => {
-    setPointsBalance((prev) => prev - pointsDeducted);
-    triggerToast(successText, "success");
-  };
-
-  return (
-    <div className="w-full min-h-screen flex flex-col bg-[#02050e] text-white antialiased m-0 p-0 overflow-x-hidden relative">
-      {/* GLOBAL TOASTR LAYOUT */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 max-w-sm w-full font-mono text-[11px] p-4 rounded-xl border border-cyan-400 bg-[#020816]/95 backdrop-blur-md shadow-[0_0_25px_rgba(34,211,238,0.45)] animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className="flex justify-between items-start">
-            <div className="flex flex-col gap-1">
-              <span
-                className={`font-black uppercase tracking-widest text-[9px] ${toast.type === "success" ? "text-emerald-400" : "text-cyan-400"}`}
-              >
-                • TERMINAL NOTICE •
-              </span>
-              <p className="text-white uppercase tracking-wide leading-normal font-bold">
-                {toast.message}
-              </p>
-            </div>
-            <button
-              onClick={() => setToast(null)}
-              className="text-slate-500 hover:text-white font-bold ml-2 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* HEADER NODES SYSTEM */}
-      <div className="w-full shrink-0 m-0 p-0 overflow-hidden border-b border-cyan-500/10">
-        <PageHeader systemDate={MOCK_PAGE_DATES.offers} statusText="Elite Core Synced">
-          <div className="flex flex-wrap items-center justify-between gap-4 mt-3 lg:mt-0 w-full font-mono">
-            <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-widest text-cyan-400 font-bold">
-                OPERATIONAL ACCESS RANK
-              </span>
-              <span className="text-xs font-black text-white tracking-wider uppercase mt-0.5">
-                {mockPremiumOffers.premiumTier} •{" "}
-                <strong className="text-cyan-400">
-                  ${pointsBalance.toLocaleString()} PTS POOL
-                </strong>
-              </span>
-            </div>
-          </div>
-        </PageHeader>
-      </div>
-
-      {/* MAIN BODY GRID - EXTENDED METRICS SPLIT */}
-      <div className="w-full flex flex-col m-0 p-0 mt-6 flex-1 gap-6">
-        {/* DECK 1: LIFESTYLE & TERMINAL SYSTEM (484px) */}
-        <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 m-0 p-0 items-start animate-in fade-in duration-200">
-          <div className="lg:col-span-2 w-full m-0 p-0">
-            <LifestyleTravelConsole
-              lounge={mockPremiumOffers.lounge}
-              events={eventsList}
-              pointsBalance={pointsBalance}
-              onUpdateEventStatus={handleUpdateEventStatus}
-            />
-          </div>
-          <div className="flex flex-col gap-6 w-full m-0 p-0">
-            <ConciergeTerminal />
-            <IntelligentAssistantWidget onTriggerToast={triggerToast} />
-          </div>
-        </div>
-
-        {/* DECK 2: FINANCIAL MATRICES LAYER & UNIVERSAL HUB CONVERTER (484px SIMETRIC) */}
-        <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 m-0 p-0 items-start animate-in fade-in duration-300">
-          {/* STÂNGA: REWARDS & ASSETS TABLE */}
-          <div className="lg:col-span-2 w-full m-0 p-0">
-            <FinancialLoyaltyMatrix
-              cashbackOffers={mockPremiumOffers.cashback}
-              restrictedAssets={assetsList}
-              pointsBalance={pointsBalance}
-              onDeductPoints={handlePurgeCharges}
-              onUnlockAsset={handleUnlockAssetNode}
-            />
-          </div>
-
-          {/* DREAPTA: SWAP CONVERTER COMPLET SECURE (Reutilizat în loc de placeholder) */}
-          <div className="w-full m-0 p-0">
-            <PointsConversionHub
-              pointsBalance={pointsBalance}
-              onExecuteConversion={handleExecutePointsSwap}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+export default function PremiumOffersPage() { const { user, loading } = useUser(); if (loading || !user) return <p role="status" className="p-6 text-sm text-slate-300">Loading your customer session…</p>; if (user.role !== "client") return <p className="p-6 text-sm text-slate-300">Switch to a customer account to view Premium Offers.</p>; return <OffersWorkspace key={user.email} email={user.email} name={user.name} />; }

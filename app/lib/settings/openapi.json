@@ -1,0 +1,1009 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank Customer Settings & Security",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/me/settings": {
+      "get": {
+        "operationId": "getCustomerSettings",
+        "summary": "Read authenticated customer settings",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current settings read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid command or fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication/step-up required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict, duplicate request or idempotency mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Settings service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/settings/commands": {
+      "post": {
+        "operationId": "executeCustomerSettingsCommand",
+        "summary": "Update preferences, manage sessions or create/cancel tracked requests",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{8,120}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operation accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid command or fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication/step-up required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict, duplicate request or idempotency mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Settings service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/settings/security-flows": {
+      "post": {
+        "operationId": "startCustomerSecurityFlow",
+        "summary": "Begin verified authentication flow; does not itself change credentials",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{8,120}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartSecurityFlow"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operation accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecureRedirect"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid command or fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication/step-up required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict, duplicate request or idempotency mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Settings service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "mbank_session",
+        "description": "Use the authenticated HTTP-only cookie issued by the Go auth service; do not use the demo localStorage session in production."
+      }
+    },
+    "schemas": {
+      "SecurityFlow": {
+        "type": "string",
+        "enum": [
+          "change_password",
+          "setup_mfa",
+          "manage_mfa",
+          "manage_passkeys"
+        ]
+      },
+      "RequestKind": {
+        "type": "string",
+        "enum": [
+          "change_password",
+          "setup_mfa",
+          "manage_mfa",
+          "manage_passkeys",
+          "contact_change",
+          "data_export",
+          "closure_review"
+        ]
+      },
+      "Preferences": {
+        "type": "object",
+        "required": [
+          "timezone",
+          "date_locale",
+          "motion",
+          "settlement_currency",
+          "analytics_period",
+          "asset_period",
+          "target_allocation"
+        ],
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "enum": [
+              "Europe/Bucharest",
+              "UTC",
+              "Europe/London",
+              "America/New_York"
+            ]
+          },
+          "date_locale": {
+            "type": "string",
+            "enum": [
+              "en-GB",
+              "ro-RO",
+              "en-US"
+            ]
+          },
+          "motion": {
+            "type": "string",
+            "enum": [
+              "system",
+              "reduce"
+            ]
+          },
+          "settlement_currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "EUR",
+              "RON"
+            ]
+          },
+          "analytics_period": {
+            "type": "string",
+            "enum": [
+              "30D",
+              "90D",
+              "1Y",
+              "ALL"
+            ]
+          },
+          "asset_period": {
+            "type": "string",
+            "enum": [
+              "1W",
+              "1M",
+              "3M",
+              "6M",
+              "1Y",
+              "ALL"
+            ]
+          },
+          "target_allocation": {
+            "type": "object",
+            "required": [
+              "fiat",
+              "crypto",
+              "stock"
+            ],
+            "properties": {
+              "fiat": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "crypto": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "stock": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "description": "Whole target percentages must sum to 100. Targets do not execute trades or change balances."
+      },
+      "Communications": {
+        "type": "object",
+        "required": [
+          "offers_email",
+          "portfolio_email",
+          "social_email",
+          "product_email"
+        ],
+        "properties": {
+          "offers_email": {
+            "type": "boolean"
+          },
+          "portfolio_email": {
+            "type": "boolean"
+          },
+          "social_email": {
+            "type": "boolean"
+          },
+          "product_email": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Session": {
+        "type": "object",
+        "required": [
+          "id",
+          "device",
+          "current",
+          "ip",
+          "location",
+          "started_at",
+          "last_seen_at",
+          "revoked_at",
+          "source"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "device": {
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "server"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Request": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "details",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RequestKind"
+          },
+          "details": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "cancelled",
+              "declined"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Audit": {
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "action",
+          "description",
+          "result",
+          "source"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "action": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "requested"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "server"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Identity": {
+        "type": "object",
+        "required": [
+          "email",
+          "legal_name",
+          "client_code",
+          "account_status",
+          "verification",
+          "address"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "legal_name": {
+            "type": "string"
+          },
+          "client_code": {
+            "type": "string"
+          },
+          "account_status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "BLOCKED",
+              "UNKNOWN"
+            ]
+          },
+          "verification": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "IN_REVIEW",
+              "UNKNOWN"
+            ]
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Security": {
+        "type": "object",
+        "required": [
+          "mfa",
+          "passkey_count",
+          "password_updated_at",
+          "available_flows"
+        ],
+        "properties": {
+          "mfa": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "not_enrolled",
+              "unknown"
+            ]
+          },
+          "passkey_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "password_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "available_flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityFlow"
+            },
+            "maxItems": 4
+          }
+        },
+        "additionalProperties": false
+      },
+      "AccountReview": {
+        "type": "object",
+        "required": [
+          "has_balances",
+          "has_personal_credit",
+          "pending_transfers",
+          "pending_orders",
+          "linked_businesses"
+        ],
+        "properties": {
+          "has_balances": {
+            "type": "boolean"
+          },
+          "has_personal_credit": {
+            "type": "boolean"
+          },
+          "pending_transfers": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pending_orders": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "linked_businesses": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "additionalProperties": false
+      },
+      "Snapshot": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "mode",
+          "as_of",
+          "version",
+          "display_name",
+          "preferences",
+          "communications",
+          "sessions",
+          "requests",
+          "audit",
+          "identity",
+          "security",
+          "account_review"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "http"
+            ]
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/Preferences"
+          },
+          "communications": {
+            "$ref": "#/components/schemas/Communications"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Session"
+            },
+            "maxItems": 100
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Request"
+            },
+            "maxItems": 500
+          },
+          "audit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Audit"
+            },
+            "maxItems": 500
+          },
+          "identity": {
+            "$ref": "#/components/schemas/Identity"
+          },
+          "security": {
+            "$ref": "#/components/schemas/Security"
+          },
+          "account_review": {
+            "$ref": "#/components/schemas/AccountReview"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Exactly one current unrevoked session. HTTP sessions must have source=server. Identity/security/capabilities are owned by the server."
+      },
+      "Command": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "expected_version",
+              "display_name"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "profile"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "display_name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 80
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "expected_version",
+              "preferences"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "preferences"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "preferences": {
+                "$ref": "#/components/schemas/Preferences"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "expected_version",
+              "communications"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "communications"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "communications": {
+                "$ref": "#/components/schemas/Communications"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "expected_version",
+              "session_id"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "revoke_session"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "session_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "expected_version"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "revoke_others"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "expected_version",
+              "kind",
+              "details"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "request"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "$ref": "#/components/schemas/RequestKind"
+              },
+              "details": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 1000
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "expected_version",
+              "request_id"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "cancel_request"
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "request_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "StartSecurityFlow": {
+        "type": "object",
+        "required": [
+          "action",
+          "expected_version"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/SecurityFlow"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "additionalProperties": false
+      },
+      "SecureRedirect": {
+        "type": "object",
+        "required": [
+          "redirect_url",
+          "expires_at"
+        ],
+        "properties": {
+          "redirect_url": {
+            "type": "string",
+            "pattern": "^/auth/secure/",
+            "description": "Unexpired same-origin bank verification page. The server completes enrollment/credential changes; request creation does not change protection status."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "message"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

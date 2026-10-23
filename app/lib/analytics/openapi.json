@@ -1,0 +1,889 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank Customer Analytics",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/me/analytics": {
+      "get": {
+        "operationId": "getCustomerAnalytics",
+        "summary": "Read analytics for the authenticated customer",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consistent personal account analytics snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Customer scope required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Analytics unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "mbank_session",
+        "description": "Use the application session cookie configured by the Go authentication service."
+      }
+    },
+    "schemas": {
+      "Period": {
+        "type": "string",
+        "enum": [
+          "30D",
+          "90D",
+          "1Y",
+          "ALL"
+        ]
+      },
+      "AssetKind": {
+        "type": "string",
+        "enum": [
+          "fiat",
+          "crypto",
+          "stock"
+        ]
+      },
+      "PricePoint": {
+        "type": "object",
+        "required": [
+          "at",
+          "price_usd"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "price_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,8})?$",
+            "maxLength": 40
+          }
+        },
+        "additionalProperties": false
+      },
+      "Position": {
+        "type": "object",
+        "required": [
+          "id",
+          "symbol",
+          "name",
+          "kind",
+          "decimals",
+          "available",
+          "reserved",
+          "quantity",
+          "price_usd",
+          "value_usd",
+          "available_usd",
+          "reserved_usd",
+          "cost_usd",
+          "unrealized_usd",
+          "allocation_bps",
+          "price_history"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AssetKind"
+          },
+          "decimals": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18
+          },
+          "available": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "maxLength": 40
+          },
+          "reserved": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "maxLength": 40
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "maxLength": 40
+          },
+          "price_usd": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,8})?$",
+            "maxLength": 40
+          },
+          "value_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "available_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "reserved_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unrealized_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allocation_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "price_history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            },
+            "maxItems": 500
+          }
+        },
+        "additionalProperties": false
+      },
+      "HistoryPoint": {
+        "type": "object",
+        "required": [
+          "at",
+          "net_worth_usd",
+          "assets_usd",
+          "debt_usd"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "net_worth_usd": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "assets_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "debt_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          }
+        },
+        "additionalProperties": false
+      },
+      "Summary": {
+        "type": "object",
+        "required": [
+          "assets_usd",
+          "debt_usd",
+          "available_cash_usd",
+          "reserved_usd",
+          "investment_usd",
+          "known_cost_usd",
+          "known_value_usd",
+          "net_worth_usd",
+          "unrealized_usd",
+          "basis_coverage_bps"
+        ],
+        "properties": {
+          "assets_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "debt_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "available_cash_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "reserved_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "investment_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "known_cost_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "known_value_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "net_worth_usd": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "unrealized_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "basis_coverage_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "additionalProperties": false
+      },
+      "Allocation": {
+        "type": "object",
+        "required": [
+          "kind",
+          "value_usd",
+          "weight_bps"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AssetKind"
+          },
+          "value_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "weight_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "additionalProperties": false
+      },
+      "Flow": {
+        "type": "object",
+        "required": [
+          "at",
+          "incoming_usd",
+          "outgoing_usd"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "incoming_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "outgoing_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          }
+        },
+        "additionalProperties": false
+      },
+      "Cashflow": {
+        "type": "object",
+        "required": [
+          "incoming_usd",
+          "outgoing_usd",
+          "fees_usd",
+          "financing_in_usd",
+          "financing_out_usd",
+          "rewards_usd",
+          "net_usd"
+        ],
+        "properties": {
+          "incoming_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "outgoing_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "fees_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "financing_in_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "financing_out_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "rewards_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "net_usd": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "maxLength": 32
+          }
+        },
+        "additionalProperties": false
+      },
+      "Movement": {
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "description",
+          "category",
+          "direction",
+          "amount",
+          "currency",
+          "value_usd",
+          "fee_usd",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Cash movement",
+              "Asset transfer",
+              "Financing",
+              "Rewards",
+              "Investment",
+              "Exchange"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "incoming",
+              "outgoing"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,18})?$",
+            "maxLength": 40
+          },
+          "currency": {
+            "type": "string"
+          },
+          "value_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "fee_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "pending",
+              "cancelled",
+              "rejected"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Debt": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "principal_usd",
+          "limit_usd",
+          "next_due",
+          "payment_usd"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "Loan",
+              "Credit line"
+            ]
+          },
+          "principal_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "limit_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Business": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "cash_usd",
+          "debt_usd"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "cash_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "debt_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          }
+        },
+        "additionalProperties": false
+      },
+      "Rewards": {
+        "type": "object",
+        "required": [
+          "available_points",
+          "expiring_points",
+          "redeemed_usd",
+          "cashback_usd",
+          "pending_requests"
+        ],
+        "properties": {
+          "available_points": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "expiring_points": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "redeemed_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "cashback_usd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "pending_requests": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "additionalProperties": false
+      },
+      "CardSpending": {
+        "type": "object",
+        "required": [
+          "currency",
+          "completed",
+          "pending",
+          "transactions",
+          "categories"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "pending": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "maxLength": 32
+          },
+          "transactions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "amount"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "string",
+                  "pattern": "^\\d+\\.\\d{2}$",
+                  "maxLength": 32
+                }
+              },
+              "additionalProperties": false
+            },
+            "maxItems": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "Cards": {
+        "type": "object",
+        "required": [
+          "count",
+          "active",
+          "as_of",
+          "spending"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "active": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "spending": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardSpending"
+            },
+            "maxItems": 30
+          }
+        },
+        "additionalProperties": false
+      },
+      "AnalyticsSnapshot": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "mode",
+          "as_of",
+          "currency",
+          "period",
+          "from",
+          "summary",
+          "positions",
+          "allocation",
+          "history",
+          "demo_history",
+          "flows",
+          "cashflow",
+          "movements",
+          "debts",
+          "businesses",
+          "rewards",
+          "cards"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "http"
+            ]
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string",
+            "const": "USD"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Position"
+            },
+            "maxItems": 1000
+          },
+          "allocation": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allocation"
+            },
+            "maxItems": 3
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryPoint"
+            },
+            "maxItems": 400
+          },
+          "demo_history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryPoint"
+            },
+            "maxItems": 400
+          },
+          "flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Flow"
+            },
+            "maxItems": 1000
+          },
+          "cashflow": {
+            "$ref": "#/components/schemas/Cashflow"
+          },
+          "movements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Movement"
+            },
+            "maxItems": 20000
+          },
+          "debts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Debt"
+            },
+            "maxItems": 1000
+          },
+          "businesses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Business"
+            },
+            "maxItems": 1000
+          },
+          "rewards": {
+            "$ref": "#/components/schemas/Rewards"
+          },
+          "cards": {
+            "$ref": "#/components/schemas/Cards"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Read-only authenticated customer snapshot. HTTP mode requires empty demo_history. Current holdings include reservations. Personal assets exclude businesses, undrawn credit and points. Price histories contain unit prices, not historic account values."
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "message"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

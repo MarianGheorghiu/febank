@@ -1,0 +1,16 @@
+.row, .option { border: 1px solid rgb(255 255 255 / .1); background: rgb(255 255 255 / .025); transition: border-color 160ms, background-color 160ms, box-shadow 160ms; }
+.option { cursor: pointer; }
+.option[aria-pressed="true"] { border-color: rgb(103 232 249 / .45); background: rgb(34 211 238 / .08); }
+.option:focus-visible, .row:focus-within { outline: 2px solid rgb(103 232 249 / .7); outline-offset: 2px; }
+.table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.table th { color: #94a3b8; font-weight: 500; padding: 12px; white-space: nowrap; }
+.table td { padding: 12px; border-top: 1px solid rgb(255 255 255 / .07); vertical-align: top; }
+.table tbody tr { transition: background-color 160ms; }
+.table tbody tr:focus-within { background: rgb(34 211 238 / .08); }
+.chart :global(.recharts-surface) { outline: none; }
+.chart :global(.recharts-surface):focus-visible { outline: 2px solid rgb(103 232 249 / .6); outline-offset: 2px; border-radius: 8px; }
+@media (hover: hover) {
+ .row:hover, .option:hover { border-color: rgb(103 232 249 / .5); background: rgb(34 211 238 / .1); box-shadow: 0 4px 18px rgb(34 211 238 / .08); }
+ .table tbody tr:hover { background: rgb(34 211 238 / .08); }
+}
+@media (prefers-reduced-motion: reduce) { .row, .option, .table tbody tr { transition: none; } }

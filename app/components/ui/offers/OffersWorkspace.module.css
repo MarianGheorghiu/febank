@@ -1,0 +1,45 @@
+.option, .listItem {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.025);
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+.option { cursor: pointer; }
+.chart :global(.recharts-surface) {
+  outline: none;
+}
+.chart :global(.recharts-surface):focus-visible {
+  outline: 2px solid rgb(103 232 249 / 0.6);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.listItem:focus-within {
+  border-color: rgb(103 232 249 / 0.45);
+  background: rgb(34 211 238 / 0.06);
+}
+.option[aria-pressed="true"], .option:has(input:checked) {
+  border-color: rgb(103 232 249 / 0.45);
+  background: rgb(34 211 238 / 0.08);
+}
+.option:focus-visible, .option:has(input:focus-visible) {
+  outline: 2px solid rgb(103 232 249 / 0.8);
+  outline-offset: 3px;
+}
+.option:disabled, .option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+@media (hover: hover) {
+  .listItem:hover {
+    border-color: rgb(103 232 249 / 0.5);
+    background: rgb(34 211 238 / 0.1);
+    box-shadow: 0 4px 18px rgb(34 211 238 / 0.08);
+  }
+  .option:not(:disabled):not(:has(input:disabled)):hover {
+    border-color: rgb(103 232 249 / 0.6);
+    background: rgb(34 211 238 / 0.1);
+    box-shadow: 0 4px 18px rgb(34 211 238 / 0.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .option, .listItem { transition: none; }
+}

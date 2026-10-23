@@ -1,4 +1,5 @@
 "use client";
+import { usePreferences } from "@/app/context/PreferencesContext";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Check } from "lucide-react";
 import SocialDialog, { socialField, socialLabel } from "../friends/SocialDialog";
@@ -9,9 +10,10 @@ import { Segments, money, quantity, button, buyButton, sellButton } from "./Stoc
 import type { StockOrderDraft, StockQuote, StocksRepository, StocksSnapshot } from "@/app/lib/stocks/contracts";
 export interface StockTradeSelection { type: "BUY" | "SELL"; symbol: string }
 export default function StockActionModal({ selection, snapshot, repository, onClose, onComplete }: { selection: StockTradeSelection; snapshot: StocksSnapshot; repository: StocksRepository; onClose: () => void; onComplete: (value: StocksSnapshot) => void }) {
+  const { preferences } = usePreferences();
   const [symbol, setSymbol] = useState(selection.symbol), [side, setSide] = useState(selection.type);
   const [type, setType] = useState<StockOrderDraft["type"]>("MARKET"), [shares, setShares] = useState("");
-  const [target, setTarget] = useState(""), [currency, setCurrency] = useState("USD");
+  const [target, setTarget] = useState(""), [currency, setCurrency] = useState<string>(snapshot.wallet.assets.some(a => a.kind === "fiat" && a.symbol === preferences.settlement_currency) ? preferences.settlement_currency : "USD");
   const [quote, setQuote] = useState<StockQuote | null>(null), [confirmedQuote, setConfirmedQuote] = useState<StockQuote | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [quoting, setQuoting] = useState(false), [tick, setTick] = useState(0);
   const requestKey = useRef("");

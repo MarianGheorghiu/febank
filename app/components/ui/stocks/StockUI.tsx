@@ -1,5 +1,6 @@
 "use client";
 import { ChevronLeft, ChevronRight, Search, type LucideIcon } from "lucide-react";
+import { usePreferences } from "@/app/context/PreferencesContext";
 import { useSyncExternalStore, type ReactNode } from "react";
 export const money = (value: string | number, digits = 2) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(value));
 export const quantity = (value: string | number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 }).format(Number(value));
@@ -18,4 +19,4 @@ export function Empty({ children }: { children: ReactNode }) { return <p classNa
 
 const motionQuery = "(prefers-reduced-motion: reduce)";
 const subscribeMotion = (notify: () => void) => { const media = window.matchMedia(motionQuery); media.addEventListener("change", notify); return () => media.removeEventListener("change", notify); };
-export function useReducedStockMotion() { return useSyncExternalStore(subscribeMotion, () => window.matchMedia(motionQuery).matches, () => true); }
+export function useReducedStockMotion() { const { preferences } = usePreferences(); const system = useSyncExternalStore(subscribeMotion, () => window.matchMedia(motionQuery).matches, () => true); return preferences.motion === "reduce" || system; }

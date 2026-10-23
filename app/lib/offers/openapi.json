@@ -1,0 +1,1721 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank Premium Offers and Rewards",
+    "version": "1.0.0",
+    "description": "Customer-scoped offers, points lots, redemptions and benefits. Commit wallet postings, points, audit and idempotency in one transaction. Provider jobs use an outbox and idempotent webhooks."
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/v1/me/offers": {
+      "get": {
+        "operationId": "getCustomerOffers",
+        "responses": {
+          "200": {
+            "description": "Authenticated customer snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Membership or ownership denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable; no local fallback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/offers/commands": {
+      "post": {
+        "operationId": "executeOffersCommand",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{8,120}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated customer snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Membership or ownership denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable; no local fallback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, catalog or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business validation failed; nothing posted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session",
+        "description": "Example cookie name; apply bank session and CSRF middleware."
+      }
+    },
+    "schemas": {
+      "Membership": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "STANDARD",
+              "PREMIUM",
+              "METAL"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "subscription"
+            ]
+          },
+          "subscription_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan",
+          "active",
+          "source",
+          "subscription_id"
+        ]
+      },
+      "Card": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "EUR",
+              "RON"
+            ]
+          },
+          "eligible": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "currency",
+          "eligible"
+        ]
+      },
+      "Offer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "merchant": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Travel",
+              "Dining",
+              "Shopping",
+              "Wellness"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "rate_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "min_spend": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact USD decimal. Decode with a decimal type, never float64."
+          },
+          "max_cashback": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact USD decimal. Decode with a decimal type, never float64."
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "STANDARD",
+                "PREMIUM",
+                "METAL"
+              ]
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "channels": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "region": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "terms": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          }
+        },
+        "required": [
+          "id",
+          "merchant",
+          "title",
+          "category",
+          "description",
+          "rate_bps",
+          "min_spend",
+          "max_cashback",
+          "starts_at",
+          "expires_at",
+          "plans",
+          "channels",
+          "region",
+          "terms"
+        ]
+      },
+      "Experience": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "venue": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA time zone"
+          },
+          "points_cost": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "cancel_until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "STANDARD",
+                "PREMIUM",
+                "METAL"
+              ]
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "venue",
+          "location",
+          "starts_at",
+          "timezone",
+          "points_cost",
+          "capacity",
+          "cancel_until",
+          "plans",
+          "description"
+        ]
+      },
+      "Lounge": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "airport": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "opening_hours": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "terms": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "airport",
+          "location",
+          "opening_hours",
+          "terms"
+        ]
+      },
+      "Airline": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "points_per_mile": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "minimum_points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "step_points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "member_digits": {
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 20
+          },
+          "eta": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "points_per_mile",
+          "minimum_points",
+          "step_points",
+          "member_digits",
+          "eta"
+        ]
+      },
+      "Research": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "minimum_capital": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact USD decimal. Decode with a decimal type, never float64."
+          },
+          "risk": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "STANDARD",
+                "PREMIUM",
+                "METAL"
+              ]
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "minimum_capital",
+          "risk",
+          "plans"
+        ]
+      },
+      "Policy": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cash_points_per_dollar": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "cash_min_points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "cash_step_points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "lounge_year": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2200
+          },
+          "lounge_allowance": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "STANDARD": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "PREMIUM": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "METAL": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              }
+            },
+            "required": [
+              "STANDARD",
+              "PREMIUM",
+              "METAL"
+            ]
+          },
+          "concierge_plans": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "STANDARD",
+                "PREMIUM",
+                "METAL"
+              ]
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "cash_points_per_dollar",
+          "cash_min_points",
+          "cash_step_points",
+          "lounge_year",
+          "lounge_allowance",
+          "concierge_plans"
+        ]
+      },
+      "Catalog": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Offer"
+            },
+            "maxItems": 20000
+          },
+          "experiences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Experience"
+            },
+            "maxItems": 20000
+          },
+          "lounges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Lounge"
+            },
+            "maxItems": 20000
+          },
+          "airlines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Airline"
+            },
+            "maxItems": 20000
+          },
+          "research": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Research"
+            },
+            "maxItems": 20000
+          },
+          "policy": {
+            "$ref": "#/components/schemas/Policy"
+          }
+        },
+        "required": [
+          "version",
+          "offers",
+          "experiences",
+          "lounges",
+          "airlines",
+          "research",
+          "policy"
+        ]
+      },
+      "Lot": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "description": "RFC3339 UTC timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "remaining",
+          "expires_at"
+        ]
+      },
+      "Allocation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lot_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          }
+        },
+        "required": [
+          "lot_id",
+          "points"
+        ]
+      },
+      "Entry": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "earned",
+              "spent",
+              "refund",
+              "expired",
+              "cashback",
+              "activity"
+            ]
+          },
+          "points": {
+            "type": "integer",
+            "minimum": -1000000000,
+            "maximum": 1000000000
+          },
+          "cash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,12}\\.\\d{2}$",
+                "description": "Exact USD decimal. Decode with a decimal type, never float64."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "points",
+          "cash",
+          "description",
+          "at"
+        ]
+      },
+      "Activation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "offer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "card_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "activated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "offer_id",
+          "card_id",
+          "activated_at"
+        ]
+      },
+      "Booking": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "experience_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "cancelled",
+              "used"
+            ]
+          },
+          "points_paid": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "allocations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allocation"
+            },
+            "maxItems": 20000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          }
+        },
+        "required": [
+          "id",
+          "experience_id",
+          "status",
+          "points_paid",
+          "allocations",
+          "created_at",
+          "reference"
+        ]
+      },
+      "Transfer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "partner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "member_last4": {
+            "type": "string",
+            "pattern": "^\\d{4}$"
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "miles": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "cancelled",
+              "failed"
+            ]
+          },
+          "allocations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allocation"
+            },
+            "maxItems": 20000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "partner_id",
+          "member_last4",
+          "points",
+          "miles",
+          "status",
+          "allocations",
+          "created_at"
+        ]
+      },
+      "Pass": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "lounge_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 2200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "reserved",
+              "used",
+              "cancelled"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "lounge_id",
+          "reference",
+          "year",
+          "status",
+          "expires_at",
+          "created_at"
+        ]
+      },
+      "Request": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "concierge",
+              "research"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "details": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "in_progress",
+              "closed",
+              "cancelled"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "subject",
+          "details",
+          "status",
+          "created_at"
+        ]
+      },
+      "Snapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "http"
+            ]
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC3339 UTC timestamp"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog": {
+            "$ref": "#/components/schemas/Catalog"
+          },
+          "membership": {
+            "$ref": "#/components/schemas/Membership"
+          },
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            },
+            "maxItems": 20000
+          },
+          "lots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Lot"
+            },
+            "maxItems": 20000
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            },
+            "maxItems": 20000
+          },
+          "saved_offer_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "maxItems": 20000,
+            "uniqueItems": true
+          },
+          "activations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Activation"
+            },
+            "maxItems": 20000
+          },
+          "bookings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Booking"
+            },
+            "maxItems": 20000
+          },
+          "transfers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transfer"
+            },
+            "maxItems": 20000
+          },
+          "passes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Pass"
+            },
+            "maxItems": 20000
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Request"
+            },
+            "maxItems": 20000
+          },
+          "available_points": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "expiring_points": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "next_expiry": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "description": "RFC3339 UTC timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lounge_remaining": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "wallet_usd": {
+            "type": "string",
+            "pattern": "^\\d{1,12}\\.\\d{2}$",
+            "description": "Exact USD decimal. Decode with a decimal type, never float64."
+          }
+        },
+        "required": [
+          "schema_version",
+          "mode",
+          "as_of",
+          "version",
+          "catalog",
+          "membership",
+          "cards",
+          "lots",
+          "entries",
+          "saved_offer_ids",
+          "activations",
+          "bookings",
+          "transfers",
+          "passes",
+          "requests",
+          "available_points",
+          "expiring_points",
+          "next_expiry",
+          "lounge_remaining",
+          "wallet_usd"
+        ]
+      },
+      "SaveOffer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "save"
+            ]
+          },
+          "offer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "saved": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "offer_id",
+          "saved"
+        ]
+      },
+      "ActivateOffer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "activate"
+            ]
+          },
+          "offer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "card_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "offer_id",
+          "card_id"
+        ]
+      },
+      "RedeemCash": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "redeem_cash"
+            ]
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "points"
+        ]
+      },
+      "TransferMiles": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "transfer_miles"
+            ]
+          },
+          "partner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "member_number": {
+            "type": "string",
+            "pattern": "^\\d{4,20}$",
+            "description": "Sensitive input. Match verified holder identity and protect at rest; return only last four digits."
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000000
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "partner_id",
+          "member_number",
+          "points"
+        ]
+      },
+      "CancelTransfer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "cancel_transfer"
+            ]
+          },
+          "transfer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "transfer_id"
+        ]
+      },
+      "BookExperience": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "book"
+            ]
+          },
+          "experience_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "experience_id"
+        ]
+      },
+      "CancelBooking": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "cancel_booking"
+            ]
+          },
+          "booking_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "booking_id"
+        ]
+      },
+      "ReserveLounge": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "lounge_pass"
+            ]
+          },
+          "lounge_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "lounge_id"
+        ]
+      },
+      "CancelPass": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "cancel_pass"
+            ]
+          },
+          "pass_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "pass_id"
+        ]
+      },
+      "ServiceRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "request"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "concierge",
+              "research"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 120
+          },
+          "details": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "service_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "kind",
+          "subject",
+          "details",
+          "service_id"
+        ]
+      },
+      "CancelRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "catalog_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "cancel_request"
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "expected_version",
+          "catalog_version",
+          "action",
+          "request_id"
+        ]
+      },
+      "Command": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SaveOffer"
+          },
+          {
+            "$ref": "#/components/schemas/ActivateOffer"
+          },
+          {
+            "$ref": "#/components/schemas/RedeemCash"
+          },
+          {
+            "$ref": "#/components/schemas/TransferMiles"
+          },
+          {
+            "$ref": "#/components/schemas/CancelTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/BookExperience"
+          },
+          {
+            "$ref": "#/components/schemas/CancelBooking"
+          },
+          {
+            "$ref": "#/components/schemas/ReserveLounge"
+          },
+          {
+            "$ref": "#/components/schemas/CancelPass"
+          },
+          {
+            "$ref": "#/components/schemas/ServiceRequest"
+          },
+          {
+            "$ref": "#/components/schemas/CancelRequest"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "action",
+          "mapping": {
+            "save": "#/components/schemas/SaveOffer",
+            "activate": "#/components/schemas/ActivateOffer",
+            "redeem_cash": "#/components/schemas/RedeemCash",
+            "transfer_miles": "#/components/schemas/TransferMiles",
+            "cancel_transfer": "#/components/schemas/CancelTransfer",
+            "book": "#/components/schemas/BookExperience",
+            "cancel_booking": "#/components/schemas/CancelBooking",
+            "lounge_pass": "#/components/schemas/ReserveLounge",
+            "cancel_pass": "#/components/schemas/CancelPass",
+            "request": "#/components/schemas/ServiceRequest",
+            "cancel_request": "#/components/schemas/CancelRequest"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 3000
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    }
+  }
+}

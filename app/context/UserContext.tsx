@@ -1,4 +1,6 @@
 "use client";
+import { usePreferences } from "./PreferencesContext";
+import { clearDemoSession } from "@/app/lib/session/demo";
 import { createMockSession, determineRole } from "@/app/lib/mock/auth";
 import type { UserProps } from "@/app/lib/types/auth";
 
@@ -25,25 +27,25 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
     useEffect(() => {
-        // Verificăm dacă există deja o sesiune activă la încărcarea paginii
-        const savedSession = localStorage.getItem("mbank_session");
-
-        if (savedSession) {
+        const read = () => {
             try {
-                const sessionData = JSON.parse(savedSession);
-                setUser({
-                    ...sessionData,
-                    role: determineRole(sessionData.email), // Forțăm determinarea din email
-                });
-            } catch (e) {
-                localStorage.removeItem("mbank_session");
-            }
-        }
-        setLoading(false);
+                const raw = localStorage.getItem("mbank_session");
+                const saved = raw ? JSON.parse(raw) : null;
+                if (saved && typeof saved.email === "string" && saved.email.trim() && typeof saved.name === "string" && typeof saved.clientCode === "string") {
+                    setUser({ name: saved.name, email: saved.email, clientCode: saved.clientCode, role: determineRole(saved.email) });
+                } else setUser(null);
+            } catch { setUser(null); }
+            setLoading(false);
+        };
+        const timer = window.setTimeout(read, 0);
+        const changed = (event: StorageEvent) => { if (event.key === "mbank_session" || event.key === null) read(); };
+        window.addEventListener("storage", changed);
+        return () => { window.clearTimeout(timer); window.removeEventListener("storage", changed); };
     }, []);
 
     const login = (email: string, name: string) => {
         setLoading(true);
+        clearDemoSession(email);
         const sessionUser = createMockSession(email, name);
 
         localStorage.setItem("mbank_session", JSON.stringify(sessionUser));
@@ -54,6 +56,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = () => {
+        if (user) clearDemoSession(user.email);
         localStorage.removeItem("mbank_session");
         setUser(null);
         router.push("/auth/login");
@@ -66,4 +69,4 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     );
 }
 
-export const useUser = () => useContext(UserContext);
+export const useUser = () => { const value = useContext(UserContext); const { snapshot } = usePreferences(); return { ...value, user: value.user && snapshot?.identity.email.trim().toLowerCase() === value.user.email.trim().toLowerCase() ? { ...value.user, name: snapshot.display_name } : value.user }; };

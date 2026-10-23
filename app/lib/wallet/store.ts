@@ -73,6 +73,8 @@ export function readWallet(clientId: string) {
 }
 function sameCommand(a: WalletEvent, b: WalletEvent) {
   if (a.kind !== b.kind) return false;
+  if (a.kind === "rewards" && b.kind === "rewards") return JSON.stringify(a.command) === JSON.stringify(b.command);
+  if (a.kind === "credit" && b.kind === "credit") return JSON.stringify(a.command) === JSON.stringify(b.command);
   if (a.kind === "cost_basis" && b.kind === "cost_basis") return JSON.stringify(a.basis) === JSON.stringify(b.basis) && a.actor.email.toLowerCase() === b.actor.email.toLowerCase();
   if (a.kind === "trading_admin" && b.kind === "trading_admin") return a.customer === b.customer && JSON.stringify(a.command) === JSON.stringify(b.command) && a.actor.email.toLowerCase() === b.actor.email.toLowerCase();
   if (a.kind === "trading" && b.kind === "trading") return JSON.stringify(a.command) === JSON.stringify(b.command) && a.actor.email.toLowerCase() === b.actor.email.toLowerCase();

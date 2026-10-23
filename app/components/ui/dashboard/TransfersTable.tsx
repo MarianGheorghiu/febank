@@ -169,7 +169,7 @@ export default function TransfersTable({ transactions, asOf }: { transactions: T
         ) : (
           filteredTransfers.map((tx) => {
             const txStyle = getTxDetails(tx.type);
-            const isPositive = tx.direction === "incoming" || tx.type === "DEPOSIT" || tx.type === "LOAN";
+            const isPositive = tx.direction ? tx.direction === "incoming" : tx.type === "DEPOSIT" || tx.type === "LOAN";
 
             return (
               <div

@@ -5,6 +5,7 @@ import "./dashboard-layout.css";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidenav from "@/app/components/ui/Sidenav";
+import { usePreferences } from "@/app/context/PreferencesContext";
 import { useUser } from "@/app/context/UserContext";
 
 export default function DashboardShell({
@@ -13,6 +14,7 @@ export default function DashboardShell({
     children: React.ReactNode;
 }) {
     const { user, loading } = useUser();
+    const { preferences } = usePreferences();
     const router = useRouter();
     const pathname = usePathname();
     const isMailbox = pathname === "/dashboard/notifications";
@@ -38,7 +40,7 @@ export default function DashboardShell({
     if (!user) return null;
 
     return (
-        <div data-social-layout={isSocial ? "true" : undefined} data-mail-layout={isMailbox ? "true" : undefined} className={`${isMailbox ? "h-dvh min-h-0 overflow-hidden" : "min-h-screen"} bg-[#030712] text-white flex flex-col md:flex-row`}>
+        <div data-motion={preferences.motion} data-social-layout={isSocial ? "true" : undefined} data-mail-layout={isMailbox ? "true" : undefined} className={`${isMailbox ? "h-dvh min-h-0 overflow-hidden" : "min-h-screen"} bg-[#030712] text-white flex flex-col md:flex-row`}>
             {/* Sidenav preia acum utilizatorul real configurat din Login */}
             <Sidenav user={user} />
 

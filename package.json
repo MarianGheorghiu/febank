@@ -24,7 +24,11 @@
     "test:currencies": "node tests/currencies.test.cjs",
     "test:crypto": "node tests/crypto.test.cjs",
     "test:stocks": "node tests/stocks.test.cjs",
-    "test:cards": "node tests/cards-vault.test.cjs"
+    "test:cards": "node tests/cards-vault.test.cjs",
+    "test:loans": "node tests/loans.test.cjs",
+    "test:offers": "node tests/offers.test.cjs",
+    "test:analytics": "node tests/analytics.test.cjs",
+    "test:settings": "node tests/settings.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",
