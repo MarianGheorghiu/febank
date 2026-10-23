@@ -9,6 +9,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import FilterControls from "./FilterControls";
+import styles from "./OverviewControls.module.css";
 import { formatMoney, formatPercent } from "@/app/lib/overview/engine";
 import type { MarketAsset } from "@/app/lib/types/dashboard";
 
@@ -140,7 +141,7 @@ export default function MarketNewsTable({ assets }: { assets: MarketAsset[] }) {
                 setSearchQuery("");
                 setSelectedCategory(null);
               }}
-              className="mt-2 text-xs text-cyan-400 font-bold underline"
+              className={`mt-2 text-xs font-bold underline cursor-pointer ${styles.action}`}
             >
               Reset
             </button>

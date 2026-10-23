@@ -10,6 +10,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import FilterControls from "./FilterControls";
+import styles from "./OverviewControls.module.css";
 import { filterTransactions, formatDate } from "@/app/lib/overview/engine";
 import type { TransferPeriod, TransferTransaction } from "@/app/lib/types/dashboard";
 
@@ -129,7 +130,7 @@ export default function TransfersTable({ transactions, asOf }: { transactions: T
             aria-expanded={isDropdownOpen}
             aria-label="Filter activity by period"
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center justify-between w-full bg-[#070b14] text-white font-mono text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 min-h-11 py-1.5 rounded-md border border-zinc-700 hover:border-cyan-400 transition-all cursor-pointer outline-none select-none text-left"
+            className={`flex items-center justify-between w-full font-mono text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 min-h-11 py-1.5 border cursor-pointer select-none text-left ${styles.action}`}
           >
             {currentLabel}
           </button>
@@ -139,16 +140,17 @@ export default function TransfersTable({ transactions, asOf }: { transactions: T
           />
 
           {isDropdownOpen && (
-            <div className="absolute right-0 top-full mt-1 w-full bg-[#070b14] border border-zinc-700 rounded-md shadow-2xl overflow-hidden z-50 p-1 space-y-0.5">
+            <div className={`absolute right-0 top-full mt-1 w-full border overflow-hidden z-50 p-1 space-y-0.5 ${styles.menu}`}>
               {periodOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
+                  aria-pressed={period === opt.value}
                   onClick={() => {
                     setPeriod(opt.value);
                     setIsDropdownOpen(false);
                   }}
-                  className={`w-full text-left font-mono text-[11px] sm:text-xs px-2 min-h-9 py-1 rounded transition-all select-none cursor-pointer ${period === opt.value ? "bg-cyan-500 text-[#02040f] font-black" : "text-zinc-400 hover:text-white"}`}
+                  className={`w-full text-left font-mono text-[11px] sm:text-xs px-2 min-h-9 py-1 select-none cursor-pointer ${styles.option} ${period === opt.value ? "font-black" : ""}`}
                 >
                   {opt.label}
                 </button>

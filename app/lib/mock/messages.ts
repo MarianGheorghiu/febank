@@ -17,4 +17,3 @@ export const INITIAL_MESSAGES: Message[] = [
   { ...defaults(), id: "msg-14", type: "bank", folder: "inbox", sender: { id: "bank-support", name: "MBank Support" }, subject: "Account details updated", body: "Your contact preferences were updated in the demo account. You can review your profile and preferences in Settings & Security.", created_at: "2026-09-30T08:00:00Z", read_at: "2026-09-30T08:05:00Z", can_reply: false, action: { target: "settings", label: "Review profile" } },
 ];
 export const MOCK_MESSAGES: MessagesSnapshot = { schema_version: 1, revision: 0, as_of: "2026-10-14T12:00:00Z", messages: INITIAL_MESSAGES, drafts: {} };
-export const MOCK_SPLIT_BILL_ALERT = { title: "Split Bill Received", description: "Matei Dan requested $24.50 USD for dinner. Review the request in Message Center." };

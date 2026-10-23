@@ -1,10 +1,5 @@
 "use client";
-import { MOCK_SPLIT_BILL_ALERT } from "@/app/lib/mock/messages";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useUser } from "@/app/context/UserContext";
-import { showMbankToast } from "@/app/lib/toast";
 
 // Importul sub-panourilor extrase din folderul _components
 import AdminDashboard from "./_components/AdminDashboard";
@@ -12,26 +7,6 @@ import ClientDashboard from "./_components/ClientDashboard";
 
 export default function DashboardPage() {
     const { user, loading } = useUser();
-    const router = useRouter();
-
-    useEffect(() => {
-        if (!user) return;
-
-        // Alerte simulate specifice doar pentru clienții retail
-        if (user.role === "client") {
-            const socialTimeout = setTimeout(() => {
-                showMbankToast({
-                    category: "social",
-                    title: MOCK_SPLIT_BILL_ALERT.title,
-                    description:
-                        MOCK_SPLIT_BILL_ALERT.description,
-                    router: router,
-                });
-            }, 2000);
-
-            return () => clearTimeout(socialTimeout);
-        }
-    }, [router, user]);
 
     // Starea de încărcare în timp ce se validează contextul de securitate
     if (loading || !user) {

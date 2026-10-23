@@ -1,0 +1,60 @@
+/* The header action surface, without sizing rules: existing controls keep
+   their own font metrics, padding, widths and minimum heights. */
+.action {
+  border-color: rgb(255 255 255 / .1);
+  border-radius: 12px;
+  background: linear-gradient(to bottom, rgb(34 211 238 / .1), #080f20);
+  color: #67e8f9;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .025);
+  transition: border-color 180ms, box-shadow 180ms, color 180ms;
+}
+
+.action[aria-pressed="false"] {
+  background: linear-gradient(to bottom, rgb(59 130 246 / .055), #080f20);
+  color: #cbd5e1;
+}
+
+.action[aria-pressed="true"], .option[aria-pressed="true"] {
+  border-color: rgb(34 211 238 / .4);
+  color: #a5f3fc;
+  background: linear-gradient(to bottom, rgb(34 211 238 / .18), #080f20);
+  box-shadow: inset 0 1px 0 rgb(103 232 249 / .08), 0 4px 16px rgb(34 211 238 / .07);
+}
+
+.action:hover, .option:hover {
+  border-color: rgb(34 211 238 / .4);
+  color: #a5f3fc;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .025), 0 8px 24px rgb(34 211 238 / .12);
+}
+
+.action:focus-visible, .option:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 2px;
+}
+
+.menu {
+  border-color: rgb(255 255 255 / .12);
+  border-radius: 12px;
+  background: #080f20;
+  box-shadow: 0 12px 32px rgb(0 0 0 / .4);
+}
+
+.option {
+  border-radius: 8px;
+  color: #cbd5e1;
+  background: linear-gradient(to bottom, rgb(34 211 238 / .035), #080f20);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04);
+  transition: box-shadow 180ms, color 180ms;
+}
+
+.clear {
+  border-radius: 10px;
+  color: #94a3b8;
+  transition: color 180ms, background-color 180ms;
+}
+.clear:hover { color: #67e8f9; background-color: rgb(34 211 238 / .06); }
+.clear:focus-visible { outline: 2px solid #67e8f9; outline-offset: -2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .action, .option, .clear { transition: none; }
+}

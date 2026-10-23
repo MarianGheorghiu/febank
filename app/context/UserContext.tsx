@@ -3,6 +3,7 @@ import { usePreferences } from "./PreferencesContext";
 import { clearDemoSession } from "@/app/lib/session/demo";
 import { createMockSession, determineRole } from "@/app/lib/mock/auth";
 import type { UserProps } from "@/app/lib/types/auth";
+import { notifyOperation } from "@/app/components/ui/OperationNotification";
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -53,6 +54,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
 
         router.push("/dashboard");
+        notifyOperation(`Welcome, ${sessionUser.name}!`, "You're signed in to MBANK.", false, "MBANK");
     };
 
     const logout = () => {
