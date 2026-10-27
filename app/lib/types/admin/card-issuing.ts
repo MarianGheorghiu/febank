@@ -38,6 +38,7 @@ export interface IssuedCard {
 }
 export type CardAction = "ACTIVATE" | "FREEZE" | "UNFREEZE" | "BLOCK" | "TERMINATE" | "REPLACE" | "DISPATCH" | "DELIVER" | "UPDATE_CONTROLS";
 export interface CardAuditEntry {
+  exportedCardIds?: string[];
   id: string;
   timestamp: string;
   actor: string;
@@ -48,10 +49,10 @@ export interface CardAuditEntry {
   before: IssuedCard | null;
   after: IssuedCard | null;
 }
-export interface CardIssuingState { customers?: CardCustomer[]; revision: number; cards: IssuedCard[]; audit: CardAuditEntry[] }
+export interface CardIssuingState { demo_fixture_version?:number; processed_requests?: { key:string; payload:string }[]; customers?: CardCustomer[]; revision: number; cards: IssuedCard[]; audit: CardAuditEntry[] }
 export type CardCommand =
   | { action: "ISSUE"; userId: string; type: IssuedCardType; network: CardNetwork; currency: CardCurrency; limits: CardLimits; reason: string }
-  | { action: "EXPORT"; reason: string }
+  | { action: "EXPORT"; reason: string; cardIds?: string[] }
   | { action: CardAction; cardId: string; expectedVersion: number; reason: string; limits?: CardLimits; channels?: CardChannels; trackingReference?: string };
 export interface CardOperator { name: string; email: string; role: "admin" | "client" }
 export interface CardIssuingPolicy { maxOpenCardsPerCustomer: number; maxMonthlyLimit: number }

@@ -5,7 +5,7 @@ import { useUserRegistry, usersStorageWarning } from "../user-management/store";
 import { useMemo } from "react";
 import { useFlagsConfig, configStorageWarning } from "@/app/lib/flags-config/repository";
 import { configAuditEvents } from "@/app/lib/flags-config/audit";
-import { useCardIssuingState, getCardStorageWarning } from "@/app/lib/admin/mock-card-issuing-store";
+import { useIssuingSource } from "../card-issuing/use-issuing-source";
 import { marketStorageWarning } from "@/app/lib/markets/store";
 import { useMarketsState } from "@/app/lib/markets/use-markets";
 import { useRiskState, riskStorageWarning } from "@/app/lib/risk/store";
@@ -22,9 +22,9 @@ export function useAuditEvents() {
   const users = useUserRegistry(); const usersWarning = usersStorageWarning();
   const config=useFlagsConfig(); const configWarning=configStorageWarning();
   const subscriptions=useSubscriptions(); const subscriptionsWarning=subscriptionStorageWarning();
-  const cards=useCardIssuingState(); const markets=useMarketsState(); const risk=useRiskState(); const journal=useAuditJournal();
-  const cardWarning=getCardStorageWarning(); const marketsWarning=marketStorageWarning(); const riskWarning=riskStorageWarning(); const journalWarning=auditJournalWarning();
-  const events=useMemo(() => mergeAudit(rates.warning?[]:rates.snapshot.audit,transactions.events,usersWarning?[]:users.audit,configWarning?[]:configAuditEvents(config),subscriptionsWarning?[]:subscriptions.audit,MOCK_AUDIT_EVENTS,initialLogs.map(e => userAuditEvent(e)),journalWarning?[]:journal.events,cardWarning?[]:cardAuditEvents(cards.audit),marketsWarning?[]:[...marketAuditEvents(markets.audit),...marketOrderEvents(markets.orders)],riskWarning?[]:riskAuditEvents(risk.audit)),[rates,transactions,users,usersWarning,config,configWarning,subscriptions,subscriptionsWarning,cards,markets,risk,journal,cardWarning,marketsWarning,riskWarning,journalWarning]);
+  const cards=useIssuingSource(); const markets=useMarketsState(); const risk=useRiskState(); const journal=useAuditJournal();
+  const cardWarning=cards.warning; const marketsWarning=marketStorageWarning(); const riskWarning=riskStorageWarning(); const journalWarning=auditJournalWarning();
+  const events=useMemo(() => mergeAudit(rates.warning?[]:rates.snapshot.audit,transactions.events,usersWarning?[]:users.audit,configWarning?[]:configAuditEvents(config),subscriptionsWarning?[]:subscriptions.audit,MOCK_AUDIT_EVENTS,initialLogs.map(e => userAuditEvent(e)),journalWarning?[]:journal.events,cardWarning?[]:cardAuditEvents(cards.snapshot?.audit??[]),marketsWarning?[]:[...marketAuditEvents(markets.audit),...marketOrderEvents(markets.orders)],riskWarning?[]:riskAuditEvents(risk.audit)),[rates,transactions,users,usersWarning,config,configWarning,subscriptions,subscriptionsWarning,cards,markets,risk,journal,cardWarning,marketsWarning,riskWarning,journalWarning]);
   const health: AuditSourceHealth[]=AUDIT_SOURCES.map(source => {
     const error=source==="RATES"?rates.warning:source==="TRANSACTIONS"?transactions.warning??journalWarning:source==="USERS"?usersWarning??journalWarning:source==="SYSTEM"?configWarning??journalWarning:source==="SUBSCRIPTIONS"?subscriptionsWarning:source==="CARDS"?cardWarning:source==="MARKETS"?marketsWarning:source==="RISK"?riskWarning:["USERS","TRANSACTIONS","RATES","AUDIT","ANALYTICS"].includes(source)?journalWarning:null;
     const connected=["SYSTEM","CARDS","MARKETS","RISK","USERS","TRANSACTIONS","RATES","AUDIT","SUBSCRIPTIONS","ANALYTICS"].includes(source);

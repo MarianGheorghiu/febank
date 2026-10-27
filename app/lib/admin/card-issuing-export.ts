@@ -9,7 +9,7 @@ export function cardRegistryCsv(
 ): string {
     const cell = (value: string | number) => {
         let text = String(value);
-        if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+        if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
         return `"${text.replaceAll('"', '""')}"`;
     };
     const rows = cards.map((card) => {

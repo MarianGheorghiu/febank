@@ -1,31 +1,23 @@
 "use client";
 
 import { assertManagedAccess, findManagedUser, readManagedUsers, USERS_EVENT, USERS_KEY } from "../user-management/store";
+import { validIssuedCard } from "../card-issuing/response";
 import { useSyncExternalStore } from "react";
 import { applyCardCommand, applyCustomerCardCommand } from "@/app/lib/admin/card-issuing";
-import { MOCK_CARD_CUSTOMERS, MOCK_CARD_ISSUING_STATE, MOCK_ISSUING_POLICY } from "@/app/lib/mock/admin/card-issuing";
+import { enrichIssuingDemo, MOCK_CARD_CUSTOMERS, MOCK_CARD_ISSUING_STATE, MOCK_ISSUING_POLICY } from "@/app/lib/mock/admin/card-issuing";
 import type { CardCommand, CardCustomer, CardIssuingState, CardOperator, IssuedCard } from "@/app/lib/types/admin/card-issuing";
 
 export const CARDS_EVENT = "mbank:cards-updated";
+export const CARD_ISSUING_KEY = "mbank_admin_card_issuing_v1";
 const STORAGE_KEY = "mbank_admin_card_issuing_v1";
 const listeners = new Set<() => void>();
 let snapshot: CardIssuingState | null = null;
 let restoreWarning: string | null = null;
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 function isCard(value: unknown, customers: CardCustomer[] = MOCK_CARD_CUSTOMERS): value is IssuedCard {
-  if (!isObject(value) || !isObject(value.limits) || !isObject(value.channels)) return false;
-  return (value.customerDeletedAt === undefined || value.customerDeletedAt === null || (typeof value.customerDeletedAt === "string" && Number.isFinite(Date.parse(value.customerDeletedAt)))) && typeof value.id === "string" && customers.some(customer => customer.id === value.userId)
-    && ["PHYSICAL", "VIRTUAL"].includes(String(value.type)) && ["VISA", "MASTERCARD"].includes(String(value.network))
-    && ["EUR", "USD", "RON"].includes(String(value.currency)) && /^\d{4}$/.test(String(value.last4))
-    && /^(0[1-9]|1[0-2])\/\d{2}$/.test(String(value.expiry))
-    && ["PENDING", "ACTIVE", "FROZEN", "BLOCKED", "TERMINATED"].includes(String(value.status))
-    && ["NOT_REQUIRED", "ORDERED", "DISPATCHED", "DELIVERED"].includes(String(value.delivery))
-    && [value.spentToday, value.spentThisMonth, value.limits.daily, value.limits.monthly, value.limits.atmDaily].every(item => typeof item === "number" && Number.isFinite(item) && item >= 0)
-    && [value.channels.online, value.channels.atm, value.channels.contactless, value.channels.international].every(item => typeof item === "boolean")
-    && Number.isInteger(value.version) && Number(value.version) > 0
-    && [value.createdAt, value.updatedAt].every(item => typeof item === "string" && Number.isFinite(Date.parse(item)))
-    && [value.deliveryAddress, value.trackingReference, value.replacesCardId, value.replacedByCardId].every(item => item === null || typeof item === "string");
+  return validIssuedCard(value)&&customers.some(customer=>customer.id===value.userId);
 }
+
 function readPersisted(): CardIssuingState {
   restoreWarning = null;
   try {
@@ -37,7 +29,9 @@ function readPersisted(): CardIssuingState {
     const customers = [...MOCK_CARD_CUSTOMERS, ...profiles] as CardCustomer[];
     if (new Set(customers.map(c => c.id)).size !== customers.length || new Set(customers.map(c => c.email.toLowerCase())).size !== customers.length) throw new Error("Duplicate customer profiles");
     if (!isObject(data) || !Number.isInteger(data.revision) || Number(data.revision) < 0 || !Array.isArray(data.cards) || !data.cards.every(card => isCard(card, customers)) || new Set(data.cards.map(card => card.id)).size !== data.cards.length || !Array.isArray(data.audit) || !data.audit.every(entry => isObject(entry) && typeof entry.id === "string" && typeof entry.actor === "string" && ["ISSUE", "EXPORT", "ACTIVATE", "FREEZE", "UNFREEZE", "BLOCK", "TERMINATE", "REPLACE", "DISPATCH", "DELIVER", "UPDATE_CONTROLS"].includes(String(entry.action)) && typeof entry.reason === "string" && typeof entry.timestamp === "string" && Number.isFinite(Date.parse(entry.timestamp)) && (entry.cardId === null || typeof entry.cardId === "string") && (entry.userId === null || typeof entry.userId === "string") && (entry.before === null || isCard(entry.before, customers)) && (entry.after === null || isCard(entry.after, customers)))) throw new Error("Invalid saved registry");
-    return data as unknown as CardIssuingState;
+    if (isObject(data) && data.processed_requests !== undefined && (!Array.isArray(data.processed_requests) || !data.processed_requests.every(r => isObject(r) && typeof r.key === "string" && typeof r.payload === "string"))) throw new Error("Invalid saved requests");
+    if (isObject(data) && Array.isArray(data.audit) && new Set(data.audit.map(e=>(e as {id:string}).id)).size!==data.audit.length) throw new Error("Duplicate audit records");
+    return enrichIssuingDemo(data as unknown as CardIssuingState);
   } catch {
     restoreWarning = "Saved demo data could not be restored. The initial registry is shown; check browser storage before making changes.";
     return MOCK_CARD_ISSUING_STATE;
@@ -64,10 +58,23 @@ export function useCardIssuingState() {
 }
 export function readCardIssuingState() { const state = readPersisted(); if (restoreWarning) throw new Error(restoreWarning); return state; }
 export function getCardStorageWarning() { return restoreWarning; }
-export function executeMockCardCommand(command: CardCommand, actor: CardOperator) {
+export function refreshCardIssuing() { snapshot = readPersisted(); listeners.forEach(notify => notify()); }
+export function executeMockCardCommand(command: CardCommand, actor: CardOperator, request?: {key:string; expected_revision:number}) {
   const latest = readPersisted();
   if (restoreWarning) throw new Error(restoreWarning);
-  const next = applyCardCommand(latest, cardCustomers(latest), command, actor, MOCK_ISSUING_POLICY, new Date().toISOString(), prefix => `${prefix}-${crypto.randomUUID()}`);
+  if (actor.role !== "admin" || !actor.email.trim()) throw new Error("Administrator access required.");
+  const payload = JSON.stringify({command,actor:actor.email.trim().toLowerCase()});
+  if (request) {
+    if (!/^[A-Za-z0-9_-]{8,100}$/.test(request.key)) throw new Error("Invalid request key.");
+    const prior=latest.processed_requests?.find(r=>r.key===request.key);
+    if(prior){if(prior.payload!==payload)throw new Error("Request key already used for another operation.");return latest;}
+    if(request.expected_revision!==latest.revision)throw new Error("Card registry changed. Refresh and review again.");
+  }
+  const customers=cardCustomers(latest);
+  const added=customers.filter(c=>!MOCK_CARD_CUSTOMERS.some(m=>m.id===c.id)&&!latest.customers?.some(m=>m.id===c.id));
+  const prepared={...latest,customers:[...(latest.customers??[]),...added]};
+  let next = applyCardCommand(prepared, customers, command, actor, MOCK_ISSUING_POLICY, new Date().toISOString(), prefix => `${prefix}-${crypto.randomUUID()}`);
+  if(request)next={...next,processed_requests:[...(latest.processed_requests??[]),{key:request.key,payload}]};
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
   catch { throw new Error("The operation was not saved. Browser storage is unavailable or full; no changes were applied."); }
   snapshot = next;
@@ -95,7 +102,9 @@ export function executeCustomerCardCommand(command: import("../cards/contracts")
 
 export function cardCustomers(state: CardIssuingState): CardCustomer[] {
   const users = readManagedUsers().users;
-  return [...MOCK_CARD_CUSTOMERS, ...(state.customers ?? [])].map(customer => {
+  const existing=[...MOCK_CARD_CUSTOMERS, ...(state.customers ?? [])];
+  const profiles=[...existing,...users.filter(u=>u.role==="CLIENT"&&!existing.some(c=>c.id===u.id||c.email===u.login_email)).map(u=>({id:u.id,name:u.legal_name,email:u.login_email,accountStatus:u.status,kycStatus:u.kyc_status==="VERIFIED"?"VERIFIED" as const:"IN_REVIEW" as const,deliveryAddress:u.address||null}))];
+  return profiles.map(customer => {
     const user = users.find(u => u.login_email === customer.email.toLowerCase());
     return user ? { ...customer, name: user.legal_name, accountStatus: user.status, kycStatus: user.kyc_status === "VERIFIED" ? "VERIFIED" : "IN_REVIEW", deliveryAddress: user.address || null } : customer;
   });
@@ -107,6 +116,8 @@ export function ensureDemoCardCustomer(email: string, name: string): CardIssuing
   if (!email || !email.includes("@")) throw new Error("A signed-in customer is required.");
   const latest = readCardIssuingState();
   const existing = cardCustomers(latest).find(customer => customer.email.toLowerCase() === email);
+  // A customer already enrolled by operations does not receive another active sample card.
+  if(existing&&!MOCK_CARD_CUSTOMERS.some(c=>c.id===existing.id)&&latest.cards.some(c=>c.userId===existing.id)&&!latest.cards.some(c=>c.id===`CRD-DEMO-${existing.id}`))return latest;
   const previousDemo = existing ? latest.cards.find(card => card.id === `CRD-DEMO-${existing.id}`) : undefined;
   if (previousDemo?.type === "PHYSICAL" && previousDemo.currency === "USD") return latest;
   if (previousDemo) {
@@ -126,7 +137,7 @@ export function ensureDemoCardCustomer(email: string, name: string): CardIssuing
     spentToday: 0, spentThisMonth: 1840, delivery: "NOT_REQUIRED", deliveryAddress: null, trackingReference: null,
     createdAt: at, updatedAt: at, version: 1, replacesCardId: null, replacedByCardId: null,
   };
-  const next: CardIssuingState = { ...latest, revision: latest.revision + 1, customers: existing ? latest.customers : [...(latest.customers ?? []), customer], cards: [starter, ...latest.cards], audit: [{ id: `CAU-DEMO-${customer.id}`, timestamp: at, actor: "demo-setup", action: "ISSUE", cardId: starter.id, userId: customer.id, reason: "Default demonstration card and example activity. No wallet funds were moved.", before: null, after: structuredClone(starter) }, ...latest.audit] };
+  const next: CardIssuingState = { ...latest, revision: latest.revision + 1, customers: MOCK_CARD_CUSTOMERS.some(c=>c.id===customer.id)||latest.customers?.some(c=>c.id===customer.id) ? latest.customers : [...(latest.customers ?? []), customer], cards: [starter, ...latest.cards], audit: [{ id: `CAU-DEMO-${customer.id}`, timestamp: at, actor: "demo-setup", action: "ISSUE", cardId: starter.id, userId: customer.id, reason: "Default demonstration card and example activity. No wallet funds were moved.", before: null, after: structuredClone(starter) }, ...latest.audit] };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
   catch { throw new Error("Your cards profile could not be saved. Check browser storage and retry."); }
   snapshot = next; listeners.forEach(notify => notify());

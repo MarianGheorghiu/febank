@@ -3,12 +3,17 @@ import type { CardAction, CardAuditEntry, CardChannels, CardCommand, CardCustome
 export function customerIsEligible(customer: CardCustomer): boolean {
   return customer.accountStatus === "ACTIVE" && customer.kycStatus === "VERIFIED";
 }
-export function availableCardActions(card: IssuedCard, customer: CardCustomer): CardAction[] {
+export function cardExpired(card: IssuedCard, at=new Date().toISOString()):boolean {
+  const [month,year]=card.expiry.split('/').map(Number);
+  return !month||!Number.isInteger(year)||Date.parse(at)>=Date.UTC(2000+year,month,1);
+}
+export function availableCardActions(card: IssuedCard, customer: CardCustomer, at=new Date().toISOString()): CardAction[] {
   if (card.status === "TERMINATED") return [];
   const actions: CardAction[] = ["TERMINATE"];
   if (card.status === "ACTIVE") actions.unshift("FREEZE", "BLOCK");
   if (card.status === "FROZEN") actions.unshift("BLOCK");
   if (!customerIsEligible(customer)) return actions;
+  if (cardExpired(card,at)) { if (["ACTIVE","FROZEN","BLOCKED"].includes(card.status)) actions.push("REPLACE"); return actions; }
   if (card.status === "FROZEN") actions.unshift("UNFREEZE");
   if (card.status === "ACTIVE" || card.status === "FROZEN") actions.push("UPDATE_CONTROLS");
   if (["ACTIVE", "FROZEN", "BLOCKED"].includes(card.status)) actions.push("REPLACE");
@@ -36,6 +41,7 @@ function validateChannels(channels: CardChannels, type: IssuedCard["type"]): voi
 
 /** Pure demo domain operation. Go must enforce the same transitions transactionally. */
 function applyValidatedCardCommand(state: CardIssuingState, customers: CardCustomer[], command: CardCommand, actor: CardOperator, policy: CardIssuingPolicy, now: string, createId: (prefix: string) => string): CardIssuingState {
+  if (!Number.isFinite(Date.parse(now)) || typeof command.reason !== "string") throw new Error("Invalid operation metadata.");
   const reason = command.reason.trim();
   if (reason.length < 10 || reason.length > 500) throw new Error("Enter an operational reason between 10 and 500 characters.");
   let before: IssuedCard | null = null;
@@ -66,7 +72,7 @@ function applyValidatedCardCommand(state: CardIssuingState, customers: CardCusto
     if (current.version !== command.expectedVersion) throw new Error("This card was updated by another operation. Close this dialog and review its latest state.");
     const customer = customers.find(customer => customer.id === current.userId);
     if (!customer) throw new Error("The card owner could not be found.");
-    if (!availableCardActions(current, customer).includes(command.action)) throw new Error("This action is not allowed for the card or customer in their current state.");
+    if (!availableCardActions(current, customer, now).includes(command.action)) throw new Error("This action is not allowed for the card or customer in their current state.");
     before = structuredClone(current);
     targetUserId = customer.id;
     after = { ...current, version: current.version + 1, updatedAt: now };
@@ -97,8 +103,9 @@ function applyValidatedCardCommand(state: CardIssuingState, customers: CardCusto
     }
     cards = cards.map(card => card.id === current.id ? after! : card);
   }
+  if(command.action==="EXPORT"&&command.cardIds&&(!Array.isArray(command.cardIds)||new Set(command.cardIds).size!==command.cardIds.length||command.cardIds.some(id=>!state.cards.some(c=>c.id===id))))throw new Error("Invalid export scope.");
   const cardId = command.action === "ISSUE" ? after?.id ?? null : command.action === "EXPORT" ? null : command.cardId;
-  return { ...state, revision: state.revision + 1, cards, audit: [{ id: createId("CAU"), timestamp: now, actor: actor.email, action: command.action, cardId, userId: targetUserId, reason, before, after: after ? structuredClone(after) : null }, ...state.audit] };
+  return { ...state, revision: state.revision + 1, cards, audit: [{ ...(command.action === "EXPORT" ? {exportedCardIds:command.cardIds??state.cards.map(c=>c.id)} : {}), id: createId("CAU"), timestamp: now, actor: actor.email, action: command.action, cardId, userId: targetUserId, reason, before, after: after ? structuredClone(after) : null }, ...state.audit] };
 }
 
 /** Admin entry point; customer operations use the narrower entry point below. */
@@ -111,7 +118,7 @@ export function customerCardActions(state: CardIssuingState, card: IssuedCard, c
   if (card.userId !== customer.id || card.status === "TERMINATED") return [];
   const actions: Array<"FREEZE" | "UNFREEZE" | "ACTIVATE" | "TERMINATE" | "UPDATE_CONTROLS"> = ["TERMINATE"];
   if (card.status === "ACTIVE") actions.push("FREEZE");
-  if (!customerIsEligible(customer)) return actions;
+  if (!customerIsEligible(customer) || cardExpired(card)) return actions;
   // A customer may only remove their own freeze, never an operations freeze.
   const freeze = state.audit.find(entry => entry.cardId === card.id && ["FREEZE", "UNFREEZE", "BLOCK", "TERMINATE"].includes(entry.action));
   if (card.status === "FROZEN" && freeze?.action === "FREEZE" && freeze.actor.toLowerCase() === customer.email.toLowerCase()) actions.push("UNFREEZE");
