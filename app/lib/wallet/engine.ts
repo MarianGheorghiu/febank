@@ -5,7 +5,8 @@ import { MOCK_OVERVIEW } from "../mock/dashboard";
 import { applyOperation } from "../overview/engine";
 import { applyTransfer, cancelTransfer, decimal, refreshLimits, units, usdValue, priceString } from "../transfers/engine";
 import { transferSeed } from "../transfers/seed";
-import type { TransferQuote, TransferSnapshot } from "../transfers/contracts";
+import type { TransferQuote, TransferSnapshot, TransferAdminCommand } from "../transfers/contracts";
+import { applyTransferAdmin } from "../transactions/transfer-engine";
 import type { OverviewOperation, OverviewSnapshot, TransferTransaction } from "../types/dashboard";
 import type { CreditCommand, CreditState } from "../loans/contracts";
 import { creditSeed } from "../loans/seed";
@@ -15,6 +16,7 @@ import { rewardsSeed } from "../offers/seed";
 import { applyOfferCommand } from "../offers/engine";
 
 export type WalletEvent = (
+  | { kind: "transfer_admin"; key: string; at: string; command: TransferAdminCommand; actor: MarketActor; customer: string }
   | { kind: "rewards"; key: string; at: string; command: OfferCommand; context: OffersContext }
   | { kind: "credit"; key: string; at: string; command: CreditCommand }
   | { kind: "cost_basis"; key: string; at: string; basis: Record<string, string>; actor: MarketActor }
@@ -73,6 +75,7 @@ export function applyWalletEvent(state: WalletState, event: WalletEvent): Wallet
     }
     return next;
   }
+  if (event.kind === "transfer_admin") return { ...state, transfers: applyTransferAdmin(state.transfers, event.command, event.actor, event.at, event.key) };
   if (event.kind === "trading_admin") return applyTradingAdmin(state, event.catalog, event.customer, event.command, event.actor, event.at, event.key).state;
   if (event.kind === "trading_migration") return importLegacyTrading(state, event.catalog, event.wallet, event.orders, event.customer);
   if (event.kind === "trading") return applyTrading(state, event.catalog, event.command, event.actor, event.at, event.key).state;

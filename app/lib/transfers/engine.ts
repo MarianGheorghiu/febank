@@ -125,7 +125,7 @@ export function applyTransfer(snapshot: TransferSnapshot, quote: TransferQuote, 
 }
 export function cancelTransfer(snapshot: TransferSnapshot, id: string, now: string): TransferSnapshot {
   const existing = snapshot.transfers.find(t => t.id === id);
-  if (!existing || existing.direction !== "outgoing" || existing.status !== "pending" || !existing.can_cancel) throw new Error("This transfer can no longer be cancelled. Refresh its status.");
+  if (!existing || existing.direction !== "outgoing" || existing.status !== "pending" || existing.review_hold || !existing.can_cancel) throw new Error("This transfer can no longer be cancelled. Refresh its status.");
   const next = structuredClone(snapshot);
   const transfer = next.transfers.find(t => t.id === id)!;
   const account = next.accounts.find(a => a.id === transfer.account_id)!;
@@ -139,5 +139,6 @@ export function cancelTransfer(snapshot: TransferSnapshot, id: string, now: stri
     feeAccount.reserved = decimal(units(feeAccount.reserved, feeAccount.decimals) - fee, feeAccount.decimals);
   }
   transfer.status = "cancelled"; transfer.can_cancel = false; transfer.updated_at = now;
+  transfer.version = (existing.version ?? 0) + 1;
   return refreshLimits(next, now);
 }

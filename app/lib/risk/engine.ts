@@ -1,3 +1,4 @@
+import { assertManagedAccess } from "../user-management/store";
 import { RISK_DOMAINS } from "@/app/lib/types/admin/risk";
 import type { RiskActor, RiskCommand, RiskPolicy, RiskState, ScreeningInput, ScreeningResult } from "@/app/lib/types/admin/risk";
 import type { MarketsState } from "@/app/lib/types/admin/markets";
@@ -79,9 +80,18 @@ export function enforceMarketRisk(risk: RiskState, previous: MarketsState, next:
   for (const order of next.orders) {
     const prior = previous.orders.find(o => o.id === order.id);
     if ((order.status !== "FILLED" && order.status !== "PENDING") || (prior && (prior.status === "FILLED" || prior.status === order.status))) continue;
+    assertManagedAccess(order.userEmail);
     const result = screenOperation(risk, { domain: order.domain, email: order.userEmail, amountUsd: order.totalUsd, score: 0, sanctionsMatch: false, kycVerified: true });
     if (result.decision === "BLOCK") throw new Error(`Risk Control: ${result.signals.join("; ")}. No changes were applied.`);
   }
+}
+/** Wallet IDs may be opaque; restrictions match the canonical normalized customer ID. */
+export function enforcePaymentRisk(risk: RiskState, customer: string, domain: RiskPolicy["domain"], amountUsd: number) {
+  const policy = risk.policies.find(item => item.domain === domain);
+  if (!policy || !Number.isFinite(amountUsd) || amountUsd <= 0) throw new Error("Risk Control: payment controls unavailable.");
+  if (policy.paused) throw new Error(`Risk Control: ${domain} emergency stop is active. No changes were applied.`);
+  if (risk.restrictions.some(item => item.email === customer.trim().toLowerCase())) throw new Error("Risk Control: account is restricted. No changes were applied.");
+  if (amountUsd > policy.maxTransactionUsd) throw new Error("Risk Control: amount exceeds the transaction limit. No changes were applied.");
 }
 export function csvRows(rows: (string | number)[][]) {
   return "\uFEFF" + rows.map(row => row.map(value => `"${String(value).replace(/^[\s]*[=+\-@]/, "'$&").replaceAll('"', '""')}"`).join(",")).join("\r\n");

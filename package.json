@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:transactions-admin": "node tests/transactions-admin.test.cjs",
+    "test:admin-control": "node tests/admin-control.test.cjs",
     "test:card-issuing": "node tests/card-issuing.test.cjs",
     "test:markets": "node tests/markets.test.cjs",
     "test:risk": "node tests/risk-control.test.cjs",
@@ -28,7 +30,8 @@
     "test:loans": "node tests/loans.test.cjs",
     "test:offers": "node tests/offers.test.cjs",
     "test:analytics": "node tests/analytics.test.cjs",
-    "test:settings": "node tests/settings.test.cjs"
+    "test:settings": "node tests/settings.test.cjs",
+    "test:user-management": "node tests/user-management.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

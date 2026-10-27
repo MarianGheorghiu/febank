@@ -1,0 +1,11 @@
+import { initialUsers } from "../mock/admin/users";
+import type { ManagedUser, UserRegistry } from "./contracts";
+export function managedUser(email: string, name: string, id: string, at: string, role: ManagedUser["role"] = "CLIENT"): ManagedUser {
+  return { id, version: 1, login_email: email.trim().toLowerCase(), contact_email: email.trim().toLowerCase(), legal_name: name.trim() || email.split("@")[0], username: `@${email.split("@")[0].replace(/[^a-z0-9._-]/gi, "").slice(0,40)}`, phone: "", country: "RO", address: "", date_of_birth: null, occupation: "", tax_country: "RO", role, status: "ACTIVE", kyc_status: role === "CLIENT" ? "VERIFIED" : "IN_REVIEW", risk_level: "LOW", politically_exposed: false, mfa_status: "UNKNOWN", password_reset_requested_at: null, mfa_reset_requested_at: null, created_at: at, updated_at: at, last_seen_at: null, notes: [] };
+}
+export function seedUsers(): UserRegistry {
+  const at = "2026-10-08T09:00:00.000Z";
+  const users: ManagedUser[] = initialUsers.map((u, index) => ({ ...managedUser(u.email, u.name, u.id, at, u.role), username: u.username, phone: u.phone, status: u.status, kyc_status: u.id === "USR-3426" ? "IN_REVIEW" as const : "VERIFIED" as const, risk_level: u.id === "USR-0883" ? "HIGH" as const : index < 2 ? "MEDIUM" as const : "LOW" as const, mfa_status: u.role === "CLIENT" ? "NOT_ENROLLED" as const : "ENABLED" as const, address: u.id === "USR-1204" ? "Str. Lalelelor 12, București, 030167, România" : u.id === "USR-2315" ? "Str. Memorandumului 8, Cluj-Napoca, 400114, România" : "", occupation: u.role === "CLIENT" ? ["Software engineer", "Business owner", "Designer", "Consultant"][index % 4] : "Bank operations", date_of_birth: u.role === "CLIENT" ? `199${index % 8}-0${index % 8 + 1}-12` : null, last_seen_at: at }));
+  users.push(managedUser("admin@admin.com", "Demo administrator", "USR-ROOT", at, "ADMIN"));
+  return { schema_version: 1, revision: 0, users, sessions: users.filter(u => u.status === "ACTIVE" && u.role === "CLIENT").map(u => ({ id: `SES-DEMO-${u.id}`, user_id: u.id, device: "Example mobile device", ip: null, location: "Romania · illustrative", started_at: at, last_seen_at: at, revoked_at: null, expires_at: "2026-12-31T23:59:59.000Z", source: "DEMO" })), audit: [], receipts: [] };
+}

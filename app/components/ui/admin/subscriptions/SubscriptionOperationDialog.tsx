@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { SUBSCRIPTION_CUSTOMERS, SUBSCRIPTION_PLANS } from "@/app/lib/mock/admin/subscriptions";
+import { subscriptionCustomers } from "@/app/lib/subscriptions/customers";
+import { SUBSCRIPTION_PLANS } from "@/app/lib/mock/admin/subscriptions";
 import type { BillingCycle, PlanId, Subscription, SubscriptionAction, SubscriptionCommand, SubscriptionState } from "@/app/lib/types/admin/subscriptions";
 import { money } from "@/app/lib/subscriptions/engine";
 import { AuditSelect, auditFieldClass, auditTextareaClass } from "../audit/presentation";
@@ -44,7 +45,7 @@ export default function SubscriptionOperationDialog({ intent, state, onClose, on
       <p className="text-xs leading-relaxed text-slate-400">{descriptions[intent.action]}</p>
       {intent.subscription && <p className="break-all rounded-lg border border-cyan-500/20 p-3 text-xs text-cyan-200">{intent.subscription.id} · {intent.subscription.plan_id} · {intent.subscription.status}<br/><span className="text-slate-400">Renewal: {intent.subscription.period_end.slice(0, 10)} UTC</span></p>}
       {!review && <>
-        {intent.action === "ASSIGN" && <label className={auditFieldClass}>Eligible customer<AuditSelect required value={customer} onChange={e => setCustomer(e.target.value)}><option value="">Select customer</option>{SUBSCRIPTION_CUSTOMERS.filter(c => c.eligible && !state.subscriptions.some(s => s.customer_id === c.id && s.status !== "CANCELED")).map(c => <option key={c.id} value={c.id}>{c.name} · {c.id}</option>)}</AuditSelect></label>}
+        {intent.action === "ASSIGN" && <label className={auditFieldClass}>Eligible customer<AuditSelect required value={customer} onChange={e => setCustomer(e.target.value)}><option value="">Select customer</option>{subscriptionCustomers().filter(c => c.eligible && !state.subscriptions.some(s => s.customer_id === c.id && s.status !== "CANCELED")).map(c => <option key={c.id} value={c.id}>{c.name} · {c.id}</option>)}</AuditSelect></label>}
         {["ASSIGN", "CHANGE_PLAN"].includes(intent.action) && <div className="grid gap-3 sm:grid-cols-2"><label className={auditFieldClass}>Plan<AuditSelect value={plan} onChange={e => setPlan(e.target.value as PlanId)}>{SUBSCRIPTION_PLANS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</AuditSelect></label><label className={auditFieldClass}>Billing cycle<AuditSelect value={cycle} onChange={e => setCycle(e.target.value as BillingCycle)}><option value="MONTHLY">Monthly</option><option value="ANNUAL">Annual</option></AuditSelect></label></div>}
         <label className={auditFieldClass}>Operational reason<textarea required minLength={10} maxLength={500} rows={3} className={auditTextareaClass} value={reason} onChange={e => setReason(e.target.value)} placeholder="Case reference and reason for this change…"/></label>
       </>}

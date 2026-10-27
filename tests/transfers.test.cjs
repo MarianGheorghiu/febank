@@ -57,6 +57,7 @@ test('daily limits are enforced atomically; rollover, quote expiry and altered f
 test('repository preserves customer isolation, replay, idempotency, admin projection and persistence failure', async () => {
   const data=new Map(); const events=[];
   global.window={ dispatchEvent:event => events.push(event.type) };
+  global.localStorage={ getItem:()=>null };
   global.sessionStorage={ getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,value),key:i=>[...data.keys()][i],get length(){return data.size;} };
   try {
     const repo=createDemoTransferRepository('customer-a'); const q=await repo.quote(draft);
@@ -73,7 +74,7 @@ test('repository preserves customer isolation, replay, idempotency, admin projec
     sessionStorage.setItem=original; assert.equal((await repo.getSnapshot()).transfers.length,4);
     data.set('mbank_transfers_v1:broken','{corrupt'); await assert.rejects(createDemoTransferRepository('broken').getSnapshot());
     assert.ok(events.length>=2);
-  } finally {delete global.window;delete global.sessionStorage;}
+  } finally {delete global.window;delete global.sessionStorage;delete global.localStorage;}
 });
 test('HTTP adapter uses authenticated endpoints, idempotency, abort and error envelope without mock fallback', async () => {
   const original=global.fetch; const calls=[];

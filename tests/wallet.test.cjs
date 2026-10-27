@@ -90,6 +90,10 @@ test('legacy journals merge once in chronological order preserving existing debi
 test('insufficient shared balance and storage failure cannot partially update either module',async()=>{
   const env=browser();try{
     const transfers=createDemoTransferRepository('fail-user');const overview=createOverviewRepository('fail-user');
+    // This scenario exercises insufficient funds after a previously valid quote.
+    const risk=structuredClone(require('../app/lib/mock/admin/risk.ts').MOCK_RISK_STATE);
+    risk.policies.find(p=>p.domain==='FIAT').maxTransactionUsd=200000;
+    localStorage.setItem('mbank_risk_v1',JSON.stringify(risk));
     const stale=await transfers.quote(draft);
     await overview.submitOperation({id:'drain-funds',type:'withdraw',amount:'142300.00'});
     await assert.rejects(transfers.submit(stale.id,'stale-reservation'),/Insufficient/);
@@ -164,6 +168,9 @@ test('pending buy and sell orders reserve the same funds/assets as transfers and
   const pending=readWallet(customer).state;const pendingUsd=usd(pending.transfers);
   assert.equal(pendingUsd.available,(Number(usd(sent).available)-order.orders[0].reservedCash).toFixed(2));
   assert.equal(pendingUsd.reserved,(Number(usd(sent).reserved)+order.orders[0].reservedCash).toFixed(2));
+  const risk=structuredClone(require('../app/lib/mock/admin/risk.ts').MOCK_RISK_STATE);
+  risk.policies.find(p=>p.domain==='FIAT').maxTransactionUsd=200000;
+  localStorage.setItem('mbank_risk_v1',JSON.stringify(risk));
   await createOverviewRepository(customer).submitOperation({id:'spend-rest',type:'withdraw',amount:pendingUsd.available});
   assert.throws(()=>execute(customer,tradeFor(customer,'BTC','BUY',0.001),'no-cash'),/Insufficient/);
   execute(customer,{type:'cancel_order',order_id:'pending-buy'},'release-buy');

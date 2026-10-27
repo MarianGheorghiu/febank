@@ -68,6 +68,10 @@ export interface CustomerTransfer {
   created_at: string;
   updated_at: string;
   can_cancel: boolean;
+  version?: number;
+  review_hold?: boolean;
+  /** Canonical demo metadata. Omit internal operator notes from public Go customer responses. */
+  admin_history?: TransferAdminAudit[];
 }
 export interface TransferSnapshot {
   schema_version: 1;
@@ -83,4 +87,13 @@ export interface TransferRepository {
   quote(draft: TransferDraft): Promise<TransferQuote>;
   submit(quoteId: string, idempotencyKey: string): Promise<TransferSnapshot>;
   cancel(transferId: string, idempotencyKey: string): Promise<TransferSnapshot>;
+}
+
+export const TRANSFER_ADMIN_ACTIONS = ["HOLD", "RELEASE", "PROCESS", "SETTLE", "REJECT"] as const;
+export interface TransferAdminCommand {
+  action: typeof TRANSFER_ADMIN_ACTIONS[number]; transfer_id: string; expected_version: number; reason: string;
+}
+export interface TransferAdminAudit {
+  id: string; actor: string; action: TransferAdminCommand["action"]; reason: string; occurred_at: string;
+  before_status: TransferState; after_status: TransferState; before_hold: boolean; after_hold: boolean;
 }

@@ -60,3 +60,5 @@ este vizibilă în export; nu există încă un DTO Go validat.
 | [transfers.ts](./transfers.ts) | `ASSETS_DB`, `INITIAL_TRANSFERS` | [transfers.ts](../types/transfers.ts) |
 
 - `admin/system-health.ts`: platform, fiat, crypto and stock service probes, 24-hour API samples, incidents, infrastructure and maintenance. Fixed synthetic snapshot; no live monitoring.
+
+- `../user-management/seed.ts`: shared identity/access seed, illustrative session metadata; no credential secrets or authoritative ledger balances.

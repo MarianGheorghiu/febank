@@ -1,3 +1,4 @@
+import { assertManagedAccess } from "../user-management/store";
 import type { CardDetails, CardsRepository, CustomerCardsSnapshot } from "./contracts";
 import { MOCK_ISSUING_POLICY } from "../mock/admin/card-issuing";
 import { customerCardActions } from "../admin/card-issuing";
@@ -32,6 +33,7 @@ export function createCardsRepository(email: string, name = ""): CardsRepository
       return { schema_version: 1, as_of: asOf, customer, cards, funding_accounts: customer ? readWallet(email).state.transfers.accounts.filter(a => a.kind === "fiat").map(a => ({ id: a.id, currency: a.asset, available: a.available, reserved: a.reserved })) : [], activity: demoCardActivity(cards, asOf), audit: state.audit.filter(e => e.cardId && ids.has(e.cardId)), policy: MOCK_ISSUING_POLICY, permissions: Object.fromEntries(cards.map(c => [c.id, customer ? customerCardActions(state, c, customer) : []])) };
     }
     return { getSnapshot: snapshot, revealDetails: async id => {
+      assertManagedAccess(email, false);
       const value = await snapshot(), card = value.cards.find(c => c.id === id);
       if (!card || !["ACTIVE", "FROZEN"].includes(card.status)) throw new Error("Details are unavailable for this card.");
       return { pan: card.last4 === "4242" ? "4242 4242 4242 4242" : `4000 0000 0000 ${card.last4}`, cvv: "123", expiry: card.expiry, holder_name: value.customer!.name, expires_at: new Date(Date.now() + 60000).toISOString() };

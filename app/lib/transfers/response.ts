@@ -64,6 +64,7 @@ export function parseSnapshot(value: unknown): TransferSnapshot {
     strings(transfer, ["id", "account_id", "kind", "asset", "amount", "fee", "value_usd", "direction", "recipient_name", "destination", "route_id", "reference", "status"]);
     if (ids.has(transfer.id as string) || !["fiat", "crypto", "stock"].includes(transfer.kind as string) || !["incoming", "outgoing"].includes(transfer.direction as string) || !["pending", "processing", "completed", "rejected", "cancelled"].includes(transfer.status as string) || typeof transfer.can_cancel !== "boolean") throw new Error("Invalid transfer history.");
     for (const key of ["amount", "fee", "value_usd"]) units(transfer[key] as string, key === "value_usd" ? 2 : 18);
+    if ((transfer.version !== undefined && (!Number.isSafeInteger(transfer.version) || Number(transfer.version) < 0)) || (transfer.review_hold !== undefined && typeof transfer.review_hold !== "boolean")) throw new Error("Invalid transfer workflow metadata.");
     feeFields(transfer);
     date(transfer.created_at); date(transfer.updated_at); ids.add(transfer.id as string);
   }

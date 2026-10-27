@@ -161,3 +161,5 @@ System Health: `admin/system-health.ts` provides independent operational fixture
 
 Flags & Config: `admin/flags-config.ts` centralizează catalogul, valorile inițiale
 și mediile demo; [contractul Go și fluxul de publicare](../flags-config/README.md).
+
+User Management uses a shared, persistent identity/access registry seeded from `admin/users.ts`; see [global effects and Go contract](../user-management/README.md). Legacy scalar balances are not wallet balances.

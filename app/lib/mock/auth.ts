@@ -1,7 +1,9 @@
+import { findManagedUser } from "../user-management/store";
 import type { UserProps } from "@/app/lib/types/auth";
 
 export function determineRole(email: string): UserProps["role"] {
-  return email.toLowerCase().trim().endsWith("@admin.com") ? "admin" : "client";
+  const managed = findManagedUser(email);
+  return managed ? managed.role === "ADMIN" && managed.status === "ACTIVE" ? "admin" : "client" : email.toLowerCase().trim().endsWith("@admin.com") ? "admin" : "client";
 }
 
 export function createMockSession(email: string, name: string): UserProps {

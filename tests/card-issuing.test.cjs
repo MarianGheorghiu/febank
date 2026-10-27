@@ -96,7 +96,7 @@ test('CSV exports only supplied rows, masks cards and escapes spreadsheet formul
 test('mock store persists atomically and rejects corrupted or unavailable storage', () => {
   const { executeMockCardCommand, getCardStorageWarning } = require('../app/lib/admin/mock-card-issuing-store.ts');
   let saved = null;
-  global.localStorage = { getItem: () => saved, setItem: (_, value) => { saved = value; } };
+  global.localStorage = { getItem: key => key === "mbank_admin_card_issuing_v1" ? saved : null, setItem: (_, value) => { saved = value; } };
   const next = executeMockCardCommand({ ...issue, reason }, actor);
   assert.equal(JSON.parse(saved).cards[0].id, next.cards[0].id);
   const previous = saved;

@@ -2,6 +2,9 @@ import { MOCK_MARKETS_STATE, MOCK_TRADING_WALLET } from "../markets/seed";
 import type { MarketsState } from "../types/admin/markets";
 import { applyWalletEvent, initialWallet, type WalletEvent, type WalletState } from "./engine";
 import { refreshLimits, priceString } from "../transfers/engine";
+import { readRiskForExecution } from "../risk/store";
+import { assertManagedAccess } from "../user-management/store";
+import { enforcePaymentRisk } from "../risk/engine";
 
 export const WALLET_EVENT = "mbank:wallet-updated";
 const PREFIX = "mbank_wallet_v1:";
@@ -73,6 +76,7 @@ export function readWallet(clientId: string) {
 }
 function sameCommand(a: WalletEvent, b: WalletEvent) {
   if (a.kind !== b.kind) return false;
+  if (a.kind === "transfer_admin" && b.kind === "transfer_admin") return a.customer === b.customer && a.actor.email.toLowerCase() === b.actor.email.toLowerCase() && JSON.stringify(a.command) === JSON.stringify(b.command);
   if (a.kind === "rewards" && b.kind === "rewards") return JSON.stringify(a.command) === JSON.stringify(b.command);
   if (a.kind === "credit" && b.kind === "credit") return JSON.stringify(a.command) === JSON.stringify(b.command);
   if (a.kind === "cost_basis" && b.kind === "cost_basis") return JSON.stringify(a.basis) === JSON.stringify(b.basis) && a.actor.email.toLowerCase() === b.actor.email.toLowerCase();
@@ -85,6 +89,7 @@ function sameCommand(a: WalletEvent, b: WalletEvent) {
 /** One synchronous read/validate/write; no cross-store balance mirroring or partial commits. */
 export function commitWallet(clientId: string, event: WalletEvent): WalletState {
   clientId = clientId.trim().toLowerCase();
+  if (event.kind === "transfer_admin" && (event.actor.role !== "admin" || event.customer.trim().toLowerCase() !== clientId)) throw new Error("Administrator and wallet customer must match the command scope.");
   if (event.kind === "cost_basis" && (event.actor.role !== "client" || event.actor.email.trim().toLowerCase() !== clientId)) throw new Error("Wallet customer mismatch.");
   if (event.kind === "trading" && event.actor.email.trim().toLowerCase() !== clientId) throw new Error("Wallet customer mismatch.");
   if (event.kind === "trading_admin" && event.customer.toLowerCase() !== clientId) throw new Error("Wallet customer mismatch.");
@@ -94,8 +99,22 @@ export function commitWallet(clientId: string, event: WalletEvent): WalletState 
     if (!sameCommand(previous, event)) throw new Error("Idempotency key already used for another request.");
     return state;
   }
+  const cancellingTrade = event.kind === "trading" && event.command.type === "cancel_order";
+  if (["submit", "overview", "trading", "rewards", "credit"].includes(event.kind) && !cancellingTrade) assertManagedAccess(clientId);
   event = { ...event, prices: Object.fromEntries(state.transfers.accounts.map(a => [a.asset, a.usd_price])) };
   const next = applyWalletEvent(state, event);
+  if (event.kind === "transfer_admin" && ["PROCESS", "SETTLE"].includes(event.command.action)) {
+    assertManagedAccess(clientId);
+    const transfer = state.transfers.transfers.find(item => item.id === event.command.transfer_id)!;
+    enforcePaymentRisk(readRiskForExecution(), clientId, transfer.kind === "fiat" ? "FIAT" : transfer.kind === "crypto" ? "CRYPTO" : "STOCK", Number(transfer.value_usd));
+  }
+  // Check current controls only on new commits; historical replay and refunds remain available.
+  if (event.kind === "submit" || (event.kind === "overview" && event.operation.type !== "deposit")) {
+    const account = event.kind === "submit" ? state.transfers.accounts.find(item => item.id === event.quote.draft.source_account_id) : undefined;
+    enforcePaymentRisk(readRiskForExecution(), clientId,
+      account?.kind === "crypto" ? "CRYPTO" : account?.kind === "stock" ? "STOCK" : "FIAT",
+      Number(event.kind === "submit" ? event.quote.value_usd : event.operation.amount));
+  }
   const updated = [...events, structuredClone(event)];
   if (typeof window === "undefined") memory.set(clientId, updated);
   else {
@@ -114,4 +133,18 @@ export function walletCustomers() {
     else if (key?.startsWith("mbank_transfers_v1:")) customers.add(decodeURIComponent(key.slice("mbank_transfers_v1:".length)));
   }
   return [...customers];
+}
+/** Initialize dedicated demo identities once; never replace an existing customer journal. */
+export function transactionDemoWalletExists(clientId: string) {
+  return sessionStorage.getItem(PREFIX + encodeURIComponent(clientId)) !== null
+    || sessionStorage.getItem(`mbank_transfers_v1:${encodeURIComponent(clientId)}`) !== null
+    || sessionStorage.getItem(`mbank_overview_v1:${clientId}`) !== null;
+}
+export function initializeTransactionDemoWallet(clientId: string, events: WalletEvent[]) {
+  if (!/^transactions-demo-[a-z]+@example\.test$/.test(clientId)) throw new Error("A dedicated transaction demo identity is required.");
+  const key = PREFIX + encodeURIComponent(clientId);
+  if (transactionDemoWalletExists(clientId)) return false;
+  replay(events);
+  sessionStorage.setItem(key, JSON.stringify(events));
+  return true;
 }

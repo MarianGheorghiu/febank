@@ -1,4 +1,5 @@
-import { SUBSCRIPTION_CUSTOMERS, SUBSCRIPTION_PLANS } from "@/app/lib/mock/admin/subscriptions";
+import { subscriptionCustomers } from "./customers";
+import { SUBSCRIPTION_PLANS } from "@/app/lib/mock/admin/subscriptions";
 import { validJournal } from "@/app/lib/audit/engine";
 import { SUBSCRIPTION_STATUSES, type Subscription, type SubscriptionCommand, type SubscriptionState } from "@/app/lib/types/admin/subscriptions";
 import type { AuditActor, AuditEvent } from "@/app/lib/types/admin/audit";
@@ -23,7 +24,7 @@ export function applySubscriptionCommand(state: SubscriptionState, command: Subs
   let target = command.subscription_id ?? "subscription-registry";
   if (command.action === "ASSIGN") {
     before = null;
-    const customer = SUBSCRIPTION_CUSTOMERS.find(c => c.id === command.customer_id);
+    const customer = subscriptionCustomers().find(c => c.id === command.customer_id);
     const plan = SUBSCRIPTION_PLANS.find(p => p.id === command.plan_id);
     if (!customer?.eligible || !plan || !["MONTHLY", "ANNUAL"].includes(command.cycle ?? "")) throw new Error("Select a verified, active customer and valid billing plan.");
     if (subscriptions.some(s => s.customer_id === customer.id && s.status !== "CANCELED")) throw new Error("Customer already has an open subscription.");
@@ -41,7 +42,7 @@ export function applySubscriptionCommand(state: SubscriptionState, command: Subs
       before = { ...invoice }; invoice.retry_requested_at = now; after = { ...invoice }; target = invoice.id;
     } else {
       if (!availableActions(sub).includes(command.action)) throw new Error("Operation is not allowed for this subscription state.");
-      if (["RESUME", "CHANGE_PLAN"].includes(command.action) && !SUBSCRIPTION_CUSTOMERS.find(c => c.id === sub.customer_id)?.eligible) throw new Error("Customer must have an active account and verified KYC.");
+      if (["RESUME", "CHANGE_PLAN"].includes(command.action) && !subscriptionCustomers().find(c => c.id === sub.customer_id)?.eligible) throw new Error("Customer must have an active account and verified KYC.");
       if (command.action === "CHANGE_PLAN") {
         const plan = SUBSCRIPTION_PLANS.find(p => p.id === command.plan_id);
         if (!plan || !["MONTHLY", "ANNUAL"].includes(command.cycle ?? "")) throw new Error("Invalid plan or cycle.");
@@ -74,7 +75,7 @@ export function validSubscriptionState(value: unknown): value is SubscriptionSta
   const date = (v: unknown) => typeof v === "string" && /^\d{4}-\d\d-\d\dT.*Z$/.test(v) && Number.isFinite(Date.parse(v));
   const minor = (v: number) => Number.isSafeInteger(v) && v >= 0;
   if (s.schema_version !== 1 || !Number.isSafeInteger(s.revision) || s.revision < 0 || !Array.isArray(s.subscriptions) || !Array.isArray(s.invoices) || !Array.isArray(s.processed_requests) || !validJournal({ revision: s.revision, events: s.audit, notes: [] })) return false;
-  if (!s.subscriptions.every(r => r && typeof r.id === "string" && SUBSCRIPTION_CUSTOMERS.some(c => c.id === r.customer_id) && SUBSCRIPTION_PLANS.some(p => p.id === r.plan_id) && SUBSCRIPTION_STATUSES.includes(r.status) && ["MONTHLY", "ANNUAL"].includes(r.cycle) && r.currency === "EUR" && minor(r.price_minor) && Number.isSafeInteger(r.version) && r.version > 0 && typeof r.cancel_at_period_end === "boolean" && (r.pending_change === null || (!!r.pending_change && SUBSCRIPTION_PLANS.some(p => p.id === r.pending_change!.plan_id) && ["MONTHLY", "ANNUAL"].includes(r.pending_change.cycle) && minor(r.pending_change.price_minor))) && date(r.started_at) && date(r.period_end) && date(r.updated_at))) return false;
+  if (!s.subscriptions.every(r => r && typeof r.id === "string" && subscriptionCustomers().some(c => c.id === r.customer_id) && SUBSCRIPTION_PLANS.some(p => p.id === r.plan_id) && SUBSCRIPTION_STATUSES.includes(r.status) && ["MONTHLY", "ANNUAL"].includes(r.cycle) && r.currency === "EUR" && minor(r.price_minor) && Number.isSafeInteger(r.version) && r.version > 0 && typeof r.cancel_at_period_end === "boolean" && (r.pending_change === null || (!!r.pending_change && SUBSCRIPTION_PLANS.some(p => p.id === r.pending_change!.plan_id) && ["MONTHLY", "ANNUAL"].includes(r.pending_change.cycle) && minor(r.pending_change.price_minor))) && date(r.started_at) && date(r.period_end) && date(r.updated_at))) return false;
   if (new Set(s.subscriptions.map(r => r.id)).size !== s.subscriptions.length || new Set(s.subscriptions.filter(r => r.status !== "CANCELED").map(r => r.customer_id)).size !== s.subscriptions.filter(r => r.status !== "CANCELED").length) return false;
   return new Set(s.invoices.map(i => i?.id)).size === s.invoices.length && s.invoices.every(i => i && typeof i.id === "string" && s.subscriptions.some(r => r.id === i.subscription_id) && minor(i.amount_minor) && i.currency === "EUR" && ["PAID", "OPEN", "FAILED"].includes(i.status) && date(i.issued_at) && date(i.due_at) && (i.paid_at === null || date(i.paid_at)) && (i.retry_requested_at === null || date(i.retry_requested_at)) && (i.failure_reason === null || typeof i.failure_reason === "string")) && s.processed_requests.every(r => r && typeof r.request_id === "string" && typeof r.payload === "string");
 }

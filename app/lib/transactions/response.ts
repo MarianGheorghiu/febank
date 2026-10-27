@@ -1,0 +1,13 @@
+import { TRANSFER_ADMIN_ACTIONS } from "../transfers/contracts";
+import { TRANSACTION_DOMAINS, TRANSACTION_STATUSES, type TransactionSnapshot } from "./contracts";
+import { units } from "../transfers/engine";
+const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
+const date = (value: unknown) => typeof value === "string" && value.endsWith("Z") && Number.isFinite(Date.parse(value));
+const text = (value: unknown) => typeof value === "string";
+const count = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0;
+const decimal = (value: unknown, places = 18) => { try { return typeof value === "string" && units(value, places) >= BigInt(0); } catch { return false; } };
+export function parseTransactionSnapshot(value: unknown): TransactionSnapshot {
+  if (!object(value) || value.schema_version !== 1 || !["demo", "live"].includes(String(value.mode)) || !date(value.as_of) || !count(value.customer_count) || !Array.isArray(value.transactions) || new Set(value.transactions.map(row => object(row) && row.id)).size !== value.transactions.length
+    || !value.transactions.every(row => object(row) && ["id", "source_id", "customer_id", "asset", "fee_asset", "counterparty", "reference"].every(key => text(row[key])) && ["TRANSFER", "ORDER", "CASH", "CREDIT", "REWARD"].includes(String(row.source)) && TRANSACTION_DOMAINS.includes(row.domain as never) && TRANSACTION_STATUSES.includes(row.status as never) && ["LOW", "MEDIUM", "HIGH", "UNASSESSED"].includes(String(row.risk)) && ["incoming", "outgoing"].includes(String(row.direction)) && count(row.version) && decimal(row.amount) && decimal(row.fee) && decimal(row.value_usd, 2) && decimal(row.fee_usd, 2) && date(row.created_at) && date(row.updated_at) && (row.destination === null || text(row.destination)) && (row.route === null || text(row.route)) && Array.isArray(row.risk_case_ids) && row.risk_case_ids.every(text) && Array.isArray(row.available_actions) && row.available_actions.every(action => TRANSFER_ADMIN_ACTIONS.includes(action as never)) && (row.source === "TRANSFER" || row.available_actions.length === 0) && Array.isArray(row.history) && row.history.every(event => object(event) && ["id", "actor", "reason"].every(key => text(event[key])) && date(event.occurred_at) && TRANSFER_ADMIN_ACTIONS.includes(event.action as never) && [event.before_status, event.after_status].every(status => ["pending", "processing", "completed", "rejected", "cancelled"].includes(String(status))) && typeof event.before_hold === "boolean" && typeof event.after_hold === "boolean"))) throw new Error("Invalid transactions service response.");
+  return value as unknown as TransactionSnapshot;
+}

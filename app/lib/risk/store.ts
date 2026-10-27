@@ -5,6 +5,7 @@ import { RISK_DOMAINS } from "@/app/lib/types/admin/risk";
 import type { RiskActor, RiskCommand, RiskState } from "@/app/lib/types/admin/risk";
 import { applyRiskCommand, validatePolicy } from "./engine";
 export const RISK_STORAGE_KEY = "mbank_risk_v1";
+export const RISK_EVENT = "mbank:risk-updated";
 let cached: RiskState | null = null;
 let warning: string | null = null;
 const listeners = new Set<() => void>();
@@ -48,5 +49,7 @@ export function executeRiskCommand(command: RiskCommand, actor: RiskActor) {
   if (!validRiskState(next)) throw new Error("Invalid risk result. No changes were saved.");
   try { localStorage.setItem(RISK_STORAGE_KEY, JSON.stringify(next)); }
   catch { throw new Error("Browser storage is unavailable or full. No changes were saved."); }
-  cached = next; warning = null; listeners.forEach(fn => fn()); return next;
+  cached = next; warning = null; listeners.forEach(fn => fn());
+  if (typeof window !== "undefined") window.dispatchEvent?.(new Event(RISK_EVENT));
+  return next;
 }

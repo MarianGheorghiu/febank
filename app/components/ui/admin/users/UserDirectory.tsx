@@ -1,0 +1,32 @@
+"use client";
+import { Eye, Pencil, Shield } from "lucide-react";
+import type { ManagedUser } from "@/app/lib/user-management/contracts";
+import { ActionButton } from "../../dashboard/ActionButton";
+import { UserBadge } from "./presentation";
+const roleLabels = { CLIENT: "Customer", ADMIN: "Admin", COMPLIANCE: "Compliance", OPERATOR: "Operator" };
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
+function UserActions({user,disabled,onOpen,onEdit,onAccess}:{user:ManagedUser;disabled:boolean;onOpen:()=>void;onEdit:()=>void;onAccess:()=>void}) {
+  return <div role="group" aria-label={`Actions for ${user.legal_name}`} className="flex items-center justify-center gap-2">
+    <ActionButton autoWidth size="medium" labelClassName="text-[10px]" variant="cyan" iconGap="tight" icon={<Eye size={13}/>} aria-label={`View ${user.legal_name}`} onClick={onOpen}>Profile</ActionButton>
+    <ActionButton autoWidth size="medium" labelClassName="text-[10px]" variant="blue" iconGap="tight" icon={<Pencil size={13}/>} disabled={disabled} aria-label={`Edit ${user.legal_name}`} onClick={onEdit}>Edit</ActionButton>
+    <ActionButton autoWidth size="medium" labelClassName="text-[10px]" variant="purple" iconGap="tight" icon={<Shield size={13}/>} disabled={disabled} aria-label={`Manage access for ${user.legal_name}`} onClick={onAccess}>Access</ActionButton>
+  </div>;
+}
+export default function UserDirectory({rows,selected,disabled,onOpen,onEdit,onAccess}:{rows:ManagedUser[];selected:string|null;disabled:boolean;onOpen:(u:ManagedUser)=>void;onEdit:(u:ManagedUser)=>void;onAccess:(u:ManagedUser)=>void}) {
+  return <>
+    <div role="region" aria-label="Scrollable user directory" tabIndex={0} className="scrollbar-thin mt-5 hidden max-h-[390px] overflow-auto rounded-xl border border-white/8 bg-[#060d1b]/50 xl:block">
+      <table className="w-full min-w-[820px] table-fixed border-separate border-spacing-0 text-left">
+        <colgroup><col/><col className="w-[100px]"/><col className="w-[100px]"/><col className="w-[140px]"/><col className="w-[250px]"/></colgroup>
+        <thead className="sticky top-0 z-10"><tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-300"><th scope="col" className="border-b border-white/10 bg-[#0d172b] py-3.5 pl-4 pr-3">User</th><th scope="col" className="border-b border-white/10 bg-[#0d172b] px-3 py-3.5 text-center">Role</th><th scope="col" className="border-b border-white/10 bg-[#0d172b] px-3 py-3.5 text-center">Status</th><th scope="col" className="border-b border-white/10 bg-[#0d172b] px-3 py-3.5">Verification</th><th scope="col" className="border-b border-white/10 bg-[#0d172b] px-3 py-3.5 text-center">Actions</th></tr></thead>
+        <tbody>{rows.map(u=><tr key={u.id} className={`group/row transition-colors duration-150 motion-reduce:transition-none ${selected===u.id?"bg-cyan-400/[0.06]":"hover:bg-blue-400/[0.045]"}`}>
+          <th scope="row" className="border-b border-white/5 py-4 pl-4 pr-3 text-left font-normal"><div className="flex min-w-0 items-center gap-3"><div aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border font-mono text-xs font-bold ${u.role==="CLIENT"?"border-blue-400/15 bg-blue-400/[0.06] text-blue-200":"border-purple-400/15 bg-purple-400/[0.06] text-purple-200"}`}>{initials(u.legal_name)}</div><div className="min-w-0"><button type="button" title={`${u.id} · ${u.username}`} onClick={()=>onOpen(u)} className="block max-w-full truncate text-left text-[12px] font-semibold text-slate-100 hover:text-cyan-200 focus-visible:outline-2 focus-visible:outline-cyan-300">{u.legal_name}</button><p title={u.contact_email} className="mt-1 truncate text-[10px] text-slate-300">{u.contact_email}</p><p className="mt-1 text-[9px] text-slate-300">{u.country} · {u.username}</p></div></div></th>
+          <td className="border-b border-white/5 px-3 py-4 text-center"><span className={`inline-flex min-h-7 items-center justify-center rounded-lg border px-2 text-[10px] font-medium ${u.role==="CLIENT"?"border-white/8 bg-white/[0.025] text-slate-300":"border-purple-400/15 bg-purple-400/5 text-purple-200"}`}>{roleLabels[u.role]}</span></td>
+          <td className="border-b border-white/5 px-3 py-4 text-center"><span className={`inline-flex items-center justify-center gap-1.5 text-[11px] font-medium ${u.status==="ACTIVE"?"text-teal-200":"text-rose-300"}`}><span aria-hidden className={`h-1.5 w-1.5 rounded-full ${u.status==="ACTIVE"?"bg-teal-400":"bg-rose-400"}`}/>{u.status==="ACTIVE"?"Active":"Blocked"}</span></td>
+          <td className="border-b border-white/5 px-3 py-4"><p className={`text-[11px] font-medium ${u.kyc_status==="VERIFIED"?"text-slate-300":u.kyc_status==="REJECTED"?"text-rose-300":"text-amber-200"}`}>{u.kyc_status==="IN_REVIEW"?"In review":u.kyc_status==="VERIFIED"?"Verified":"Rejected"}</p><p className={`mt-1.5 text-[9px] ${u.risk_level==="HIGH"?"text-rose-300":u.risk_level==="MEDIUM"?"text-amber-200":"text-slate-300"}`}>{u.risk_level[0]+u.risk_level.slice(1).toLowerCase()} risk</p></td>
+          <td className="border-b border-white/5 px-3 py-4"><UserActions user={u} disabled={disabled} onOpen={()=>onOpen(u)} onEdit={()=>onEdit(u)} onAccess={()=>onAccess(u)}/></td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+    <div className="scrollbar-thin mt-4 grid max-h-[480px] gap-3 overflow-y-auto md:grid-cols-2 xl:hidden">{rows.map(u=><article key={u.id} className={`rounded-xl border p-4 transition-colors hover:bg-blue-400/5 ${selected===u.id?"border-cyan-400/30 bg-cyan-400/5":"border-white/10 bg-[#060d1b]/40"}`}><div className="flex min-w-0 items-start gap-3"><div aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-400/15 bg-blue-400/5 font-mono text-xs font-bold text-blue-200">{initials(u.legal_name)}</div><div className="min-w-0"><h3 className="break-words text-sm font-semibold text-slate-200">{u.legal_name}</h3><p className="mt-1 break-all text-[10px] text-slate-300">{u.contact_email}</p><p className="mt-1 text-[10px] text-slate-300">{u.country} · {roleLabels[u.role]}</p></div></div><div className="my-3 flex flex-wrap gap-1.5"><UserBadge value={u.status}/><UserBadge value={u.kyc_status}/><UserBadge value={u.risk_level}/></div><div className="border-t border-white/5 pt-3"><UserActions user={u} disabled={disabled} onOpen={()=>onOpen(u)} onEdit={()=>onEdit(u)} onAccess={()=>onAccess(u)}/></div></article>)}</div>
+  </>;
+}

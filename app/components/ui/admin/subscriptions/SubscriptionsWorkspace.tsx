@@ -1,4 +1,6 @@
 "use client";
+import { subscriptionCustomers } from "@/app/lib/subscriptions/customers";
+import { useUserRegistry, usersStorageWarning } from "@/app/lib/user-management/store";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, CreditCard, Download, Plus, RefreshCw, Search, ShieldAlert, TrendingUp, Users } from "lucide-react";
@@ -7,7 +9,7 @@ import { useUser } from "@/app/context/UserContext";
 import PageHeader from "@/app/components/ui/PageHeader";
 import MetricCard from "@/app/components/ui/MetricCard";
 import { notifyOperation } from "@/app/components/ui/OperationNotification";
-import { SUBSCRIPTIONS_AS_OF, SUBSCRIPTION_CUSTOMERS, SUBSCRIPTION_PLANS } from "@/app/lib/mock/admin/subscriptions";
+import { SUBSCRIPTIONS_AS_OF, SUBSCRIPTION_PLANS } from "@/app/lib/mock/admin/subscriptions";
 import { SUBSCRIPTION_STATUSES, type SubscriptionCommand } from "@/app/lib/types/admin/subscriptions";
 import { availableActions, money, subscriptionMetrics } from "@/app/lib/subscriptions/engine";
 import { mockSubscriptionsRepository, subscriptionStorageWarning, useSubscriptions } from "@/app/lib/subscriptions/store";
@@ -26,12 +28,13 @@ export default function SubscriptionsWorkspace() {
   return <Workspace actor={user}/>;
 }
 function Workspace({ actor }: { actor: { email: string; role: "admin" | "client" } }) {
-  const state = useSubscriptions(); const warning = subscriptionStorageWarning();
+  useUserRegistry();
+  const state = useSubscriptions(); const warning = subscriptionStorageWarning() ?? usersStorageWarning();
   const [tab, setTab] = useState("registry"); const [query, setQuery] = useState(""); const [status, setStatus] = useState("ALL"); const [plan, setPlan] = useState("ALL"); const [cycle, setCycle] = useState("ALL"); const [sort, setSort] = useState("RENEWAL"); const [page, setPage] = useState(0); const [invoiceStatus, setInvoiceStatus] = useState("ALL");
   const detailRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null); const [intent, setIntent] = useState<SubscriptionIntent | null>(null);
   const [asOf, setAsOf] = useState(SUBSCRIPTIONS_AS_OF);
-  const customers = new Map(SUBSCRIPTION_CUSTOMERS.map(c => [c.id, c]));
+  const customers = new Map(subscriptionCustomers().map(c => [c.id, c]));
   const scoped = state.subscriptions.filter(s => {
     const c = customers.get(s.customer_id); const text = `${s.id} ${s.customer_id} ${c?.name} ${c?.email}`.toLowerCase();
     return text.includes(query.trim().toLowerCase()) && (status === "ALL" || s.status === status) && (plan === "ALL" || s.plan_id === plan) && (cycle === "ALL" || s.cycle === cycle);

@@ -1,9 +1,11 @@
+import { findManagedUser, readManagedUsers, revokeOwnManagedSessions } from "../user-management/store";
 import type { SecurityFlow, SettingsCommand, SettingsRepository, SettingsSnapshot } from "./contracts";
 import { commitSettings, readSettings } from "./store";
 import { parseSettingsSnapshot, validateCommand } from "./engine";
 import { readWallet } from "../wallet/store";
 import { outstanding } from "../loans/engine";
 import { units } from "../transfers/engine";
+import { getDemoSession } from "../session/demo";
 import { SETTINGS_EVENT } from "./defaults";
 export function parseSecurityRedirect(value: unknown, origin: string) {
   const flow = value as { redirect_url?: unknown; expires_at?: unknown };
@@ -31,9 +33,22 @@ export function createSettingsRepository(email: string, name: string, code: stri
     const state = readSettings(email, name), { state: wallet } = readWallet(email);
     const registry = await import("../admin/mock-card-issuing-store");
     const cards = registry.ensureDemoCardCustomer(email, name), customer = registry.cardCustomers(cards).find(c => c.email.toLowerCase() === email.trim().toLowerCase());
-    return parseSettingsSnapshot({ ...state, schema_version: 1, mode: "demo", as_of: new Date().toISOString(), identity: { email, legal_name: customer?.name ?? name, client_code: code, account_status: customer?.accountStatus ?? "UNKNOWN", verification: customer?.kycStatus ?? "UNKNOWN", address: customer?.deliveryAddress ?? null }, security: { mfa: "unknown", passkey_count: 0, password_updated_at: null, available_flows: ["change_password", "setup_mfa", "manage_passkeys"] }, account_review: { has_balances: wallet.transfers.accounts.some(a => units(a.available, a.decimals) + units(a.reserved, a.decimals) > BigInt(0)), has_personal_credit: units(outstanding(wallet.credit, "personal"), 2) > BigInt(0), pending_transfers: wallet.transfers.transfers.filter(t => ["pending", "processing"].includes(t.status)).length, pending_orders: wallet.trading.orders.filter(o => o.status === "PENDING").length, linked_businesses: wallet.credit.businesses.filter(b => b.verified).length } });
+    const managed = findManagedUser(email);
+    const shared = readManagedUsers();
+    const currentSession = getDemoSession(email);
+    const sessions = managed ? shared.sessions.filter(s => s.user_id === managed.id).map(s => ({ id:s.id,device:s.device,current:s.id===currentSession.id,ip:s.ip,location:s.location,started_at:s.started_at,last_seen_at:s.last_seen_at,revoked_at:s.revoked_at,source:"demo" as const })) : state.sessions;
+    const activity = managed ? shared.audit.filter(a => a.target === managed.id && a.actorRole === "CLIENT").map(a => ({ id:a.id,at:a.timestamp,action:a.action,description:"Other account sessions signed out",result:"completed" as const,source:"demo" as const })) : [];
+    return parseSettingsSnapshot({ ...state, version:state.version+(managed?.version??0), sessions, audit:[...activity,...state.audit].slice(0,500), schema_version: 1, mode: "demo", as_of: new Date().toISOString(), identity: { email, legal_name: customer?.name ?? name, client_code: code, account_status: customer?.accountStatus ?? "UNKNOWN", verification: customer?.kycStatus ?? "UNKNOWN", address: customer?.deliveryAddress ?? null }, security: { mfa: managed?.mfa_status === "ENABLED" ? "enabled" : managed?.mfa_status === "NOT_ENROLLED" ? "not_enrolled" : "unknown", passkey_count: 0, password_updated_at: null, available_flows: ["change_password", "setup_mfa", "manage_passkeys"] }, account_review: { has_balances: wallet.transfers.accounts.some(a => units(a.available, a.decimals) + units(a.reserved, a.decimals) > BigInt(0)), has_personal_credit: units(outstanding(wallet.credit, "personal"), 2) > BigInt(0), pending_transfers: wallet.transfers.transfers.filter(t => ["pending", "processing"].includes(t.status)).length, pending_orders: wallet.trading.orders.filter(o => o.status === "PENDING").length, linked_businesses: wallet.credit.businesses.filter(b => b.verified).length } });
   }
-  const execute = async (command: SettingsCommand, key: string) => { const before = await project(); const state = commitSettings(email, name, command, key); return parseSettingsSnapshot({ ...before, ...state, as_of: new Date().toISOString() }); };
+  const execute = async (command: SettingsCommand, key: string) => {
+    const before = await project(), managed = findManagedUser(email);
+    if (command.expected_version !== before.version) throw new Error("Your settings changed. Refresh and review before saving again.");
+    if (managed && (command.action === "revoke_session" || command.action === "revoke_others")) {
+      const ids = command.action === "revoke_session" ? [command.session_id] : before.sessions.filter(s => !s.current && !s.revoked_at).map(s => s.id);
+      revokeOwnManagedSessions(email, ids, getDemoSession(email).id, key);
+    } else commitSettings(email, name, { ...command, expected_version: command.expected_version - (managed?.version ?? 0) }, key);
+    return project();
+  };
   return { getSnapshot: project, execute, startSecurityFlow: async (action, expected_version, key) => { assertFlow(action); return { kind: "demo_request", snapshot: await execute({ action: "request", expected_version, kind: action, details: `Requested ${action.replaceAll("_", " ")} in the demo. No authentication credentials were changed.` }, key) }; } };
 }
 function assertFlow(action: SecurityFlow) { if (!["change_password", "setup_mfa", "manage_mfa", "manage_passkeys"].includes(action)) throw new Error("Unsupported authentication flow."); }

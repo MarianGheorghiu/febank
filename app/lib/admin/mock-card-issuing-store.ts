@@ -1,5 +1,6 @@
 "use client";
 
+import { assertManagedAccess, findManagedUser, readManagedUsers, USERS_EVENT, USERS_KEY } from "../user-management/store";
 import { useSyncExternalStore } from "react";
 import { applyCardCommand, applyCustomerCardCommand } from "@/app/lib/admin/card-issuing";
 import { MOCK_CARD_CUSTOMERS, MOCK_CARD_ISSUING_STATE, MOCK_ISSUING_POLICY } from "@/app/lib/mock/admin/card-issuing";
@@ -50,12 +51,13 @@ function getSnapshot(): CardIssuingState {
 function subscribe(listener: () => void) {
   listeners.add(listener);
   const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) {
+    if (event.key === STORAGE_KEY || event.key === USERS_KEY || event.key === null) {
       snapshot = readPersisted(); listeners.forEach(notify => notify());
     }
   };
-  window.addEventListener("storage", onStorage);
-  return () => { listeners.delete(listener); window.removeEventListener("storage", onStorage); };
+  const usersChanged = () => { snapshot = { ...getSnapshot() }; listeners.forEach(notify => notify()); };
+  window.addEventListener("storage", onStorage); window.addEventListener(USERS_EVENT, usersChanged);
+  return () => { listeners.delete(listener); window.removeEventListener("storage", onStorage); window.removeEventListener(USERS_EVENT, usersChanged); };
 }
 export function useCardIssuingState() {
   return useSyncExternalStore(subscribe, getSnapshot, () => MOCK_CARD_ISSUING_STATE);
@@ -83,6 +85,7 @@ export function executeCustomerCardCommand(command: import("../cards/contracts")
     if (previous.actor.toLowerCase() !== email.trim().toLowerCase() || previous.reason !== reason || (command.action === "ISSUE" ? previous.after?.type !== command.type || previous.after?.network !== command.network || previous.after?.currency !== command.currency : previous.cardId !== command.card_id || previous.before?.version !== command.expected_version || (command.action === "UPDATE_CONTROLS" && (JSON.stringify(previous.after?.limits) !== JSON.stringify(command.limits) || JSON.stringify(previous.after?.channels) !== JSON.stringify(command.channels))))) throw new Error("Operation key already used for another request.");
     return latest;
   }
+  if (!["FREEZE", "TERMINATE"].includes(command.action)) assertManagedAccess(email);
   const next = applyCustomerCardCommand(latest, cardCustomers(latest), command, email, MOCK_ISSUING_POLICY, new Date().toISOString(), prefix => prefix === "CAU" ? `CCU-${key}` : `${prefix}-${crypto.randomUUID()}`);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
   catch { throw new Error("The operation could not be saved. No card changes were applied."); }
@@ -90,7 +93,13 @@ export function executeCustomerCardCommand(command: import("../cards/contracts")
   return next;
 }
 
-export function cardCustomers(state: CardIssuingState): CardCustomer[] { return [...MOCK_CARD_CUSTOMERS, ...(state.customers ?? [])]; }
+export function cardCustomers(state: CardIssuingState): CardCustomer[] {
+  const users = readManagedUsers().users;
+  return [...MOCK_CARD_CUSTOMERS, ...(state.customers ?? [])].map(customer => {
+    const user = users.find(u => u.login_email === customer.email.toLowerCase());
+    return user ? { ...customer, name: user.legal_name, accountStatus: user.status, kycStatus: user.kyc_status === "VERIFIED" ? "VERIFIED" : "IN_REVIEW", deliveryAddress: user.address || null } : customer;
+  });
+}
 
 /** Every signed-in demo customer sees a populated, isolated Cards Vault. */
 export function ensureDemoCardCustomer(email: string, name: string): CardIssuingState {
@@ -107,7 +116,7 @@ export function ensureDemoCardCustomer(email: string, name: string): CardIssuing
     const migrated: CardIssuingState = { ...latest, revision: latest.revision + 1, cards: latest.cards.map(card => card.id === upgraded.id ? upgraded : card), audit: [{ id: `CAU-${crypto.randomUUID()}`, timestamp: upgraded.updatedAt, actor: "demo-setup", action: "ISSUE", cardId: upgraded.id, userId: upgraded.userId, reason: "Demo card updated to USD with ATM and contactless capabilities. No funds moved.", before: previousDemo, after: upgraded }, ...latest.audit] };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated)); snapshot = migrated; listeners.forEach(notify => notify()); return migrated;
   }
-  const customer: CardCustomer = existing ?? { id: `USR-${crypto.randomUUID()}`, email, name: name.trim() || email.split("@")[0], accountStatus: "ACTIVE", kycStatus: "VERIFIED", deliveryAddress: null };
+  const customer: CardCustomer = existing ?? { id: findManagedUser(email)?.id ?? `USR-${crypto.randomUUID()}`, email, name: name.trim() || email.split("@")[0], accountStatus: "ACTIVE", kycStatus: "VERIFIED", deliveryAddress: null };
   const now = new Date(), at = now.toISOString();
   const starter: IssuedCard = {
     id: `CRD-DEMO-${customer.id}`, userId: customer.id, type: "PHYSICAL", network: "VISA", currency: "USD", last4: "4242",
