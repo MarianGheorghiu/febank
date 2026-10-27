@@ -2,6 +2,7 @@ import type { TransferAccount } from "../../transfers/contracts";
 export type MarketDomain = "CRYPTO" | "STOCK";
 export type MarketStatus = "ACTIVE" | "SELL_ONLY" | "HALTED";
 export interface TradingInstrument {
+  pricing?: import("../../rates/execution").ExecutionRate;
   symbol: string; name: string; domain: MarketDomain; venue: string;
   status: MarketStatus; priceUsd: number; quoteStatus: "HEALTHY" | "STALE";
   feeBps: number; spreadBps: number; minOrderUsd: number; maxOrderUsd: number;
@@ -24,6 +25,7 @@ export interface MarketAudit {
   reason: string; timestamp: string; before: unknown; after: unknown;
 }
 export interface MarketsState {
+  fx_pricing?: import("../../rates/execution").ExecutionRate;
   /** Read-only canonical customer balances on customer projections. */
   accountBalances?: TransferAccount[];
   revision: number; instruments: TradingInstrument[]; routing: Record<MarketDomain, MarketRouting>;

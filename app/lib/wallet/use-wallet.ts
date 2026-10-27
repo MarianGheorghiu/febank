@@ -22,8 +22,10 @@ export function useWalletAccounts() {
     void load();
     window.addEventListener(WALLET_EVENT, load);
     window.addEventListener(TRANSFER_EVENT, load);
+    const storage=(e:StorageEvent)=>{if(e.key==="mbank_rates_v1"||e.key==="mbank_subscriptions_v1"||e.key===null)void load();};
+    window.addEventListener("storage", storage);
     window.addEventListener("focus", load);
-    return () => { active = false; window.removeEventListener(WALLET_EVENT, load); window.removeEventListener(TRANSFER_EVENT, load); window.removeEventListener("focus", load); };
+    return () => { active = false; window.removeEventListener(WALLET_EVENT, load); window.removeEventListener(TRANSFER_EVENT, load); window.removeEventListener("focus", load); window.removeEventListener("storage", storage); };
   }, [repository, user]);
   return result.customer === user?.email ? result : { snapshot: null, error: "" };
 }

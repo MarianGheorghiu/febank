@@ -1,0 +1,687 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank Rates & Fee Engine",
+    "version": "1.0.0",
+    "description": "USD minor units, integer basis points. Authenticated actor is server-derived. Atomic revision checks and independent review are required."
+  },
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "paths": {
+    "/v1/admin/rates": {
+      "get": {
+        "operationId": "getRatesRegistry",
+        "responses": {
+          "200": {
+            "description": "Authoritative pricing registry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatesSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator or independent reviewer required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, pending release or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/rates/commands": {
+      "post": {
+        "operationId": "executeRatesCommand",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatesCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative pricing registry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatesSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator or independent reviewer required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, pending release or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session"
+      }
+    },
+    "schemas": {
+      "RatePolicy": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^rate-[a-z0-9-]{1,60}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "FIAT_TRANSFER",
+              "INTERNAL_TRANSFER",
+              "CRYPTO_TRANSFER",
+              "STOCK_TRANSFER",
+              "CRYPTO_TRADE",
+              "STOCK_TRADE",
+              "FX_EXCHANGE"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "rate_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "fixed_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000
+          },
+          "minimum_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000
+          },
+          "maximum_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0,
+                "maximum": 1000000000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spread_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "weekend_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "tier_discount_bps": {
+            "type": "object",
+            "properties": {
+              "STANDARD": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "PREMIUM": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "METAL": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              }
+            },
+            "required": [
+              "STANDARD",
+              "PREMIUM",
+              "METAL"
+            ]
+          },
+          "brackets": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "properties": {
+                "up_to_minor": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "format": "int64",
+                      "minimum": 0,
+                      "maximum": 1000000000000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rate_bps": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 500
+                }
+              },
+              "required": [
+                "up_to_minor",
+                "rate_bps"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "operation",
+          "enabled",
+          "rate_bps",
+          "fixed_minor",
+          "minimum_minor",
+          "maximum_minor",
+          "spread_bps",
+          "weekend_bps",
+          "tier_discount_bps",
+          "brackets"
+        ]
+      },
+      "ActivePricing": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000
+          },
+          "policies": {
+            "type": "array",
+            "minItems": 7,
+            "maxItems": 7,
+            "items": {
+              "$ref": "#/components/schemas/RatePolicy"
+            }
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "version",
+          "policies",
+          "published_at"
+        ]
+      },
+      "RateRelease": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "enum": [
+              "DEMO",
+              "LOCAL"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "policies": {
+            "type": "array",
+            "minItems": 7,
+            "maxItems": 7,
+            "items": {
+              "$ref": "#/components/schemas/RatePolicy"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000
+          },
+          "maker": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "PUBLISHED",
+              "REJECTED"
+            ]
+          },
+          "checker": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "origin",
+          "id",
+          "policies",
+          "version",
+          "maker",
+          "created_at",
+          "reason",
+          "status",
+          "checker",
+          "decided_at"
+        ]
+      },
+      "AuditEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "const": "RATES"
+          },
+          "domain": {
+            "const": "PLATFORM"
+          },
+          "category": {
+            "const": "CONFIGURATION"
+          },
+          "action": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "INFO",
+              "WARNING",
+              "CRITICAL"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "SUCCESS",
+              "DENIED",
+              "FAILED"
+            ]
+          },
+          "actor": {
+            "type": "string"
+          },
+          "actorRole": {
+            "enum": [
+              "ADMIN",
+              "CLIENT",
+              "SYSTEM",
+              "UNKNOWN"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sessionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationMs": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "before": {},
+          "after": {},
+          "origin": {
+            "enum": [
+              "DEMO",
+              "LOCAL"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "timestamp",
+          "source",
+          "domain",
+          "category",
+          "action",
+          "severity",
+          "outcome",
+          "actor",
+          "actorRole",
+          "target",
+          "reason",
+          "correlationId",
+          "requestId",
+          "sessionId",
+          "ip",
+          "durationMs",
+          "before",
+          "after",
+          "origin"
+        ]
+      },
+      "RatesSnapshot": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 1000000000000
+          },
+          "mode": {
+            "enum": [
+              "demo",
+              "live"
+            ]
+          },
+          "active": {
+            "$ref": "#/components/schemas/ActivePricing"
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RateRelease"
+            }
+          },
+          "audit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            }
+          },
+          "processed_requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "payload": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "payload"
+              ]
+            }
+          }
+        },
+        "required": [
+          "schema_version",
+          "revision",
+          "mode",
+          "active",
+          "releases",
+          "audit",
+          "processed_requests"
+        ]
+      },
+      "RatesCommand": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "expected_revision": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0,
+                "maximum": 1000000000000
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 500
+              },
+              "action": {
+                "const": "PROPOSE"
+              },
+              "policies": {
+                "type": "array",
+                "minItems": 7,
+                "maxItems": 7,
+                "items": {
+                  "$ref": "#/components/schemas/RatePolicy"
+                }
+              }
+            },
+            "required": [
+              "expected_revision",
+              "reason",
+              "action",
+              "policies"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "expected_revision": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0,
+                "maximum": 1000000000000
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 500
+              },
+              "action": {
+                "enum": [
+                  "APPROVE",
+                  "REJECT"
+                ]
+              },
+              "release_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "reason",
+              "action",
+              "release_id"
+            ]
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    }
+  }
+}

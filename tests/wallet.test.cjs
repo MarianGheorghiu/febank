@@ -64,10 +64,10 @@ test('all available crypto and stock values derive from transfer accounts; USD c
     const initial=await overview.getSnapshot();
     const btc=await transfers.quote({...draft,source_account_id:'account-BTC',route_id:'route-BTC',amount:'0.1',destination:'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'});
     await transfers.submit(btc.id,'btc-request');
-    const next=await overview.getSnapshot();assert.equal(next.summary.crypto_quantity,'2.30493000');assert.ok(units(next.summary.crypto_value,2)<units(initial.summary.crypto_value,2));
+    const next=await overview.getSnapshot();assert.equal(btc.fee_asset,'USD');assert.equal(next.summary.crypto_quantity,'2.30500000');assert.ok(units(next.summary.crypto_value,2)<units(initial.summary.crypto_value,2));
     const stock=await transfers.quote({...draft,source_account_id:'account-NVDA',route_id:'route-NVDA',amount:'10',destination:'DTC-9902'});
     const sent=await transfers.submit(stock.id,'stock-request');const report=await overview.getSnapshot();
-    assert.equal(report.summary.liquidity,usd(sent).available);assert.equal(report.summary.liquidity,'142336.00');
+    assert.equal(report.summary.liquidity,usd(sent).available);assert.equal(report.summary.liquidity,(Number(initial.summary.liquidity)-Number(btc.fee)-Number(stock.fee)).toFixed(2));
     assert.equal(units(initial.summary.investments,2)-units(report.summary.investments,2),BigInt(1230000));
     assert.equal(report.histories.stocks['1M'].points.at(-1).value,report.summary.investments);
     assert.equal(report.histories.crypto['1M'].points.at(-1).value,report.summary.crypto_quantity);
@@ -135,10 +135,10 @@ test('HTTP overview uses the same service origin, authentication and idempotency
 
 const {MOCK_MARKETS_STATE: catalog, MOCK_TRADING_WALLET: legacyOpening} = require('../app/lib/mock/admin/markets.ts');
 const {projectTrading} = require('../app/lib/wallet/trading.ts');
-const {executeCustomerCommand} = require('../app/lib/markets/store.ts');
+const {executeCustomerCommand,readMarketCatalog} = require('../app/lib/markets/store.ts');
 const {availableCash, availableUnits, quoteTrade, submitTrade} = require('../app/lib/markets/engine.ts');
 function tradeFor(customer, symbol, side, quantity, extra={}) {
-  const view = projectTrading(readWallet(customer).state, catalog, customer);
+  const view = projectTrading(readWallet(customer).state, readMarketCatalog(customer), customer);
   const item = view.instruments.find(i=>i.symbol===symbol);
   return {type:'trade', request:{symbol,side,quantity,type:'MARKET',expectedVersion:item.version,expectedRoutingVersion:view.routing[item.domain].version,...extra}};
 }
@@ -146,7 +146,7 @@ function execute(customer, command, key) { return executeCustomerCommand(command
 test('buy and sell settle against the bank USD account and fractional custody position, isolated by customer', async()=>{
  const env=browser();try {
   const customer='trader@example.test'; const opening=await createOverviewRepository(customer).getSnapshot();
-  const command=tradeFor(customer,'AAPL','BUY',0.5); const expected=quoteTrade(catalog.instruments.find(i=>i.symbol==='AAPL'),'BUY',0.5);
+  const command=tradeFor(customer,'AAPL','BUY',0.5); const expected=quoteTrade(readMarketCatalog(customer).instruments.find(i=>i.symbol==='AAPL'),'BUY',0.5);
   const bought=execute(customer,command,'buy-shared');
   assert.equal(availableCash(bought,customer).toFixed(2),(Number(opening.summary.liquidity)-expected.cashAmount).toFixed(2));
   assert.equal((await createOverviewRepository(customer).getSnapshot()).summary.liquidity,availableCash(bought,customer).toFixed(2));
@@ -185,18 +185,20 @@ test('pending buy and sell orders reserve the same funds/assets as transfers and
 test('fiat and two-leg crypto exchanges commit once and roll back both legs on failure or storage quota',async()=>{
  const env=browser();try {
   const customer='exchange@example.test';
-  execute(customer,{type:'exchange',source:'EUR',target:'RON',amount:108,revision:0},'fx-shared');
+  const fxView=projectTrading(readWallet(customer).state,readMarketCatalog(customer),customer);
+  const fxPreview=require('../app/lib/markets/engine.ts').previewExchange(fxView,'EUR','RON',108);
+  execute(customer,{type:'exchange',source:'EUR',target:'RON',amount:108,revision:fxView.revision},'fx-shared');
   let state=readWallet(customer).state;
   assert.equal(state.transfers.accounts.find(a=>a.asset==='EUR').available,'24392.00');
-  assert.equal(state.transfers.accounts.find(a=>a.asset==='RON').available,'38530.18');
-  const view=projectTrading(state,catalog,customer);
+  assert.equal(state.transfers.accounts.find(a=>a.asset==='RON').available,(38000+fxPreview.received).toFixed(2));
+  const view=projectTrading(state,readMarketCatalog(customer),customer);
   execute(customer,{type:'exchange',source:'BTC',target:'ETH',amount:0.001,revision:view.revision},'crypto-swap');
   state=readWallet(customer).state;
   assert.equal(state.transfers.accounts.find(a=>a.asset==='BTC').available,'2.40400000');
   assert.ok(Number(state.transfers.accounts.find(a=>a.asset==='ETH').available)>12.4);
   const financial = state => JSON.stringify({...state, transfers:{...state.transfers,as_of:""}});
   const before=financial(state);
-  assert.throws(()=>execute(customer,{type:'exchange',source:'BTC',target:'ETH',amount:5,revision:projectTrading(state,catalog,customer).revision},'failed-swap'),/Insufficient|Order value/);
+  assert.throws(()=>execute(customer,{type:'exchange',source:'BTC',target:'ETH',amount:5,revision:projectTrading(state,readMarketCatalog(customer),customer).revision},'failed-swap'),/Insufficient|Order value/);
   assert.equal(financial(readWallet(customer).state),before);
   const save=sessionStorage.setItem;sessionStorage.setItem=()=>{throw new Error('quota');};
   assert.throws(()=>execute(customer,tradeFor(customer,'AAPL','BUY',1),'quota-buy'),/quota/);

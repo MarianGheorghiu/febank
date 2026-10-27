@@ -31,7 +31,8 @@
     "test:offers": "node tests/offers.test.cjs",
     "test:analytics": "node tests/analytics.test.cjs",
     "test:settings": "node tests/settings.test.cjs",
-    "test:user-management": "node tests/user-management.test.cjs"
+    "test:user-management": "node tests/user-management.test.cjs",
+    "test:rates": "node tests/rates.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",

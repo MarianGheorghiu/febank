@@ -6,11 +6,14 @@ import { useUser } from "@/app/context/UserContext";
 import { createOverviewRepository } from "@/app/lib/overview/repository";
 import { ActionButton } from "./ActionButton";
 import { notifyOperation } from "@/app/components/ui/OperationNotification";
+import { useWalletAccounts } from "@/app/lib/wallet/use-wallet";
+import { estimateFee } from "@/app/lib/transfers/engine";
 import { formatMoney } from "@/app/lib/overview/engine";
 function OperationDialog({ onClose, type, balance, onSubmit }: {
   onClose: () => void; type: OverviewOperation["type"]; balance: string;
   onSubmit: (operation: OverviewOperation) => Promise<void>;
 }) {
+  const wallet = useWalletAccounts();
   const dialog = useRef<HTMLDialogElement>(null);
   const operationId = useRef<string | null>(null);
   const operationPayload = useRef("");
@@ -35,12 +38,15 @@ function OperationDialog({ onClose, type, balance, onSubmit }: {
   }[type];
   const inputClass = "w-full min-w-0 rounded-xl border border-white/10 bg-[#060d1b] px-4 py-3 text-base sm:text-sm font-mono text-slate-100 placeholder:text-slate-600 outline-none transition-colors duration-200 focus:border-cyan-400/40 focus:ring-2 focus:ring-cyan-400/5 disabled:opacity-50";
   const labelClass = "block space-y-2 text-[10px] font-bold font-mono text-slate-400 uppercase tracking-widest";
+  const account=wallet.snapshot?.accounts.find(a=>a.asset==="USD"),route=wallet.snapshot?.routes.find(r=>r.id===(method==="iban"?"route-USD":"phone-USD"));
+  let transferFee:ReturnType<typeof estimateFee>|null=null;
+  if(type==="transfer"&&wallet.snapshot&&account&&route&&amount)try{transferFee=estimateFee(wallet.snapshot,account,route,amount);}catch{/* Invalid inputs are handled by the form and repository. */}
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (processing) return;
     setError(""); setProcessing(true);
     try {
-      const draft = { type, amount, ...(type === "transfer" ? { recipient_name: name, recipient_kind: method, recipient } : {}) };
+      const draft = { type, amount, ...(type === "transfer" && route?.pricing && transferFee ? { pricing_version: route.pricing.version, quoted_fee: transferFee.amount } : {}), ...(type === "transfer" ? { recipient_name: name, recipient_kind: method, recipient } : {}) };
       const payload = JSON.stringify(draft);
       if (operationPayload.current !== payload) { operationPayload.current = payload; operationId.current = crypto.randomUUID(); }
       await onSubmit({ id: operationId.current!, ...draft });
@@ -85,9 +91,10 @@ function OperationDialog({ onClose, type, balance, onSubmit }: {
       </>}
       <label className={labelClass}>Amount (USD)<input autoFocus={type !== "transfer"} inputMode="decimal" required placeholder="0.00" disabled={processing} value={amount} onChange={e => setAmount(e.target.value)} className={inputClass} /></label>
       {type !== "transfer" && <div className="grid grid-cols-4 gap-2">{[50,100,500,1000].map(value => <ActionButton key={value} variant="blue" fullWidth compact disabled={processing} onClick={() => setAmount(String(value))}>{value}</ActionButton>)}</div>}
+      {type === "transfer" && <div aria-live="polite" className="space-y-2 rounded-xl border border-purple-300/15 bg-purple-400/5 p-3 text-xs text-slate-300">{transferFee?<><p className="flex justify-between gap-3"><span>Transfer fee</span><strong>{formatMoney(transferFee.amount)}</strong></p><p className="flex justify-between gap-3"><span>Total USD reservation</span><strong>{formatMoney(Number(amount)+Number(transferFee.amount))}</strong></p></>:<p>{wallet.error||"Enter a valid amount to review the current transfer fee."}</p>}</div>}
       <div className="h-px bg-gradient-to-r from-transparent via-blue-300/10 to-transparent" />
       {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
-      <ActionButton type="submit" variant={config.button} fullWidth disabled={processing || !amount.trim()} icon={processing ? <Loader2 size={16} className="animate-spin" /> : <config.Icon size={16} />} className="min-h-13 tracking-widest">{processing ? "Processing…" : `Confirm ${type}`}</ActionButton>
+      <ActionButton type="submit" variant={config.button} fullWidth disabled={processing || !amount.trim() || (type === "transfer" && !transferFee)} icon={processing ? <Loader2 size={16} className="animate-spin" /> : <config.Icon size={16} />} className="min-h-13 tracking-widest">{processing ? "Processing…" : `Confirm ${type}`}</ActionButton>
       <p className="text-center text-[9px] font-mono text-slate-500 tracking-wide">DEMO OPERATION · NO REAL FUNDS MOVED</p>
     </form>
   </dialog>;

@@ -102,8 +102,10 @@ test('cross-domain swaps cannot bypass a destination emergency stop',()=>{
 test('shared stores block execution before persistence and fail closed on corrupt risk storage',()=>{
   const values=new Map();global.localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
   executeRiskCommand({action:'FREEZE',email:client.email,expectedRevision:0,reason},admin);
-  const { executeTrade, executeMarketAdmin }=require('../app/lib/markets/store.ts');
-  const request={symbol:'AAPL',side:'BUY',quantity:1,type:'MARKET',expectedVersion:1,expectedRoutingVersion:1};
+  const { executeTrade, executeMarketAdmin, readMarketCatalog }=require('../app/lib/markets/store.ts');
+  // Customer reviews include the published pricing context in instrument versions.
+  const catalog=readMarketCatalog(client.email),item=catalog.instruments.find(i=>i.symbol==='AAPL');
+  const request={symbol:'AAPL',side:'BUY',quantity:1,type:'MARKET',expectedVersion:item.version,expectedRoutingVersion:catalog.routing.STOCK.version};
   assert.throws(()=>executeTrade(request,client),/Risk Control/);assert.equal(values.has('mbank_markets_v1'),false);
   values.set(RISK_STORAGE_KEY,'{broken');assert.throws(()=>executeTrade(request,client));assert.equal(values.has('mbank_markets_v1'),false);
   assert.throws(()=>executeRiskCommand({action:'FREEZE',email:'other@example.test',expectedRevision:0,reason},admin));

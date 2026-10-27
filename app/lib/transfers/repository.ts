@@ -1,3 +1,4 @@
+import { priceTransfers, executionRates } from "../rates/execution";
 import type { TransferRepository, TransferQuote, TransferSnapshot } from "./contracts";
 import { buildQuote } from "./engine";
 import { parseQuote, parseSnapshot } from "./response";
@@ -8,9 +9,9 @@ export function createDemoTransferRepository(clientId: string): TransferReposito
   const quotes = new Map<string, TransferQuote>();
   function validKey(key: string) { if (!/^[A-Za-z0-9-]{8,100}$/.test(key)) throw new Error("Invalid idempotency key."); }
   return {
-    async getSnapshot() { return readWallet(clientId).state.transfers; },
+    async getSnapshot() { return priceTransfers(readWallet(clientId).state.transfers, clientId); },
     async quote(draft) {
-      const quote = buildQuote(readWallet(clientId).state.transfers, draft, crypto.randomUUID(), new Date().toISOString());
+      const quote = buildQuote(priceTransfers(readWallet(clientId).state.transfers, clientId), draft, crypto.randomUUID(), new Date().toISOString());
       quotes.set(quote.id, quote);
       return structuredClone(quote);
     },
@@ -25,6 +26,8 @@ export function createDemoTransferRepository(clientId: string): TransferReposito
       }
       const quote = quotes.get(quoteId);
       if (!quote) throw new Error("Quote unavailable. Review a new quote.");
+      const currentPricing = executionRates(clientId);
+      if (quote.pricing && (quote.pricing.version !== currentPricing.version || quote.pricing.tier !== currentPricing.tier || quote.pricing.weekend !== currentPricing.weekend)) throw new Error("Fee policy changed. Review a new quote.");
       const at = new Date().toISOString();
       return commitWallet(clientId, { kind: "submit", quote, key, at }).transfers;
     },

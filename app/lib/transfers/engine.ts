@@ -1,3 +1,4 @@
+import { calculateRate } from "../rates/engine";
 import type { TransferDraft, TransferSnapshot, TransferQuote, CustomerTransfer, TransferAccount, TransferRoute } from "./contracts";
 
 const ZERO = BigInt(0);
@@ -68,6 +69,13 @@ export function estimateFee(snapshot: TransferSnapshot, account: TransferAccount
   if (!route.enabled || route.asset !== account.asset) throw new Error("Select a compatible route.");
   const quantity = units(amount, account.decimals);
   if (quantity <= ZERO) throw new Error("Amount must be greater than zero.");
+  if (route.pricing) {
+    const p = route.pricing;
+    const usd = usdValue(quantity, account.decimals, account.usd_price, "nearest");
+    const result = calculateRate(p.policy, Math.max(1, Number(usd)), p.tier, p.weekend);
+    if (!snapshot.accounts.some(a => a.id === "account-USD")) throw new Error("USD fee account unavailable.");
+    return { amount: decimal(BigInt(result.fee_minor), 2), asset: "USD", account_id: "account-USD" };
+  }
   const policy = route.fee_policy;
   if (!policy) return { amount: decimal(units(route.fee, account.decimals), account.decimals), asset: account.asset, account_id: account.id };
   const feeAccount = snapshot.accounts.find(a => a.id === policy.debit_account_id);
@@ -101,12 +109,12 @@ export function buildQuote(snapshot: TransferSnapshot, input: TransferDraft, id:
   let value = usdValue(total, account.decimals, account.usd_price);
   if (!sameAccount) value += usdValue(fee, feeAccount.decimals, feeAccount.usd_price);
   if (dayUsage(snapshot, now) + value > units(snapshot.limits.daily_limit, 2)) throw new Error("This transfer would exceed your daily limit, including fees.");
-  return { id, draft: { ...input, amount: decimal(quantity, account.decimals), recipient_name: input.recipient_name.trim(), destination: destination(input.destination, route.destination_kind, route.network), reference: input.reference.trim() }, asset: account.asset, fee: estimate.amount, fee_asset: estimate.asset, fee_account_id: feeAccount.id, total: decimal(total, account.decimals), value_usd: decimal(value, 2), expires_at: new Date(Date.parse(now) + 10 * 60 * 1000).toISOString(), eta: route.eta };
+  return { id, ...(route.pricing ? { pricing: route.pricing } : {}), draft: { ...input, amount: decimal(quantity, account.decimals), recipient_name: input.recipient_name.trim(), destination: destination(input.destination, route.destination_kind, route.network), reference: input.reference.trim() }, asset: account.asset, fee: estimate.amount, fee_asset: estimate.asset, fee_account_id: feeAccount.id, total: decimal(total, account.decimals), value_usd: decimal(value, 2), expires_at: new Date(Date.parse(now) + 10 * 60 * 1000).toISOString(), eta: route.eta };
 }
 export function applyTransfer(snapshot: TransferSnapshot, quote: TransferQuote, id: string, now: string): TransferSnapshot {
   if (Date.parse(quote.expires_at) <= Date.parse(now)) throw new Error("Your quote expired. Review a new quote.");
   // Existing v1 demo events retain their original fixed fee when replayed.
-  const validationSnapshot = quote.fee_asset ? snapshot : { ...snapshot, routes: snapshot.routes.map(r => ({ ...r, fee_policy: undefined })) };
+  const validationSnapshot = quote.pricing ? { ...snapshot, routes: snapshot.routes.map(r => r.id === quote.draft.route_id ? { ...r, pricing: quote.pricing } : r) } : quote.fee_asset ? snapshot : { ...snapshot, routes: snapshot.routes.map(r => ({ ...r, fee_policy: undefined })) };
   const checked = buildQuote(validationSnapshot, quote.draft, quote.id, now);
   if (checked.total !== quote.total || checked.value_usd !== quote.value_usd || checked.asset !== quote.asset || checked.fee !== quote.fee || checked.draft.amount !== quote.draft.amount || checked.draft.destination !== quote.draft.destination || (quote.fee_asset !== undefined && (checked.fee_asset !== quote.fee_asset || checked.fee_account_id !== quote.fee_account_id))) throw new Error("The quote changed. Review a new quote.");
   const next = structuredClone(snapshot);

@@ -18,8 +18,8 @@ export function createLocalStocksRepository(customer: string): StocksRepository 
   const actor = { email: customer, role: "client" as const }, currencies = createDemoCurrencyRepository(customer);
   const key = `mbank_stock_plans_v1:${encodeURIComponent(customer)}`;
   const quotes = new Map<string, { request: TradeRequest; expires: number; fingerprint: string }>();
-  function view() { return projectTrading(readWallet(customer).state, readMarketCatalog(), customer); }
-  function fingerprint() { const { state, events } = readWallet(customer); return JSON.stringify([readMarketCatalog(), state.transfers.accounts, state.trading, events.map(event => event.key)]); }
+  function view() { return projectTrading(readWallet(customer).state, readMarketCatalog(customer), customer); }
+  function fingerprint() { const { state, events } = readWallet(customer); return JSON.stringify([readMarketCatalog(customer), state.transfers.accounts, state.trading, events.map(event => event.key)]); }
   function journal(): PlanEvent[] {
     const raw = sessionStorage.getItem(key); if (!raw) return [];
     let data: unknown; try { data = JSON.parse(raw); } catch { throw new Error("Saved investment plans could not be read. Your data was preserved."); }
@@ -27,7 +27,7 @@ export function createLocalStocksRepository(customer: string): StocksRepository 
     return data as PlanEvent[];
   }
   function plans(events = journal()) {
-    const names = new Map(readMarketCatalog().instruments.map(item => [item.symbol, item.name]));
+    const names = new Map(readMarketCatalog(customer).instruments.map(item => [item.symbol, item.name]));
     const today = new Date().toISOString().slice(0, 10);
     return events.reduce((result, event) => applyPlanCommand(result, event, names, today), seedPlans(today));
   }
@@ -91,7 +91,7 @@ export function createLocalStocksRepository(customer: string): StocksRepository 
   }
   return { getSnapshot: consistentSnapshot,
     async quote(draft) {
-      const request = validateDraft(draft), id = crypto.randomUUID(), catalog = readMarketCatalog();
+      const request = validateDraft(draft), id = crypto.randomUUID(), catalog = readMarketCatalog(customer);
       const execution = applyTrading(readWallet(customer).state, catalog, { type: "trade", request }, actor, new Date().toISOString(), id);
       const order = execution.after.orders.find(o => o.id === id)!;
       const item = execution.before.instruments.find(i => i.symbol === draft.symbol)!;

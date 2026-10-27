@@ -19,6 +19,7 @@ export interface TransferFeePolicy {
   debit_account_id: string;
 }
 export interface TransferRoute {
+  pricing?: import("../rates/execution").ExecutionRate;
   id: string;
   asset: string;
   name: string;
@@ -38,6 +39,7 @@ export interface TransferDraft {
   reference: string;
 }
 export interface TransferQuote {
+  pricing?: import("../rates/execution").ExecutionRate;
   id: string;
   draft: TransferDraft;
   asset: string;

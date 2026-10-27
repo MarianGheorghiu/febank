@@ -100,6 +100,7 @@ test('applications stay pending without releasing cash, and factoring holds rele
 });
 
 test('Lombard uses shared available positions and excludes pending selections and ineligible holdings', async () => {
+  const env = browser(); try {
   const repository = createCreditRepository('collateral-customer'); const snapshot = await repository.getSnapshot();
   const btc = snapshot.collateral.find(asset => asset.symbol === 'BTC');
   const sol = snapshot.collateral.find(asset => asset.symbol === 'SOL');
@@ -115,6 +116,7 @@ test('Lombard uses shared available positions and excludes pending selections an
   await transfers.submit(quote.id, 'collateral-send1');
   const refreshed = await repository.getSnapshot();
   assert.ok(Number(refreshed.collateral.find(asset => asset.id === btc.id).capacity) < Number(btc.capacity));
+  } finally { env.close(); }
 });
 
 test('one revenue policy excludes disconnected sources, accounts for pending requests and distinguishes factor fee from APR', async () => {

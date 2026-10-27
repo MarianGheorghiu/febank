@@ -1,3 +1,4 @@
+import { calculateRate } from "../rates/engine";
 import { MOCK_TRADING_FX, MOCK_TRADING_WALLET } from "@/app/lib/markets/seed";
 import type { MarketActor, MarketAdminCommand, MarketDomain, MarketOrder, MarketsState, TradeQuote, TradeRequest, TradingInstrument, TradingWallet } from "@/app/lib/types/admin/markets";
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -18,6 +19,7 @@ export function availableUnits(state: MarketsState, email: string, symbol: strin
   return (walletFor(state, email).units[symbol] ?? 0) - state.orders.filter(order => order.userEmail === email.toLowerCase() && order.symbol === symbol && order.status === "PENDING" && order.side === "SELL").reduce((sum, order) => sum + order.quantity, 0);
 }
 export function tradingRestriction(state: MarketsState, item: TradingInstrument, side: "BUY" | "SELL", type: MarketOrder["type"] = "MARKET"): string | null {
+  if (item.pricing && !item.pricing.policy.enabled) return "This product is paused by the Rates & Fee Engine.";
   if (state.routing[item.domain].status === "HALTED") return `${item.domain === "CRYPTO" ? "Crypto" : "Stock"} trading is suspended by bank operations.`;
   if (side === "BUY" && state.routing[item.domain].status === "SELL_ONLY") return "Only sell orders are currently permitted by bank operations.";
   if (item.status === "HALTED") return `${item.symbol} trading is suspended.`;
@@ -32,25 +34,30 @@ export function quoteTrade(item: TradingInstrument, side: "BUY" | "SELL", quanti
   if (!MOCK_TRADING_FX[currency]) throw new Error("Unsupported settlement currency.");
   const price = priceOverride ?? item.priceUsd * (1 + (side === "BUY" ? 1 : -1) * item.spreadBps / 10000);
   const notionalUsd = money(quantity * price);
-  const feeUsd = money(notionalUsd * item.feeBps / 10000);
+  if (!finite(price, 0.00000001) || notionalUsd < item.minOrderUsd || notionalUsd > item.maxOrderUsd) throw new Error(`Order value must be between $${item.minOrderUsd} and $${item.maxOrderUsd}, before fees.`);
+  const feeUsd = tradingFee(item, notionalUsd);
   const totalUsd = money(notionalUsd + (side === "BUY" ? feeUsd : -feeUsd));
   if (!finite(price, 0.00000001) || notionalUsd < item.minOrderUsd || notionalUsd > item.maxOrderUsd || totalUsd <= 0) throw new Error(`Order value must be between $${item.minOrderUsd} and $${item.maxOrderUsd}, before fees.`);
   return { price, notionalUsd, feeUsd, totalUsd, cashAmount: money(totalUsd / MOCK_TRADING_FX[currency]) };
+}
+function tradingFee(item: TradingInstrument, notional: number) {
+  const p = item.pricing;
+  return p ? calculateRate(p.policy, Math.round(notional * 100), p.tier, p.weekend).fee_minor / 100 : money(notional * item.feeBps / 10000);
 }
 export function quantityForBudget(item: TradingInstrument, amount: number, currency = "USD", strictBudget = false) {
   const precision = item.fractional ? 1e8 : 1;
   const price = item.priceUsd * (1 + item.spreadBps / 10000);
   const fx = MOCK_TRADING_FX[currency] ?? 0;
   if (!finite(amount, 0, 1e12) || !fx || !Number.isFinite(price) || price <= 0) return 0;
-  let high = Math.min(Number.MAX_SAFE_INTEGER, Math.floor(amount * fx / (price * (1 + item.feeBps / 10000)) * precision));
-  if (!strictBudget) return Math.floor(amount * fx / (price * (1 + item.feeBps / 10000)) * precision) / precision;
+  let high = Math.min(Number.MAX_SAFE_INTEGER, Math.floor(amount * fx / (price * (item.pricing ? 1 : (1 + item.feeBps / 10000))) * precision));
+  if (!strictBudget && !item.pricing) return Math.floor(amount * fx / (price * (1 + item.feeBps / 10000)) * precision) / precision;
   let low = 0;
   // Notional, fees and settlement round separately. Never let the rounded buy
   // consume pre-existing cash beyond the selected source budget.
   while (low < high) {
     const middle = low + Math.ceil((high - low) / 2);
     const notional = money(middle / precision * price);
-    const cost = money(money(notional + money(notional * item.feeBps / 10000)) / fx);
+    const cost = money(money(notional + tradingFee(item, notional)) / fx);
     if (cost <= amount) low = middle;
     else high = middle - 1;
   }
@@ -170,6 +177,11 @@ export function previewExchange(state: MarketsState, source: string, target: str
     const restriction = tradingRestriction(state, sourceItem, "SELL"); if (restriction) throw new Error(restriction);
     const quote = quoteTrade(sourceItem, "SELL", amount); proceedsUsd = quote.totalUsd; feeUsd += quote.feeUsd;
   } else if (money(amount) !== amount) throw new Error("Fiat amounts support at most two decimal places.");
+  if (!sourceItem && !targetItem && state.fx_pricing) {
+    const p = state.fx_pricing;
+    feeUsd = calculateRate(p.policy, Math.round(proceedsUsd * 100), p.tier, p.weekend).fee_minor / 100;
+    proceedsUsd -= feeUsd;
+  }
   let received = money(proceedsUsd / (MOCK_TRADING_FX[target] ?? 1));
   if (targetItem) {
     const restriction = tradingRestriction(state, targetItem, "BUY"); if (restriction) throw new Error(restriction);

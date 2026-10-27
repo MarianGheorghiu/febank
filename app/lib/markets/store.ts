@@ -1,4 +1,5 @@
 "use client";
+import { priceMarkets } from "../rates/execution";
 import { useSyncExternalStore } from "react";
 import { readRiskForExecution } from "@/app/lib/risk/store";
 import { enforceMarketRisk } from "@/app/lib/risk/engine";
@@ -30,10 +31,10 @@ function read(): MarketsState {
   try { const raw = localStorage.getItem(KEY); if (!raw) return MOCK_MARKETS_STATE; const data: unknown = JSON.parse(raw); if (!valid(data)) throw new Error("Invalid market data"); return data; }
   catch { warning = "Saved market data could not be restored. Demo defaults are shown and operations are blocked until browser storage is repaired."; return MOCK_MARKETS_STATE; }
 }
-export function readMarketCatalog(): MarketsState {
+export function readMarketCatalog(customer?: string): MarketsState {
   const catalog = read();
   if (warning) throw new Error(warning);
-  return structuredClone(catalog);
+  return customer ? priceMarkets(catalog, customer) : structuredClone(catalog);
 }
 function getSnapshot() { if (typeof window === "undefined") return MOCK_MARKETS_STATE; return snapshot ??= read(); }
 function subscribe(listener: () => void) {
@@ -87,16 +88,17 @@ export function executeMarketAdmin(command: MarketAdminCommand, actor: MarketAct
   }
   for (const customer of targets) {
     const at = new Date().toISOString(), key = crypto.randomUUID();
-    const execution = applyTradingAdmin(readWallet(customer).state, catalog, customer, command, actor, at, key);
+    const executionCatalog = command.action === "PROCESS" ? priceMarkets(catalog, customer) : catalog;
+    const execution = applyTradingAdmin(readWallet(customer).state, executionCatalog, customer, command, actor, at, key);
     enforceMarketRisk(readRiskForExecution(), execution.before, execution.after);
-    commitWallet(customer, { kind: "trading_admin", key, at, catalog, command, actor, customer });
+    commitWallet(customer, { kind: "trading_admin", key, at, catalog: executionCatalog, command, actor, customer });
   }
   return projectAllCustomers(catalog);
 }
 /** One canonical journal commit; never write a second balance to market localStorage. */
 export function executeCustomerCommand(command: TradingCommand, actor: MarketActor, key = crypto.randomUUID()) {
   if ((process.env.NEXT_PUBLIC_TRANSFERS_MODE ?? "demo") !== "demo") throw new Error("Customer trading requires the shared wallet service adapter in HTTP mode.");
-  const catalog = read(); if (warning) throw new Error(warning);
+  const catalog = command.type === "cancel_order" ? readMarketCatalog() : readMarketCatalog(actor.email);
   const at = new Date().toISOString();
   const { state, events } = readWallet(actor.email);
   if (events.some(event => event.key === key)) return projectTrading(commitWallet(actor.email, { kind: "trading", key, at, catalog, command, actor }), catalog, actor.email);

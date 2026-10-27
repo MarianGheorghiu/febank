@@ -1,4 +1,5 @@
 "use client";
+import { priceMarkets } from "../rates/execution";
 import { useMemo, useSyncExternalStore } from "react";
 import { useUser } from "../../context/UserContext";
 import { useGlobalMarketsState, projectAllCustomers } from "./store";
@@ -7,8 +8,10 @@ import { projectTrading } from "../wallet/trading";
 let revision = 0;
 function subscribe(listener: () => void) {
   const changed = () => { revision++; listener(); };
+  const storage = (e: StorageEvent) => { if (e.key === "mbank_rates_v1" || e.key === "mbank_subscriptions_v1" || e.key === null) changed(); };
+  window.addEventListener("storage", storage);
   window.addEventListener(WALLET_EVENT, changed);
-  return () => window.removeEventListener(WALLET_EVENT, changed);
+  return () => { window.removeEventListener(WALLET_EVENT, changed); window.removeEventListener("storage", storage); };
 }
 export function useMarketsState() {
   const catalog = useGlobalMarketsState();
@@ -19,6 +22,6 @@ export function useMarketsState() {
     if (user.role === "admin") return projectAllCustomers(catalog);
     if ((process.env.NEXT_PUBLIC_TRANSFERS_MODE ?? "demo") !== "demo") throw new Error("Customer trading requires the shared wallet service adapter in HTTP mode.");
     void current; // Wallet notifications invalidate this memo independently of catalog changes.
-    return projectTrading(readWallet(user.email).state, catalog, user.email);
+    return projectTrading(readWallet(user.email).state, priceMarkets(catalog, user.email), user.email);
   }, [catalog, current, user]);
 }

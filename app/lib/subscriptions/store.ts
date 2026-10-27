@@ -41,6 +41,8 @@ export const mockSubscriptionsRepository: SubscriptionsRepository = {
     if (!validSubscriptionState(next)) throw new Error("Invalid operation result. No changes saved.");
     try { localStorage.setItem(SUBSCRIPTIONS_STORAGE_KEY, JSON.stringify(next)); }
     catch { throw new Error("Subscription storage is unavailable or full. No changes saved."); }
-    cached = next; warning = null; listeners.forEach(fn => fn()); return next;
+    cached = next; warning = null; listeners.forEach(fn => fn());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("mbank:wallet-updated"));
+    return next;
   },
 };

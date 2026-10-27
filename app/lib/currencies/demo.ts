@@ -13,10 +13,10 @@ export function createDemoCurrencyRepository(customer: string): CurrencyReposito
   customer = customer.trim().toLowerCase();
   const actor = { email: customer, role: "client" as const };
   const quotes = new Map<string, { draft: ExchangeDraft; revision: number; fingerprint: string; expires: number }>();
-  function view() { return projectTrading(readWallet(customer).state, readMarketCatalog(), customer); }
+  function view() { return projectTrading(readWallet(customer).state, readMarketCatalog(customer), customer); }
   function fingerprint(state: ReturnType<typeof view>) { return JSON.stringify([state.revision, state.accountBalances]); }
   function snapshot(): CurrencySnapshot {
-    const catalog = readMarketCatalog();
+    const catalog = readMarketCatalog(customer);
     const { state, events } = readWallet(customer);
     const prices = new Map(catalog.instruments.map(i => [i.symbol, i.priceUsd.toFixed(8)]));
     const point = (accounts: TransferAccount[], id: string, at: string | null): CurrencyPoint => {

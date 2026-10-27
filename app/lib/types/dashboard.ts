@@ -25,6 +25,8 @@ export interface OverviewSnapshot {
   assets: MarketAsset[]; transactions: TransferTransaction[];
 }
 export interface OverviewOperation {
+  /** Demo quick-transfer review context; authoritative services own quote validation. */
+  pricing_version?: number; quoted_fee?: string;
   id: string; type: "deposit" | "withdraw" | "transfer"; amount: Decimal;
   recipient_name?: string; recipient_kind?: "iban" | "phone"; recipient?: string;
 }

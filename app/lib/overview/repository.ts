@@ -1,3 +1,4 @@
+import { priceTransfers } from "../rates/execution";
 import type { OverviewOperation, OverviewSnapshot } from "../types/dashboard";
 import { buildQuote } from "../transfers/engine";
 import { projectOverview } from "../wallet/engine";
@@ -36,7 +37,8 @@ export function createOverviewRepository(clientId: string): OverviewRepository {
       }
       const at = new Date().toISOString();
       if (operation.type === "transfer") {
-        const quote = buildQuote(state.transfers, { source_account_id: "account-USD", route_id: operation.recipient_kind === "phone" ? "phone-USD" : operation.recipient_kind === "iban" ? "route-USD" : "", amount: operation.amount, recipient_name: operation.recipient_name ?? "", destination: operation.recipient ?? "", reference: "Overview transfer" }, `quote-${operation.id}`, at);
+        const quote = buildQuote(priceTransfers(state.transfers, clientId), { source_account_id: "account-USD", route_id: operation.recipient_kind === "phone" ? "phone-USD" : operation.recipient_kind === "iban" ? "route-USD" : "", amount: operation.amount, recipient_name: operation.recipient_name ?? "", destination: operation.recipient ?? "", reference: "Overview transfer" }, `quote-${operation.id}`, at);
+        if (operation.pricing_version !== undefined && (operation.pricing_version !== quote.pricing?.version || operation.quoted_fee !== quote.fee)) throw new Error("Fee policy changed. Review the refreshed transfer fee.");
         return projectOverview(commitWallet(clientId, { kind: "submit", key: operation.id, at, quote, overview_operation: operation }), at);
       }
       return projectOverview(commitWallet(clientId, { kind: "overview", key: operation.id, at, operation }), at);

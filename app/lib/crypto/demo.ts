@@ -10,7 +10,7 @@ export function createLocalCryptoReader(customer: string) {
   const currencies = createDemoCurrencyRepository(customer);
   return async (): Promise<CryptoSnapshot> => {
     const wallet = await currencies.getSnapshot();
-    const state = projectTrading(readWallet(customer).state, readMarketCatalog(), customer);
+    const state = projectTrading(readWallet(customer).state, readMarketCatalog(customer), customer);
     return { schema_version: 1, as_of: wallet.as_of, wallet,
       market: state.instruments.filter(item => item.domain === "CRYPTO").map(item => {
         const metadata = MOCK_MARKET.find(asset => asset.symbol === item.symbol);
