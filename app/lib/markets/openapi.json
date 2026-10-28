@@ -1,0 +1,916 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank Market Operations",
+    "version": "1.0.0",
+    "description": "Proposed Go service contract; no server routes implemented here."
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/v1/admin/markets/snapshot": {
+      "get": {
+        "operationId": "getMarketOperations",
+        "responses": {
+          "200": {
+            "description": "Authoritative global snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/markets/commands": {
+      "post": {
+        "operationId": "executeMarketOperation",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "schema_version",
+                  "command"
+                ],
+                "properties": {
+                  "schema_version": {
+                    "const": 1
+                  },
+                  "command": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "action",
+                          "reason",
+                          "symbol",
+                          "expectedVersion",
+                          "values"
+                        ],
+                        "properties": {
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "UPDATE"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 10,
+                            "maxLength": 500
+                          },
+                          "symbol": {
+                            "type": "string"
+                          },
+                          "expectedVersion": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "values": {
+                            "type": "object",
+                            "required": [
+                              "status",
+                              "quoteStatus",
+                              "priceUsd",
+                              "feeBps",
+                              "spreadBps",
+                              "minOrderUsd",
+                              "maxOrderUsd",
+                              "fractional",
+                              "lowLiquidityUsd"
+                            ],
+                            "properties": {
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "ACTIVE",
+                                  "SELL_ONLY",
+                                  "HALTED"
+                                ]
+                              },
+                              "quoteStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "HEALTHY",
+                                  "STALE"
+                                ]
+                              },
+                              "priceUsd": {
+                                "type": "string",
+                                "pattern": "^-?\\d+(\\.\\d+)?$",
+                                "description": "Decimal fixed-point, never JSON float"
+                              },
+                              "feeBps": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 500
+                              },
+                              "spreadBps": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 500
+                              },
+                              "minOrderUsd": {
+                                "type": "string",
+                                "pattern": "^-?\\d+(\\.\\d+)?$",
+                                "description": "Decimal fixed-point, never JSON float"
+                              },
+                              "maxOrderUsd": {
+                                "type": "string",
+                                "pattern": "^-?\\d+(\\.\\d+)?$",
+                                "description": "Decimal fixed-point, never JSON float"
+                              },
+                              "fractional": {
+                                "type": "boolean"
+                              },
+                              "lowLiquidityUsd": {
+                                "type": "string",
+                                "pattern": "^-?\\d+(\\.\\d+)?$",
+                                "description": "Decimal fixed-point, never JSON float"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "action",
+                          "reason",
+                          "symbol",
+                          "expectedVersion",
+                          "unitsDelta",
+                          "usdDelta"
+                        ],
+                        "properties": {
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "LIQUIDITY"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 10,
+                            "maxLength": 500
+                          },
+                          "symbol": {
+                            "type": "string"
+                          },
+                          "expectedVersion": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "unitsDelta": {
+                            "type": "string",
+                            "pattern": "^-?\\d+(\\.\\d+)?$",
+                            "description": "Decimal fixed-point, never JSON float"
+                          },
+                          "usdDelta": {
+                            "type": "string",
+                            "pattern": "^-?\\d+(\\.\\d+)?$",
+                            "description": "Decimal fixed-point, never JSON float"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "action",
+                          "reason",
+                          "instrument"
+                        ],
+                        "properties": {
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "CREATE"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 10,
+                            "maxLength": 500
+                          },
+                          "instrument": {
+                            "$ref": "#/components/schemas/Instrument"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "action",
+                          "reason",
+                          "domain",
+                          "status",
+                          "expectedVersion"
+                        ],
+                        "properties": {
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "ROUTING"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 10,
+                            "maxLength": 500
+                          },
+                          "domain": {
+                            "type": "string",
+                            "enum": [
+                              "CRYPTO",
+                              "STOCK"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ACTIVE",
+                              "SELL_ONLY",
+                              "HALTED"
+                            ]
+                          },
+                          "expectedVersion": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "action",
+                          "reason",
+                          "orderId"
+                        ],
+                        "properties": {
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "CANCEL"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 10,
+                            "maxLength": 500
+                          },
+                          "orderId": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "action",
+                          "reason",
+                          "domain"
+                        ],
+                        "properties": {
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "PROCESS"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 10,
+                            "maxLength": 500
+                          },
+                          "domain": {
+                            "type": "string",
+                            "enum": [
+                              "CRYPTO",
+                              "STOCK"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative global snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session"
+      }
+    },
+    "schemas": {
+      "Instrument": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "domain",
+          "venue",
+          "status",
+          "quoteStatus",
+          "priceUsd",
+          "feeBps",
+          "spreadBps",
+          "minOrderUsd",
+          "maxOrderUsd",
+          "fractional",
+          "reserveUnits",
+          "reserveUsd",
+          "lowLiquidityUsd",
+          "version",
+          "updatedAt"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9.-]{0,11}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "CRYPTO",
+              "STOCK"
+            ]
+          },
+          "venue": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SELL_ONLY",
+              "HALTED"
+            ]
+          },
+          "quoteStatus": {
+            "type": "string",
+            "enum": [
+              "HEALTHY",
+              "STALE"
+            ]
+          },
+          "priceUsd": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "feeBps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "spreadBps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "minOrderUsd": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "maxOrderUsd": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "fractional": {
+            "type": "boolean"
+          },
+          "reserveUnits": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "reserveUsd": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "lowLiquidityUsd": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Order": {
+        "type": "object",
+        "required": [
+          "id",
+          "userEmail",
+          "symbol",
+          "domain",
+          "side",
+          "type",
+          "quantity",
+          "targetPrice",
+          "status",
+          "price",
+          "feeUsd",
+          "totalUsd",
+          "currency",
+          "reservedCash",
+          "createdAt",
+          "updatedAt",
+          "note"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "CRYPTO",
+              "STOCK"
+            ]
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY",
+              "SELL"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MARKET",
+              "LIMIT",
+              "STOP"
+            ]
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "targetPrice": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "description": "Decimal fixed-point, never JSON float"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "FILLED",
+              "CANCELLED",
+              "REJECTED"
+            ]
+          },
+          "price": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "feeUsd": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "totalUsd": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "EUR",
+              "RON"
+            ]
+          },
+          "reservedCash": {
+            "type": "string",
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "description": "Decimal fixed-point, never JSON float"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Audit": {
+        "type": "object",
+        "required": [
+          "id",
+          "domain",
+          "action",
+          "target",
+          "actor",
+          "reason",
+          "timestamp",
+          "before",
+          "after"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "CRYPTO",
+              "STOCK"
+            ]
+          },
+          "action": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "before": {},
+          "after": {}
+        },
+        "additionalProperties": false
+      },
+      "State": {
+        "type": "object",
+        "required": [
+          "revision",
+          "instruments",
+          "routing",
+          "wallets",
+          "orders",
+          "audit"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "instruments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Instrument"
+            }
+          },
+          "routing": {
+            "type": "object",
+            "required": [
+              "CRYPTO",
+              "STOCK"
+            ],
+            "properties": {
+              "CRYPTO": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "version",
+                  "updatedAt"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ACTIVE",
+                      "SELL_ONLY",
+                      "HALTED"
+                    ]
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "STOCK": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "version",
+                  "updatedAt"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ACTIVE",
+                      "SELL_ONLY",
+                      "HALTED"
+                    ]
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "wallets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "cash",
+                "units",
+                "costBasis"
+              ],
+              "properties": {
+                "cash": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?$",
+                    "description": "Decimal fixed-point, never JSON float"
+                  }
+                },
+                "units": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?$",
+                    "description": "Decimal fixed-point, never JSON float"
+                  }
+                },
+                "costBasis": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?$",
+                    "description": "Decimal fixed-point, never JSON float"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            }
+          },
+          "audit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Audit"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "Snapshot": {
+        "type": "object",
+        "required": [
+          "schema_version",
+          "as_of",
+          "state"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/State"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

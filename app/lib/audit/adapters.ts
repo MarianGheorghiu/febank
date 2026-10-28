@@ -13,14 +13,14 @@ export function marketAuditEvents(entries: MarketAudit[]): AuditEvent[] {
   return entries.map(e => ({...metadata,id:`markets:${e.id}`,timestamp:e.timestamp,source:"MARKETS",domain:e.domain,category:"CONFIGURATION",action:e.action,severity:["ROUTING","UPDATE"].includes(e.action)?"WARNING":"INFO",actor:e.actor,target:e.target,reason:e.reason,before:e.before,after:e.after}));
 }
 export function marketOrderEvents(orders: MarketOrder[]): AuditEvent[] {
-  return orders.map(o => ({...metadata,id:`orders:${o.id}:${o.status}`,timestamp:o.updatedAt,source:"MARKETS",domain:o.domain,category:"FINANCIAL",action:`ORDER_${o.status}`,severity:o.status==="REJECTED"?"WARNING":"INFO",outcome:o.status==="REJECTED"?"DENIED":"SUCCESS",actor:o.userEmail,actorRole:"CLIENT",target:o.symbol,reason:o.note||`Recorded demo order is ${o.status.toLowerCase()}.`,correlationId:o.id.replace(/-(BUY|SELL)$/,""),before:null,after:{orderId:o.id,status:o.status,side:o.side,type:o.type,quantity:o.quantity,priceUsd:o.price,totalUsd:o.totalUsd,currency:o.currency},origin:"LOCAL"}));
+  return orders.map(o => ({...metadata,id:`orders:${encodeURIComponent(o.userEmail)}:${o.id}:${o.status}`,evidenceKind:"SNAPSHOT",timestamp:o.updatedAt,source:"MARKETS",domain:o.domain,category:"FINANCIAL",action:`ORDER_${o.status}`,severity:o.status==="REJECTED"?"WARNING":"INFO",outcome:o.status==="REJECTED"?"DENIED":"SUCCESS",actor:o.userEmail,actorRole:"CLIENT",target:o.symbol,reason:o.note||`Recorded demo order is ${o.status.toLowerCase()}.`,correlationId:o.id.replace(/-(BUY|SELL)$/,""),before:null,after:{orderId:o.id,status:o.status,side:o.side,type:o.type,quantity:o.quantity,priceUsd:o.price,totalUsd:o.totalUsd,currency:o.currency},origin:o.userEmail.startsWith("markets-demo-")&&o.userEmail.endsWith("@example.test")?"DEMO":"LOCAL"}));
 }
 function riskDomain(e: RiskAudit): AuditEvent["domain"] {
   const value = e.after && typeof e.after === "object" && "domain" in e.after ? e.after.domain : e.target;
   return value === "FIAT" || value === "CRYPTO" || value === "STOCK" ? value : "PLATFORM";
 }
 export function riskAuditEvents(entries: RiskAudit[]): AuditEvent[] {
-  return entries.map(e => ({...metadata,id:`risk:${e.id}`,timestamp:e.timestamp,source:"RISK",domain:riskDomain(e),category:"COMPLIANCE",action:e.action,severity:["FREEZE","APPROVE_RELEASE","POLICY"].includes(e.action)?"WARNING":"INFO",actor:e.actor,target:e.target,reason:e.reason,before:e.before,after:e.after}));
+  return entries.map(e => ({...metadata,id:`risk:${e.id}`,timestamp:e.timestamp,source:"RISK",domain:riskDomain(e),category:e.action==="EXPORT"?"DATA_ACCESS":"COMPLIANCE",action:e.action,severity:["FREEZE","APPROVE_RELEASE","POLICY"].includes(e.action)?"WARNING":"INFO",actor:e.actor,target:e.target,reason:e.reason,before:e.before,after:e.after,origin:e.id.startsWith("RISK-SEED-")?"DEMO":"LOCAL"}));
 }
 // Historical fixture timestamps were written without an offset. Interpret explicitly as UTC.
 export function userAuditEvent(e: AuditLog, origin: "LOCAL" | "DEMO" = "DEMO"): AuditEvent {

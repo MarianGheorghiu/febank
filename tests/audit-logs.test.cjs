@@ -24,7 +24,7 @@ test('combined filters and exact inclusive UTC boundaries match only selected ev
   assert.equal(filterAudit(events,{...base,query:'no matching phrase'}).length,0);
   assert.equal(filterAudit(events,{...base,from:'2026-10-10T00:00:00Z',to:'2026-10-01T00:00:00Z'}).length,0);
   assert.equal(filterAudit(events,{...base,from:'invalid date'}).length,0);
-  assert.equal(filterAudit(events,{...base,correlationId:events[0].correlationId}).length,3);
+  assert.equal(filterAudit(events,{...base,correlationId:events[0].correlationId}).length,1);
 });
 test('statistics and chart buckets use the same filtered dataset and include zero intervals',()=>{
   const filtered=filterAudit(events,{...emptyFilters(),source:'RISK'});
@@ -76,4 +76,73 @@ test('journal atomically saves notes with their own audit record and enforces ad
 });
 test('malformed journals and duplicate IDs are rejected',()=>{
   for(const value of [null,{}, {revision:-1,events:[],notes:[]},{revision:0,events:[events[0],events[0]],notes:[]},{revision:0,events:[],notes:[{id:'x'}]}])assert.equal(validJournal(value),false);
+});
+
+test('recent fixtures form coherent traces and multiword search is accent insensitive',()=>{
+  const {AUDIT_RECENT_EVENTS:recent,AUDIT_RECENT_NOTES:notes}=require('../app/lib/audit/demo.ts');
+  assert.ok(validJournal({revision:0,events:recent,notes}));assert.equal(recent.length,60);
+  const trace=filterAudit(recent,{...emptyFilters(),correlationId:recent[0].correlationId});
+  assert.equal(trace.length,4);assert.equal(new Set(trace.map(e=>e.target)).size,1);
+  assert.equal(filterAudit([{...recent[0],actor:'Ștefan Dumitru'}],{...emptyFilters(),query:'stefan transfer dumitru'}).length,1);
+  assert.equal(filterAudit([{...recent[0],timestamp:'2026-10-28T10:00:00+02:00'},{...recent[1],timestamp:'2026-10-28T08:30:00Z'}],emptyFilters())[0].id,recent[1].id);
+});
+test('annotation retries are atomic, revision protected and bound to their original author and text',()=>{
+  const values=new Map();global.localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+  const event=appendAuditEvent(draft,actor,'access-idempotency');
+  assert.ok(!values.get(AUDIT_STORAGE_KEY).includes('dont-keep-this'));
+  assert.deepEqual(appendAuditEvent(draft,actor,'access-idempotency'),event);
+  const first=appendAuditNote(event.id,'Reviewed evidence under CASE-2026-42.',actor,{key:'note-once',expectedRevision:1});
+  assert.deepEqual(appendAuditNote(event.id,'Reviewed evidence under CASE-2026-42.',actor,{key:'note-once',expectedRevision:1}),first);
+  assert.equal(JSON.parse(values.get(AUDIT_STORAGE_KEY)).notes.length,1);
+  assert.throws(()=>appendAuditNote(event.id,'A changed note cannot reuse that key.',actor,{key:'note-once',expectedRevision:1}),/Idempotency/);
+  assert.throws(()=>appendAuditNote(event.id,'A different note must use current revision.',actor,{key:'note-new',expectedRevision:1}),/changed/);
+  assert.throws(()=>appendAuditEvent({...draft,reason:'Different audit reason'},actor,'access-idempotency'),/Idempotency/);
+});
+test('audit collection reads shared sources without migrating business journals and isolates corrupt sources',async()=>{
+  const {collectDemoAudit}=require('../app/lib/audit/collector.ts');const local=new Map(),session=new Map([['mbank_transfers_v1:audit-observed%40example.test','[]']]);
+  const oldWindow=global.window,oldSession=global.sessionStorage;
+  global.window={dispatchEvent:()=>{}};global.localStorage={getItem:key=>local.get(key)??null,setItem:(key,value)=>local.set(key,value)};global.sessionStorage={getItem:key=>session.get(key)??null,setItem:(key,value)=>session.set(key,value),get length(){return session.size},key:i=>[...session.keys()][i]??null};
+  try{
+    const before=[...session.entries()],snapshot=await collectDemoAudit(actor);
+    assert.ok(snapshot.events.length>100);assert.deepEqual([...session.entries()],before);assert.equal(local.size,0);
+    local.set('mbank_risk_v1','{broken');const partial=await collectDemoAudit(actor);
+    assert.equal(partial.health.find(h=>h.source==='RISK').status,'ERROR');assert.ok(partial.warnings.some(w=>w.startsWith('RISK:')));
+    assert.ok(partial.events.filter(e=>e.source==='RISK').every(e=>e.origin==='DEMO'));assert.ok(partial.events.some(e=>e.source==='CARDS'));
+    assert.equal(local.get('mbank_risk_v1'),'{broken');
+  }finally{global.window=oldWindow;global.sessionStorage=oldSession;}
+});
+test('evidence exports keep the reviewed snapshot, exact checksum, provenance and redacted payloads',async()=>{
+  const {buildAuditEvidence}=require('../app/lib/audit/evidence.ts'),{createHash}=require('node:crypto');
+  const scope={events:[{...events[0],after:{password:'never-in-export',status:'ACTIVE'}}],notes:[],filters:emptyFilters(),sort:'NEWEST',displayTimeZone:'UTC',warnings:['Source feed incomplete'],as_of:'2026-10-28T07:00:00Z',mode:'demo',generatedAt:'2026-10-28T07:01:00Z',key:'report-once'};
+  const report=await buildAuditEvidence(scope,'JSON','Compliance review CASE-1001.',actor.email),retry=await buildAuditEvidence(scope,'JSON','Compliance review CASE-1001.',actor.email);
+  assert.deepEqual(retry,report);assert.equal(report.digest,createHash('sha256').update(report.content).digest('hex'));assert.ok(!report.content.includes('never-in-export'));
+  const body=JSON.parse(report.content);assert.deepEqual(body.manifest.eventIds,[events[0].id]);assert.equal(body.manifest.demoRecords,1);assert.equal(body.manifest.sourceWarnings[0],scope.warnings[0]);
+  assert.ok(!report.content.includes(events[1].id));
+});
+test('HTTP audit adapter never reads local sources and validates server evidence and export receipts',async()=>{
+ const {createAuditRepository}=require('../app/lib/audit/repository.ts'),{parseAuditSnapshot}=require('../app/lib/audit/response.ts'),{AUDIT_SOURCES}=require('../app/lib/types/admin/audit.ts');
+ const oldMode=process.env.NEXT_PUBLIC_AUDIT_MODE,oldFetch=global.fetch,oldLocal=global.localStorage;
+ try{
+  process.env.NEXT_PUBLIC_AUDIT_MODE='http';global.localStorage={getItem:()=>{throw new Error('must not read local')} };
+  const snapshot={schema_version:1,mode:'live',complete:true,as_of:'2026-10-28T07:00:00Z',revision:4,events:[{...events[0],origin:'SERVER'}],notes:[],warnings:[],health:AUDIT_SOURCES.map(source=>({source,status:'CONNECTED',localCount:0,message:'Server source'}))};
+  const calls=[];global.fetch=async(url,init)=>{calls.push({url,init});return {ok:true,status:200,json:async()=>snapshot};};
+  const repo=createAuditRepository(actor),controller=new AbortController();assert.deepEqual(await repo.getSnapshot(controller.signal),snapshot);assert.equal(calls[0].init.signal,controller.signal);assert.equal(calls[0].init.credentials,'include');assert.equal(calls[0].init.cache,'no-store');
+  global.fetch=async(url,init)=>{calls.push({url,init});return {ok:true,status:204};};await repo.recordAccess('access-http');assert.equal(JSON.parse(calls[1].init.body).actor,undefined);assert.equal(calls[1].init.headers['Idempotency-Key'],'access-http');
+  const note={id:'note-server',eventId:events[0].id,actor:actor.email,text:'Reviewed source evidence CASE-100.',timestamp:snapshot.as_of};global.fetch=async()=>({ok:true,status:200,json:async()=>note});assert.deepEqual(await repo.addNote({event_id:events[0].id,text:note.text,expected_revision:4},'note-http'),note);
+  assert.throws(()=>parseAuditSnapshot({...snapshot,events:[events[0]]}),/local or demo/);assert.throws(()=>parseAuditSnapshot({...snapshot,complete:false}),/incomplete/);assert.throws(()=>parseAuditSnapshot({...snapshot,events:[snapshot.events[0],snapshot.events[0]]}),/Duplicate/);
+  const request={format:'JSON',reason:'Compliance evidence review.',generated_at:snapshot.as_of,name:'mbank-audit-2026-10-28.json',event_ids:[events[0].id],sha256:'a'.repeat(64),filters:emptyFilters(),sort:'NEWEST',display_time_zone:'UTC'};
+  global.fetch=async()=>({ok:true,status:200,json:async()=>({id:'receipt-1',timestamp:snapshot.as_of,event_ids:request.event_ids,sha256:'b'.repeat(64)})});await assert.rejects(()=>repo.recordExport(request,'export-http'),/does not match/);
+  global.fetch=async()=>{throw new Error('service offline')};await assert.rejects(()=>repo.getSnapshot(),/offline/);
+ }finally{global.fetch=oldFetch;global.localStorage=oldLocal;if(oldMode===undefined)delete process.env.NEXT_PUBLIC_AUDIT_MODE;else process.env.NEXT_PUBLIC_AUDIT_MODE=oldMode;}
+});
+
+test('demo export audits exact IDs once and unknown annotations or altered receipts are rejected',async()=>{
+ const {createAuditRepository}=require('../app/lib/audit/repository.ts');const values=new Map();global.localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+ const repo=createAuditRepository(actor);await repo.recordAccess('demo-console-access');await repo.recordAccess('demo-console-access');
+ assert.equal(JSON.parse(values.get(AUDIT_STORAGE_KEY)).events.length,1);
+ await assert.rejects(()=>repo.addNote({event_id:'unknown-event',text:'Unknown evidence must not be annotated.',expected_revision:1},'unknown-note'),/unavailable/);
+ const request={format:'JSON',reason:'Compliance evidence review CASE-100.',generated_at:'2026-10-28T07:00:00Z',name:'mbank-audit-2026-10-28.json',event_ids:[events[0].id],sha256:'c'.repeat(64),filters:emptyFilters(),sort:'NEWEST',display_time_zone:'UTC'};
+ const first=await repo.recordExport(request,'demo-export-once');assert.deepEqual(await repo.recordExport(request,'demo-export-once'),first);
+ const state=JSON.parse(values.get(AUDIT_STORAGE_KEY));assert.equal(state.events.filter(e=>e.action==='EXPORT_REQUESTED').length,1);assert.deepEqual(state.events[0].after.event_ids,request.event_ids);
+ await assert.rejects(()=>repo.recordExport({...request,event_ids:[events[1].id]},'demo-export-once'),/Idempotency/);
 });

@@ -1,27 +1,27 @@
-import { ChevronDown } from "lucide-react";
-import type { SelectHTMLAttributes } from "react";
-import type { ReactNode } from "react";
-import { panelClass } from "../cards/presentation";
-export function AuditPanel({title,subtitle,action,children,className=""}: {title:string;subtitle?:string;action?:ReactNode;children:ReactNode;className?:string}) {
-  return <section className={`${panelClass} min-w-0 ${className}`}>
-    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-cyan-500/20 p-4">
-      <div className="min-w-0 flex-1 basis-64"><h2 className="text-xs font-bold uppercase tracking-wider text-cyan-300">{title}</h2>{subtitle && <p className="mt-2 max-w-3xl text-[10px] leading-relaxed text-slate-400">{subtitle}</p>}</div>{action}
-    </header>{children}
-  </section>;
-}
-export function auditBadge(value:string) {
-  const tone=["CRITICAL","FAILED","DENIED","ERROR"].includes(value)?"border-rose-500/35 bg-rose-500/10 text-rose-300":["WARNING","DEMO","DEMO_ONLY"].includes(value)?"border-amber-500/30 bg-amber-500/10 text-amber-300":["SUCCESS","CONNECTED","LOCAL"].includes(value)?"border-emerald-500/30 bg-emerald-500/10 text-emerald-300":"border-cyan-500/30 bg-cyan-500/10 text-cyan-300";
-  return `inline-flex h-6 shrink-0 self-center items-center justify-center whitespace-nowrap rounded-md border px-2 py-0 text-[9px] leading-none font-bold ${tone}`;
-}
-export function auditDate(value:string|number,timeZone:string="Europe/Bucharest") {
-  return new Intl.DateTimeFormat("en-GB",{dateStyle:"medium",timeStyle:"medium",timeZone}).format(new Date(value));
-}
-export function EmptyAudit({text}: {text:string}) { return <p role="status" className="p-8 text-center text-xs text-slate-400">{text}</p>; }
-
-export const auditControlClass = "w-full min-w-0 rounded-lg border border-cyan-500/40 bg-[#03091e] px-3 text-xs leading-normal text-white outline-none focus:border-cyan-300 focus:ring-1 focus:ring-cyan-400 disabled:opacity-50";
-export const auditInputClass = `${auditControlClass} h-9 py-0`;
-export const auditTextareaClass = `${auditControlClass} py-2.5`;
-export const auditFieldClass = "flex min-w-0 flex-col gap-1.5 text-[10px] text-slate-400";
-export function AuditSelect({className="",children,...props}: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <span className="relative block min-w-0"><select {...props} className={`${auditInputClass} appearance-none pr-9 cursor-pointer ${className}`}>{children}</select><ChevronDown size={13} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-cyan-300"/></span>;
+'use client';
+import { Check, ChevronDown, Search } from 'lucide-react';
+import { Children, isValidElement, useEffect, useId, useRef, useState, type ChangeEvent, type ReactNode, type SelectHTMLAttributes } from 'react';
+import CardSurface from '../../CardSurface';
+import styles from '../../dashboard/OverviewControls.module.css';
+export function AuditPanel({title,subtitle,action,children,className=''}:{title:string;subtitle?:string;action?:ReactNode;children:ReactNode;className?:string}){return <CardSurface as="section" tone="blue" className={`focus-within:z-30 ${className}`}><header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 p-4 sm:p-5"><div className="min-w-0 flex-1 basis-64"><h2 className="text-sm font-semibold text-white">{title}</h2>{subtitle&&<p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-slate-400">{subtitle}</p>}</div>{action}</header>{children}</CardSurface>;}
+export function auditBadge(value:string){const tone=['CRITICAL','FAILED','DENIED','ERROR'].includes(value)?'border-rose-400/20 bg-rose-400/5 text-rose-200':['WARNING','DEMO','DEMO_ONLY','SNAPSHOT'].includes(value)?'border-amber-400/20 bg-amber-400/5 text-amber-200':['SUCCESS','CONNECTED','LOCAL','SERVER'].includes(value)?'border-emerald-400/20 bg-emerald-400/5 text-emerald-200':'border-cyan-400/20 bg-cyan-400/5 text-cyan-200';return `inline-flex min-h-6 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border px-2 py-1 text-[9px] leading-none ${tone}`;}
+export function auditDate(value:string|number,timeZone='Europe/Bucharest'){return new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'medium',timeZone}).format(new Date(value));}
+export function EmptyAudit({text}:{text:string}){return <p role="status" className="p-8 text-center text-xs text-slate-400">{text}</p>;}
+export const auditControlClass='w-full min-w-0 min-h-11 rounded-xl border border-white/10 bg-[#060d1d] px-3 text-xs text-white outline-none focus:border-cyan-400/60 disabled:opacity-50';
+export const auditInputClass=`${auditControlClass} py-2`;
+export const auditTextareaClass=`${auditControlClass} py-2.5`;
+export const auditFieldClass='flex min-w-0 flex-col gap-2 text-[11px] font-medium text-slate-300';
+export function AuditSelect({value,onChange,children,disabled,className='',...props}:SelectHTMLAttributes<HTMLSelectElement>){
+ const options:{value:string;label:string}[]=[];function walk(nodes:ReactNode){Children.forEach(nodes,node=>{if(!isValidElement<{value?:string|number;children?:ReactNode}>(node))return;if(node.type==='option')options.push({value:String(node.props.value??node.props.children),label:Children.toArray(node.props.children).map(item=>typeof item==="string"||typeof item==="number"?String(item):"").join("")});else walk(node.props.children);});}walk(children);
+ const [open,setOpen]=useState(false),[query,setQuery]=useState('');const root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null),search=useRef<HTMLInputElement>(null),id=useId();
+ const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const filtered=options.filter(o=>normalize(o.label).includes(normalize(query))),label=props['aria-label']??'Select option';
+ useEffect(()=>{if(!open)return;search.current?.focus();const outside=(event:PointerEvent)=>{if(!root.current?.contains(event.target as Node))setOpen(false);};document.addEventListener('pointerdown',outside);return()=>document.removeEventListener('pointerdown',outside);},[open]);
+ const close=()=>{setOpen(false);trigger.current?.focus();};
+ return <div ref={root} className={`relative min-w-0 ${open?'z-50':''} ${className}`} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}} onKeyDown={e=>{if(e.key==='Escape'&&open){e.preventDefault();e.stopPropagation();close();}if(open&&['ArrowDown','ArrowUp','Home','End'].includes(e.key)){const buttons=Array.from(root.current?.querySelectorAll<HTMLButtonElement>('[role="option"]')??[]);if(!buttons.length)return;e.preventDefault();const current=buttons.indexOf(document.activeElement as HTMLButtonElement),index=e.key==='Home'?0:e.key==='End'?buttons.length-1:(current+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[index]?.focus();}}}>
+  <button ref={trigger} type="button" disabled={disabled} aria-label={label} aria-haspopup="listbox" aria-expanded={open} aria-controls={open?id:undefined} className={`flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 border px-3 py-2 text-left font-mono text-[11px] disabled:cursor-not-allowed disabled:opacity-40 ${styles.action}`} onClick={()=>{setOpen(!open);setQuery('');}} onKeyDown={e=>{if(e.key==='ArrowDown'){e.preventDefault();setOpen(true);setQuery('');}}}><span className="min-w-0 truncate">{options.find(o=>o.value===String(value))?.label??String(value)}</span><ChevronDown size={13} aria-hidden className="shrink-0 text-cyan-300"/></button>
+  {open&&<div className={`absolute right-0 top-full mt-1 w-full min-w-40 border p-1 shadow-xl ${styles.menu}`}>
+   {options.length>12&&<div className="relative mb-1"><Search size={12} aria-hidden className="absolute left-2 top-3 text-slate-400"/><input ref={search} aria-label={`Search ${label.toLowerCase()} options`} placeholder="Search options…" value={query} onChange={e=>setQuery(e.target.value)} className={`${auditInputClass} min-h-9 pl-7 text-[10px]`}/></div>}
+   <div id={id} role="listbox" aria-label={label} className="max-h-60 overflow-y-auto overscroll-contain">{filtered.map(o=><button key={o.value} type="button" role="option" aria-selected={String(value)===o.value} className={`flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 px-2 text-left font-mono text-[11px] ${styles.option} ${String(value)===o.value?'text-cyan-200 ring-1 ring-inset ring-cyan-400/30':''}`} onClick={()=>{onChange?.({target:{value:o.value},currentTarget:{value:o.value}} as ChangeEvent<HTMLSelectElement>);close();}}><span className="min-w-0 break-all">{o.label}</span>{String(value)===o.value&&<Check size={12} aria-hidden className="shrink-0"/>}</button>)}{!filtered.length&&<p className="p-3 text-[10px] text-slate-400">No matching options.</p>}</div>
+  </div>}
+ </div>;
 }

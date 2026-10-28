@@ -1,5 +1,11 @@
 # Crypto Pools și Stock & Markets
 
+> Actualizare: implementarea Crypto Pools, agregarea inventarului global și
+> contractul HTTP executabil sunt descrise în [markets/README.md](../../markets/README.md).
+> Pentru endpointurile administrative actuale, folosiți [OpenAPI](../../markets/openapi.json).
+> Soldurile client sunt acum proiectate din walletul comun; secțiunile de mai jos
+> care descriu walleturi independente reflectă arhitectura inițială.
+
 Console: `/dashboard/admin/liquidity` și `/dashboard/admin/stocks`.
 Ambele gestionează execuția pentru clienți, nu portofoliul personal al adminului.
 

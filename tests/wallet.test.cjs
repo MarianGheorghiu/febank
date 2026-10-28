@@ -271,3 +271,122 @@ test('sub-cent shared prices retain exact marks and rounded portfolio values',as
   assert.equal((await createOverviewRepository('subcent@example.test').getSnapshot()).assets.find(a=>a.ticker==='BTC').price,'0.00012345');
  }finally{env.close();}
 });
+
+test('bank pool inventory is shared across customers, admin adjustments do not double settlements',()=>{
+ const env=browser();try {
+  const {projectAllCustomers,readBaseMarketCatalog,executeMarketAdmin}=require('../app/lib/markets/store.ts');
+  const admin={role:'admin',email:'pool@admin.com'};
+  const a='pool-a@example.test',b='pool-b@example.test';
+  const initial=readBaseMarketCatalog().instruments.find(i=>i.symbol==='BTC');
+  execute(a,tradeFor(a,'BTC','BUY',0.001),'global-a');
+  const stale=tradeFor(b,'BTC','BUY',0.001);
+  execute(a,tradeFor(a,'BTC','BUY',0.001),'global-a-2');
+  assert.throws(()=>execute(b,stale,'global-stale'),/conditions changed/);
+  execute(b,tradeFor(b,'BTC','BUY',0.001),'global-b');
+  const global=projectAllCustomers(readBaseMarketCatalog());
+  const btc=global.instruments.find(i=>i.symbol==='BTC');
+  assert.equal(btc.reserveUnits.toFixed(8),(initial.reserveUnits-0.003).toFixed(8));
+  for(const email of [a,b]) assert.equal(projectTrading(readWallet(email).state,readMarketCatalog(email),email).instruments.find(i=>i.symbol==='BTC').reserveUnits.toFixed(8),btc.reserveUnits.toFixed(8));
+  executeMarketAdmin({action:'LIQUIDITY',symbol:'BTC',expectedVersion:btc.version,unitsDelta:1,usdDelta:100,reason:'Replenish the globally shared pool inventory.'},admin);
+  const after=projectAllCustomers(readBaseMarketCatalog()).instruments.find(i=>i.symbol==='BTC');
+  assert.equal(after.reserveUnits.toFixed(8),(btc.reserveUnits+1).toFixed(8));
+  assert.equal(after.reserveUsd.toFixed(2),(btc.reserveUsd+100).toFixed(2));
+  assert.equal(after.version,btc.version+1);
+ }finally{env.close();}
+});
+test('global pool depletion prevents a second customer from consuming the same units',()=>{
+ const env=browser();try {
+  const {executeMarketAdmin,readBaseMarketCatalog,projectAllCustomers}=require('../app/lib/markets/store.ts');
+  const btc=readBaseMarketCatalog().instruments.find(i=>i.symbol==='BTC');
+  executeMarketAdmin({action:'LIQUIDITY',symbol:'BTC',expectedVersion:btc.version,unitsDelta:0.001-btc.reserveUnits,usdDelta:0,reason:'Limit execution inventory for depletion scenario.'},{role:'admin',email:'pool@admin.com'});
+  execute('deplete-a@example.test',tradeFor('deplete-a@example.test','BTC','BUY',0.001),'deplete-a');
+  assert.throws(()=>execute('deplete-b@example.test',tradeFor('deplete-b@example.test','BTC','BUY',0.001),'deplete-b'),/base-asset liquidity/);
+  assert.equal(projectAllCustomers(readBaseMarketCatalog()).instruments.find(i=>i.symbol==='BTC').reserveUnits,0);
+ }finally{env.close();}
+});
+
+test('admin can withdraw globally replenished units while preserving effective reserves and customer holdings',()=>{
+ const env=browser();try {
+  const {executeMarketAdmin,readBaseMarketCatalog,projectAllCustomers}=require('../app/lib/markets/store.ts');
+  const admin={role:'admin',email:'pool@admin.com'},email='replenish@example.test';
+  let btc=readBaseMarketCatalog().instruments.find(i=>i.symbol==='BTC');
+  executeMarketAdmin({action:'LIQUIDITY',symbol:'BTC',expectedVersion:btc.version,unitsDelta:0.001-btc.reserveUnits,usdDelta:0,reason:'Prepare replenishment and withdrawal scenario.'},admin);
+  execute(email,tradeFor(email,'BTC','SELL',0.01),'sell-replenish');
+  btc=projectAllCustomers(readBaseMarketCatalog()).instruments.find(i=>i.symbol==='BTC');
+  const holdings=readWallet(email).state.transfers.accounts.find(a=>a.asset==='BTC').available;
+  executeMarketAdmin({action:'LIQUIDITY',symbol:'BTC',expectedVersion:btc.version,unitsDelta:-0.01,usdDelta:0,reason:'Treasury withdrawal from customer-replenished inventory.'},admin);
+  assert.equal(projectAllCustomers(readBaseMarketCatalog()).instruments.find(i=>i.symbol==='BTC').reserveUnits,0.001);
+  assert.equal(readWallet(email).state.transfers.accounts.find(a=>a.asset==='BTC').available,holdings);
+  execute(email,tradeFor(email,'BTC','BUY',0.001),'buy-replenish');
+  assert.equal(projectAllCustomers(readBaseMarketCatalog()).instruments.find(i=>i.symbol==='BTC').reserveUnits,0);
+ }finally{env.close();}
+});
+
+test('Crypto Pools examples persist once in dedicated wallets; pending orders cancel and process through the common ledger',async()=>{
+ const env=browser();try {
+  const {createMarketOperationsRepository}=require('../app/lib/markets/repository.ts');
+  const repository=createMarketOperationsRepository({email:'pool@admin.com',role:'admin'});
+  const snapshot=await repository.getSnapshot();
+  const orders=snapshot.state.orders.filter(o=>o.domain==='CRYPTO'&&o.userEmail.startsWith('markets-demo-'));
+  assert.equal(orders.length,44);
+  for(const status of ['FILLED','PENDING','CANCELLED','REJECTED'])assert.ok(orders.some(o=>o.status===status));
+  assert.equal(snapshot.state.audit.filter(e=>e.domain==='CRYPTO'&&e.id.startsWith('markets-demo-')).length,12);
+  const pending=orders.find(o=>o.status==='PENDING'),before=readWallet(pending.userEmail).state.transfers.accounts.find(a=>a.asset==='USD');
+  assert.ok(Number(before.reserved)>0);
+  const cancelled=await repository.execute({action:'CANCEL',orderId:pending.id,reason:'Verify demo cancellation releases canonical reservation.'},'demo-cancel-review');
+  assert.equal(cancelled.state.orders.find(o=>o.id===pending.id).status,'CANCELLED');
+  assert.equal(Number(readWallet(pending.userEmail).state.transfers.accounts.find(a=>a.asset==='USD').reserved),0);
+  assert.equal((await repository.getSnapshot()).state.orders.filter(o=>o.domain==='CRYPTO').length,44,'refresh does not reseed existing examples');
+  const processed=await repository.execute({action:'PROCESS',domain:'CRYPTO',reason:'Process the remaining demo venue orders through shared execution.'},'demo-process-review');
+  assert.equal(processed.state.orders.filter(o=>o.domain==='CRYPTO'&&o.status==='PENDING').length,0);
+  assert.equal(processed.state.orders.filter(o=>o.domain==='CRYPTO'&&o.status==='FILLED').length,27);
+ }finally{env.close();}
+});
+
+test('equity examples include real limit/stop reservations, retain unmatched orders and do not reseed decisions',async()=>{
+ const env=browser();try {
+  const {createMarketOperationsRepository}=require('../app/lib/markets/repository.ts');
+  const repository=createMarketOperationsRepository({email:'equity@admin.com',role:'admin'});
+  const snapshot=await repository.getSnapshot(),orders=snapshot.state.orders.filter(o=>o.domain==='STOCK');
+  assert.equal(orders.length,60);
+  for(const type of ['MARKET','LIMIT','STOP'])assert.ok(orders.some(o=>o.type===type));
+  assert.equal(orders.filter(o=>o.status==='PENDING').length,20);
+  const limit=orders.find(o=>o.id.endsWith('limit-eligible'));
+  const before=readWallet(limit.userEmail).state.transfers.accounts.find(a=>a.asset==='USD');
+  assert.ok(Number(before.reserved)>0);
+  const processed=await repository.execute({action:'PROCESS',domain:'STOCK',reason:'Verify eligible equity execution and preserve unmatched triggers.'},'equity-execution');
+  const remaining=processed.state.orders.filter(o=>o.domain==='STOCK'&&o.status==='PENDING');
+  assert.equal(remaining.length,8);
+  assert.ok(remaining.every(o=>o.id.endsWith('stop-waiting')||o.id.endsWith('limit-waiting')));
+  assert.ok(remaining.every(o=>/not been reached/.test(o.note)));
+  const sell=remaining.find(o=>o.side==='SELL'),unitsBefore=readWallet(sell.userEmail).state.transfers.accounts.find(a=>a.asset===sell.symbol);
+  assert.ok(Number(unitsBefore.reserved)>=1);
+  await repository.execute({action:'CANCEL',orderId:sell.id,reason:'Cancel remaining demo equity sale and release its own units.'},'equity-cancel');
+  const unitsAfter=readWallet(sell.userEmail).state.transfers.accounts.find(a=>a.asset===sell.symbol);
+  assert.equal(Number(unitsAfter.reserved),Number(unitsBefore.reserved)-1);
+  const refreshed=await repository.getSnapshot();
+  assert.equal(refreshed.state.orders.filter(o=>o.domain==='STOCK').length,60);
+  assert.equal(refreshed.state.orders.find(o=>o.id===sell.id).status,'CANCELLED');
+  assert.equal(refreshed.state.orders.filter(o=>o.domain==='CRYPTO'&&o.status==='PENDING').length,4);
+ }finally{env.close();}
+});
+
+test('admin processes interleaved customer orders in global FIFO when inventory is scarce',()=>{
+ const env=browser();try {
+  const {executeMarketAdmin,readBaseMarketCatalog,projectAllCustomers}=require('../app/lib/markets/store.ts');
+  const {commitWallet}=require('../app/lib/wallet/store.ts');
+  const admin={email:'fifo@admin.com',role:'admin'},item=readBaseMarketCatalog().instruments.find(i=>i.symbol==='AAPL');
+  executeMarketAdmin({action:'LIQUIDITY',symbol:'AAPL',expectedVersion:item.version,unitsDelta:2-item.reserveUnits,usdDelta:0,reason:'Constrain shared AAPL inventory for FIFO execution review.'},admin);
+  const submit=(email,id,at)=>{const command=tradeFor(email,'AAPL','BUY',1,{type:'LIMIT',targetPrice:Math.round(item.priceUsd*1.05*100)/100});commitWallet(email,{kind:'trading',key:id,at,catalog:readMarketCatalog(email),command,actor:{email,role:'client'}});};
+  submit('fifo-a@example.test','fifo-first','2026-10-28T07:00:00Z');
+  submit('fifo-b@example.test','fifo-second','2026-10-28T07:01:00Z');
+  submit('fifo-a@example.test','fifo-third','2026-10-28T07:02:00Z');
+  executeMarketAdmin({action:'PROCESS',domain:'STOCK',reason:'Process interleaved orders by their original submission time.'},admin);
+  const view=projectAllCustomers(readBaseMarketCatalog());
+  assert.equal(view.orders.find(o=>o.id==='fifo-first').status,'FILLED');
+  assert.equal(view.orders.find(o=>o.id==='fifo-second').status,'FILLED');
+  assert.equal(view.orders.find(o=>o.id==='fifo-third').status,'PENDING');
+  assert.match(view.orders.find(o=>o.id==='fifo-third').note,/liquidity/);
+  assert.equal(view.instruments.find(i=>i.symbol==='AAPL').reserveUnits,0);
+ }finally{env.close();}
+});

@@ -19,7 +19,7 @@ export const MOCK_AUDIT_EVENTS: AuditEvent[] = Array.from({length:126},(_,index)
   const template = templates[index % templates.length];
   const timestamp = new Date(Date.parse(AUDIT_DEMO_NOW) - index * 75 * 60000 - (index % 5) * 7000).toISOString();
   return { ...template, id:`demo:audit:${String(index+1).padStart(4,"0")}`, timestamp,
-    target: template.target, correlationId:`DEMO-TRACE-${Math.floor(index/3)+1}`,
+    target: template.target, correlationId:`DEMO-TRACE-${index+1}`,
     requestId:`DEMO-REQ-${index+1}`, sessionId:template.actorRole === "ADMIN" ? `DEMO-SESSION-${index%3+1}` : null,
     ip: template.actorRole === "SYSTEM" ? null : index%2 ? "203.0.113.42" : "192.0.2.10",
     durationMs: 12+(index*37)%920, origin:"DEMO" };

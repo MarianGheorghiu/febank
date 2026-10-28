@@ -121,7 +121,7 @@ export function cancelCustomerOrder(state: MarketsState, orderId: string, actor:
   if (!order || order.userEmail !== actor.email.toLowerCase() || order.status !== "PENDING") throw new Error("This pending order cannot be cancelled.");
   Object.assign(order, { status: "CANCELLED", reservedCash: 0, updatedAt: now, note: "Cancelled by customer; reservations released." }); next.revision++; return next;
 }
-export function applyMarketAdminCommand(state: MarketsState, command: MarketAdminCommand, actor: MarketActor, now: string, id: string): MarketsState {
+export function applyMarketAdminCommand(state: MarketsState, command: MarketAdminCommand, actor: MarketActor, now: string, id: string, processingOrderId?: string): MarketsState {
   if (actor.role !== "admin") throw new Error("Administrator access required.");
   const reason = command.reason.trim(); if (reason.length < 10 || reason.length > 500) throw new Error("An operational reason of 10–500 characters is required.");
   const next = structuredClone(state); let before: unknown = null; let after: unknown = null; let domain: MarketDomain; let target: string;
@@ -154,9 +154,9 @@ export function applyMarketAdminCommand(state: MarketsState, command: MarketAdmi
     domain = order.domain; target = order.id; before = structuredClone(order);
     Object.assign(order, { status: "CANCELLED", reservedCash: 0, updatedAt: now, note: `Cancelled by bank operations: ${reason}` }); after = structuredClone(order);
   } else {
-    domain = command.domain; target = `${domain} order queue`; before = next.orders.filter(order => order.domain === domain && order.status === "PENDING"); before = structuredClone(before);
+    domain = command.domain; target = `${domain} order queue`; before = next.orders.filter(order => order.domain === domain && order.status === "PENDING" && (!processingOrderId || order.id === processingOrderId)); before = structuredClone(before);
     // Process in FIFO order. Each attempted fill is transactional; blocked orders remain queued.
-    for (const queued of [...next.orders].reverse().filter(order => order.domain === domain && order.status === "PENDING")) {
+    for (const queued of [...next.orders].filter(order => order.domain === domain && order.status === "PENDING" && (!processingOrderId || order.id === processingOrderId)).sort((a,b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))) {
       const working = structuredClone(next); const candidate = working.orders.find(order => order.id === queued.id)!;
       try { fillOrder(working, candidate, now); Object.assign(next, working); }
       catch (error) { const order = next.orders.find(order => order.id === queued.id)!; order.note = error instanceof Error ? error.message : "Execution unavailable."; order.updatedAt = now; }

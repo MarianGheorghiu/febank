@@ -1,0 +1,1031 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBank Risk Control API",
+    "version": "1.0.0",
+    "description": "Actor comes from the authenticated server session. Enforce restrictions, stops and caps atomically in payment/trading services. Scores and sanctions require actual provider evidence. Full snapshots are the initial frontend contract; add server paging and aggregates before scaling."
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/v1/admin/risk": {
+      "get": {
+        "operationId": "getRiskSnapshot",
+        "responses": {
+          "200": {
+            "description": "Complete current snapshot, including atomic decision audit. Monetary evidence nested in before/after also uses decimal strings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid command or policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision mismatch, lifecycle conflict or idempotency key reuse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Risk service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/risk/commands": {
+      "post": {
+        "operationId": "executeRiskCommand",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Bind authenticated actor and canonical command; replay same result without repeating audit or effects."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complete current snapshot, including atomic decision audit. Monetary evidence nested in before/after also uses decimal strings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid command or policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision mismatch, lifecycle conflict or idempotency key reuse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Risk service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "mbank_session"
+      }
+    },
+    "schemas": {
+      "RiskPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "domain": {
+            "type": "string",
+            "enum": [
+              "FIAT",
+              "CRYPTO",
+              "STOCK"
+            ]
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "maxTransactionUsd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Nonnegative USD decimal, fixed two decimal places. Go must use fixed-point arithmetic."
+          },
+          "exposureLimitUsd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Nonnegative USD decimal, fixed two decimal places. Go must use fixed-point arithmetic."
+          },
+          "reviewScore": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "blockScore": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "domain",
+          "paused",
+          "maxTransactionUsd",
+          "exposureLimitUsd",
+          "reviewScore",
+          "blockScore"
+        ]
+      },
+      "RiskCase": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "FIAT",
+              "CRYPTO",
+              "STOCK"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "amountUsd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Nonnegative USD decimal, fixed two decimal places. Go must use fixed-point arithmetic."
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "severity": {
+            "enum": [
+              "CRITICAL",
+              "HIGH",
+              "MEDIUM",
+              "LOW"
+            ]
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "INVESTIGATING",
+              "ESCALATED",
+              "RESOLVED"
+            ]
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "actor": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "actor",
+                "text",
+                "timestamp"
+              ]
+            }
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "enum": [
+                  "CONFIRMED",
+                  "FALSE_POSITIVE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "domain",
+          "category",
+          "subject",
+          "email",
+          "reference",
+          "amountUsd",
+          "score",
+          "severity",
+          "status",
+          "owner",
+          "createdAt",
+          "dueAt",
+          "evidence",
+          "notes",
+          "resolution"
+        ]
+      },
+      "Restriction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string",
+            "format": "email"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "releaseRequestedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "reason",
+          "actor",
+          "timestamp",
+          "releaseRequestedBy"
+        ]
+      },
+      "RiskAudit": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string",
+            "format": "email"
+          },
+          "action": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "before": {},
+          "after": {}
+        },
+        "required": [
+          "id",
+          "actor",
+          "action",
+          "target",
+          "reason",
+          "timestamp",
+          "before",
+          "after"
+        ]
+      },
+      "RiskState": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RiskCase"
+            }
+          },
+          "policies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RiskPolicy"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "restrictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Restriction"
+            }
+          },
+          "audit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RiskAudit"
+            }
+          }
+        },
+        "required": [
+          "revision",
+          "cases",
+          "policies",
+          "restrictions",
+          "audit"
+        ]
+      },
+      "Exposure": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "FIAT",
+              "CRYPTO",
+              "STOCK"
+            ]
+          },
+          "valueUsd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Nonnegative USD decimal, fixed two decimal places. Go must use fixed-point arithmetic."
+          },
+          "reserveUsd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Nonnegative USD decimal, fixed two decimal places. Go must use fixed-point arithmetic."
+          },
+          "low": {
+            "type": "boolean"
+          },
+          "source": {
+            "const": "SERVICE"
+          }
+        },
+        "required": [
+          "symbol",
+          "name",
+          "domain",
+          "valueUsd",
+          "reserveUsd",
+          "low",
+          "source"
+        ]
+      },
+      "Customer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "kyc": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "status",
+          "kyc"
+        ]
+      },
+      "Snapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "mode": {
+            "const": "live"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RiskState"
+          },
+          "exposures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Exposure"
+            }
+          },
+          "customers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Customer"
+            }
+          }
+        },
+        "required": [
+          "schema_version",
+          "mode",
+          "as_of",
+          "state",
+          "exposures",
+          "customers"
+        ]
+      },
+      "ASSIGN": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "ASSIGN"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "caseId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "caseId"
+        ]
+      },
+      "ESCALATE": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "ESCALATE"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "caseId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "caseId"
+        ]
+      },
+      "NOTE": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "NOTE"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "caseId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "caseId"
+        ]
+      },
+      "RESOLVE": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "RESOLVE"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "caseId": {
+            "type": "string"
+          },
+          "resolution": {
+            "enum": [
+              "CONFIRMED",
+              "FALSE_POSITIVE"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "caseId",
+          "resolution"
+        ]
+      },
+      "FREEZE": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "FREEZE"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "email"
+        ]
+      },
+      "REQUEST_RELEASE": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "REQUEST_RELEASE"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "email"
+        ]
+      },
+      "APPROVE_RELEASE": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "APPROVE_RELEASE"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "email"
+        ]
+      },
+      "REJECT_RELEASE": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "REJECT_RELEASE"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "email"
+        ]
+      },
+      "POLICY": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "POLICY"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "policy": {
+            "$ref": "#/components/schemas/RiskPolicy"
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "policy"
+        ]
+      },
+      "CREATE_CASE": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "CREATE_CASE"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "FIAT",
+              "CRYPTO",
+              "STOCK"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "amountUsd": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Nonnegative USD decimal, fixed two decimal places. Go must use fixed-point arithmetic."
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "domain",
+          "email",
+          "reference",
+          "amountUsd",
+          "score",
+          "signals"
+        ]
+      },
+      "EXPORT": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "EXPORT"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "kind": {
+            "enum": [
+              "cases",
+              "audit"
+            ]
+          },
+          "recordIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "action",
+          "expectedRevision",
+          "reason",
+          "kind",
+          "recordIds"
+        ]
+      },
+      "Command": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ASSIGN"
+          },
+          {
+            "$ref": "#/components/schemas/ESCALATE"
+          },
+          {
+            "$ref": "#/components/schemas/NOTE"
+          },
+          {
+            "$ref": "#/components/schemas/RESOLVE"
+          },
+          {
+            "$ref": "#/components/schemas/FREEZE"
+          },
+          {
+            "$ref": "#/components/schemas/REQUEST_RELEASE"
+          },
+          {
+            "$ref": "#/components/schemas/APPROVE_RELEASE"
+          },
+          {
+            "$ref": "#/components/schemas/REJECT_RELEASE"
+          },
+          {
+            "$ref": "#/components/schemas/POLICY"
+          },
+          {
+            "$ref": "#/components/schemas/CREATE_CASE"
+          },
+          {
+            "$ref": "#/components/schemas/EXPORT"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "action"
+        }
+      },
+      "CommandRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "command": {
+            "$ref": "#/components/schemas/Command"
+          }
+        },
+        "required": [
+          "schema_version",
+          "command"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    }
+  }
+}

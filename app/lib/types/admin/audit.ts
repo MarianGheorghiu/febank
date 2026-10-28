@@ -24,15 +24,16 @@ export interface AuditEvent {
   durationMs: number | null;
   before: unknown;
   after: unknown;
-  origin: "DEMO" | "LOCAL";
+  origin: "DEMO" | "LOCAL" | "SERVER";
+  evidenceKind?: "HISTORY" | "SNAPSHOT";
 }
 export interface AuditNote { id: string; eventId: string; actor: string; timestamp: string; text: string }
-export interface AuditJournal { revision: number; events: AuditEvent[]; notes: AuditNote[] }
+export interface AuditJournal { receipts?: { key: string; payload: string; resultId: string }[]; revision: number; events: AuditEvent[]; notes: AuditNote[] }
 export interface AuditFilters {
   query: string; source: string; severity: string; outcome: string;
   domain: string; actor: string; category: string; origin: string;
   from: string; to: string; correlationId: string;
 }
 export interface AuditActor { email: string; role: "admin" | "client" }
-export interface AuditSourceHealth { source: AuditSource; status: "CONNECTED" | "DEMO_ONLY" | "ERROR"; localCount: number; message: string }
+export interface AuditSourceHealth { source: AuditSource; status: "CONNECTED" | "DEMO_ONLY" | "ERROR"; localCount: number; totalCount?: number; latestAt?: string | null; message: string }
 export type AuditDraft = Pick<AuditEvent, "source" | "category" | "action" | "target" | "reason" | "before" | "after"> & Partial<Pick<AuditEvent, "domain" | "severity" | "outcome" | "correlationId" | "ip">>;

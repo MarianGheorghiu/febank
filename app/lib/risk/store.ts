@@ -1,29 +1,17 @@
 "use client";
 import { useSyncExternalStore } from "react";
 import { MOCK_RISK_STATE } from "@/app/lib/mock/admin/risk";
-import { RISK_DOMAINS } from "@/app/lib/types/admin/risk";
 import type { RiskActor, RiskCommand, RiskState } from "@/app/lib/types/admin/risk";
-import { applyRiskCommand, validatePolicy } from "./engine";
+import { applyRiskCommand } from "./engine";
 export const RISK_STORAGE_KEY = "mbank_risk_v1";
 export const RISK_EVENT = "mbank:risk-updated";
 let cached: RiskState | null = null;
 let warning: string | null = null;
 const listeners = new Set<() => void>();
-const obj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-const str = (v: unknown): v is string => typeof v === "string";
-const date = (v: unknown) => str(v) && Number.isFinite(Date.parse(v));
-const email = (v: unknown) => str(v) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-export function validRiskState(v: unknown): v is RiskState {
-  if (!obj(v) || !Number.isInteger(v.revision) || Number(v.revision) < 0 || !Array.isArray(v.cases) || !Array.isArray(v.policies) || !Array.isArray(v.restrictions) || !Array.isArray(v.audit)) return false;
-  try { for (const policy of v.policies) { if (!obj(policy)) return false; validatePolicy(policy as unknown as RiskState["policies"][number]); } } catch { return false; }
-  return v.policies.length === 3 && new Set(v.policies.map(p => p.domain)).size === 3
-    && v.cases.every(c => obj(c) && str(c.id) && RISK_DOMAINS.includes(c.domain as never) && str(c.category) && str(c.subject) && email(c.email) && str(c.reference) && typeof c.amountUsd === "number" && Number.isFinite(c.amountUsd) && c.amountUsd > 0 && typeof c.score === "number" && Number.isFinite(c.score) && c.score >= 0 && c.score <= 100 && ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(String(c.severity)) && ["OPEN", "INVESTIGATING", "ESCALATED", "RESOLVED"].includes(String(c.status)) && (c.owner === null || email(c.owner)) && date(c.createdAt) && date(c.dueAt) && Array.isArray(c.evidence) && c.evidence.every(str) && Array.isArray(c.notes) && c.notes.every(n => obj(n) && email(n.actor) && str(n.text) && date(n.timestamp)) && (c.status === "RESOLVED" ? ["CONFIRMED", "FALSE_POSITIVE"].includes(String(c.resolution)) : c.resolution === null))
-    && new Set(v.cases.map(c => c.id)).size === v.cases.length
-    && v.restrictions.every(r => obj(r) && email(r.email) && r.email === String(r.email).toLowerCase() && str(r.reason) && email(r.actor) && date(r.timestamp) && (r.releaseRequestedBy === null || email(r.releaseRequestedBy)))
-    && new Set(v.restrictions.map(r => r.email)).size === v.restrictions.length
-    && v.audit.every(a => obj(a) && str(a.id) && email(a.actor) && str(a.action) && str(a.target) && str(a.reason) && date(a.timestamp));
-}
+export { validRiskState } from "./validation";
+import { validRiskState } from "./validation";
 export function readRiskForExecution(): RiskState {
+  if ((process.env.NEXT_PUBLIC_RISK_MODE ?? process.env.NEXT_PUBLIC_TRANSFERS_MODE ?? "demo") !== "demo") throw new Error("Risk Control requires server-side execution in HTTP mode. Local financial execution is blocked.");
   const raw = localStorage.getItem(RISK_STORAGE_KEY);
   if (!raw) return MOCK_RISK_STATE;
   const parsed: unknown = JSON.parse(raw);
@@ -44,8 +32,22 @@ function subscribe(listener: () => void) {
 }
 export function useRiskState() { return useSyncExternalStore(subscribe, snapshot, () => MOCK_RISK_STATE); }
 export function riskStorageWarning() { return warning; }
-export function executeRiskCommand(command: RiskCommand, actor: RiskActor) {
-  const next = applyRiskCommand(readRiskForExecution(), command, actor, new Date().toISOString(), `RSK-${crypto.randomUUID()}`);
+export function refreshRiskState() { cached = read(); listeners.forEach(fn => fn()); }
+export function saveRiskDemo(state: RiskState) {
+  if (!validRiskState(state)) throw new Error("Invalid risk demo state.");
+  localStorage.setItem(RISK_STORAGE_KEY, JSON.stringify(state)); cached = state;
+  listeners.forEach(fn => fn());
+}
+export function executeRiskCommand(command: RiskCommand, actor: RiskActor, request?: { key: string }) {
+  const state = readRiskForExecution();
+  const payload = JSON.stringify({ actor: actor.email.trim().toLowerCase(), command });
+  if (request) {
+    if (actor.role !== "admin" || !request.key.trim()) throw new Error("Administrator and idempotency key required.");
+    const receipt = state.processedRequests?.find(item => item.key === request.key);
+    if (receipt) { if (receipt.payload !== payload) throw new Error("Idempotency key already used for another operation."); return state; }
+  }
+  const next = applyRiskCommand(state, command, actor, new Date().toISOString(), `RSK-${crypto.randomUUID()}`);
+  if (request) next.processedRequests = [...(next.processedRequests ?? []), { key: request.key, payload }];
   if (!validRiskState(next)) throw new Error("Invalid risk result. No changes were saved.");
   try { localStorage.setItem(RISK_STORAGE_KEY, JSON.stringify(next)); }
   catch { throw new Error("Browser storage is unavailable or full. No changes were saved."); }

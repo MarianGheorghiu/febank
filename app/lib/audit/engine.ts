@@ -10,7 +10,8 @@ export function redact(value: unknown, depth = 0): unknown {
 }
 export const emptyFilters = (): AuditFilters => ({query:"",source:"ALL",severity:"ALL",outcome:"ALL",domain:"ALL",actor:"ALL",category:"ALL",origin:"ALL",from:"",to:"",correlationId:""});
 export function filterAudit(events: AuditEvent[], filters: AuditFilters): AuditEvent[] {
-  const query = filters.query.trim().toLowerCase();
+  const normalize=(v:string)=>v.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const tokens=normalize(filters.query).trim().split(/\s+/).filter(Boolean);
   const from = filters.from ? Date.parse(filters.from) : -Infinity;
   const to = filters.to ? Date.parse(filters.to) : Infinity;
   if (Number.isNaN(from) || Number.isNaN(to) || from > to) return [];
@@ -18,8 +19,8 @@ export function filterAudit(events: AuditEvent[], filters: AuditFilters): AuditE
     if (Date.parse(event.timestamp)<from || Date.parse(event.timestamp)>to) return false;
     for (const key of ["source","severity","outcome","domain","actor","category","origin"] as const) if (filters[key]!=="ALL" && event[key]!==filters[key]) return false;
     if (filters.correlationId && event.correlationId!==filters.correlationId) return false;
-    return !query || [event.id,event.action,event.actor,event.target,event.reason,event.ip ?? "",event.correlationId ?? "",event.requestId ?? "",event.sessionId ?? ""].join(" ").toLowerCase().includes(query);
-  }).sort((a,b) => b.timestamp.localeCompare(a.timestamp) || a.id.localeCompare(b.id));
+    return tokens.every(token=>normalize([event.id,event.action,event.actor,event.target,event.reason,event.source,event.category,event.ip ?? "",event.correlationId ?? "",event.requestId ?? "",event.sessionId ?? ""].join(" ")).includes(token));
+  }).sort((a,b) => Date.parse(b.timestamp)-Date.parse(a.timestamp) || a.id.localeCompare(b.id));
 }
 export function groupAudit(events: AuditEvent[], key: "source" | "actor" | "outcome" | "severity") {
   const map = new Map<string,number>();
@@ -47,27 +48,28 @@ export function eventChanges(before: unknown, after: unknown): {field:string;bef
   return [...new Set([...Object.keys(a),...Object.keys(b)])].sort().filter(key => a[key]!==b[key]).map(key => ({field:key,before:a[key]??"[not present]",after:b[key]??"[not present]"}));
 }
 export function auditCsv(events: AuditEvent[], notes: AuditJournal["notes"], manifest: Record<string,unknown> = {}) {
-  const rows: (string|number)[][] = [["Event ID","Timestamp UTC","Source","Domain","Category","Action","Severity","Outcome","Actor","Role","Target","Reason","Correlation ID","Request ID","Session ID","IP","Duration ms","Origin","Before (redacted)","After (redacted)","Investigation notes","Report manifest"],...events.map(e => [e.id,e.timestamp,e.source,e.domain,e.category,e.action,e.severity,e.outcome,e.actor,e.actorRole,e.target,e.reason,e.correlationId??"",e.requestId??"",e.sessionId??"",e.ip??"",e.durationMs??"",e.origin,JSON.stringify(redact(e.before)),JSON.stringify(redact(e.after)),notes.filter(n => n.eventId===e.id).map(n => `${n.timestamp} ${n.actor}: ${n.text}`).join("\n"),JSON.stringify(manifest)])];
+  const rows: (string|number)[][] = [["Event ID","Timestamp UTC","Source","Domain","Category","Action","Severity","Outcome","Actor","Role","Target","Reason","Correlation ID","Request ID","Session ID","IP","Duration ms","Origin","Before (redacted)","After (redacted)","Investigation notes","Report manifest","Evidence kind"],...events.map(e => [e.id,e.timestamp,e.source,e.domain,e.category,e.action,e.severity,e.outcome,e.actor,e.actorRole,e.target,e.reason,e.correlationId??"",e.requestId??"",e.sessionId??"",e.ip??"",e.durationMs??"",e.origin,JSON.stringify(redact(e.before)),JSON.stringify(redact(e.after)),notes.filter(n => n.eventId===e.id).map(n => `${n.timestamp} ${n.actor}: ${n.text}`).join("\n"),JSON.stringify(manifest),e.evidenceKind??"HISTORY"])];
   return "\uFEFF"+rows.map(row => row.map(value => `"${String(value).replace(/^[\s]*[=+\-@]/,"'$&").replaceAll('"','""')}"`).join(",")).join("\r\n");
 }
 const object = (v: unknown): v is Record<string,unknown> => typeof v==="object" && v!==null && !Array.isArray(v);
 const text = (v: unknown): v is string => typeof v==="string";
-const date = (v: unknown) => text(v) && Number.isFinite(Date.parse(v));
+const date = (v: unknown) => text(v) && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v));
 export function validEvent(v: unknown): v is AuditEvent {
   return object(v) && [v.id,v.action,v.actor,v.target,v.reason].every(text) && date(v.timestamp)
     && AUDIT_SOURCES.includes(v.source as never) && AUDIT_SEVERITIES.includes(v.severity as never) && AUDIT_OUTCOMES.includes(v.outcome as never)
     && ["PLATFORM","FIAT","CRYPTO","STOCK"].includes(String(v.domain)) && ["ACCESS","SECURITY","FINANCIAL","CONFIGURATION","COMPLIANCE","SYSTEM","DATA_ACCESS"].includes(String(v.category))
-    && ["ADMIN","CLIENT","SYSTEM","UNKNOWN"].includes(String(v.actorRole)) && ["DEMO","LOCAL"].includes(String(v.origin))
+    && ["ADMIN","CLIENT","SYSTEM","UNKNOWN"].includes(String(v.actorRole)) && ["DEMO","LOCAL","SERVER"].includes(String(v.origin)) && (v.evidenceKind===undefined || ["HISTORY","SNAPSHOT"].includes(String(v.evidenceKind)))
     && [v.correlationId,v.requestId,v.sessionId,v.ip].every(item => item===null || text(item)) && (v.durationMs===null || typeof v.durationMs==="number" && Number.isFinite(v.durationMs) && v.durationMs>=0)
     && "before" in v && "after" in v;
 }
 export function validJournal(v: unknown): v is AuditJournal {
-  return object(v) && Number.isInteger(v.revision) && Number(v.revision)>=0 && Array.isArray(v.events) && v.events.every(validEvent)
+  return object(v) && Number.isSafeInteger(v.revision) && Number(v.revision)>=0 && Array.isArray(v.events) && v.events.every(validEvent)
     && new Set(v.events.map(e => e.id)).size===v.events.length && Array.isArray(v.notes) && v.notes.every(n => object(n) && [n.id,n.eventId,n.actor,n.text].every(text) && date(n.timestamp))
-    && new Set(v.notes.map(n => n.id)).size===v.notes.length;
+    && new Set(v.notes.map(n => n.id)).size===v.notes.length
+    && (v.receipts===undefined || Array.isArray(v.receipts) && v.receipts.every(r=>object(r)&&text(r.key)&&!!r.key&&text(r.payload)&&text(r.resultId)) && new Set(v.receipts.map(r=>r.key)).size===v.receipts.length);
 }
 export function mergeAudit(...sources: AuditEvent[][]): AuditEvent[] {
   const map = new Map<string,AuditEvent>();
   for (const events of sources) for (const event of events) if (validEvent(event)) map.set(event.id,{...event,before:redact(event.before),after:redact(event.after)});
-  return [...map.values()].sort((a,b) => b.timestamp.localeCompare(a.timestamp) || a.id.localeCompare(b.id));
+  return [...map.values()].sort((a,b) => Date.parse(b.timestamp)-Date.parse(a.timestamp) || a.id.localeCompare(b.id));
 }

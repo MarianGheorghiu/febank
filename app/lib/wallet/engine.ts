@@ -20,7 +20,7 @@ export type WalletEvent = (
   | { kind: "rewards"; key: string; at: string; command: OfferCommand; context: OffersContext }
   | { kind: "credit"; key: string; at: string; command: CreditCommand }
   | { kind: "cost_basis"; key: string; at: string; basis: Record<string, string>; actor: MarketActor }
-  | { kind: "trading_admin"; key: string; at: string; catalog: MarketsState; command: MarketAdminCommand; actor: MarketActor; customer: string }
+  | { kind: "trading_admin"; processing_order_id?: string; key: string; at: string; catalog: MarketsState; command: MarketAdminCommand; actor: MarketActor; customer: string }
   | { kind: "trading_migration"; key: string; at: string; catalog: MarketsState; wallet: TradingWallet; orders: MarketOrder[]; customer: string }
   | { kind: "trading"; key: string; at: string; catalog: MarketsState; command: TradingCommand; actor: MarketActor }
   | { kind: "submit"; key: string; at: string; quote: TransferQuote; overview_operation?: OverviewOperation }
@@ -76,7 +76,7 @@ export function applyWalletEvent(state: WalletState, event: WalletEvent): Wallet
     return next;
   }
   if (event.kind === "transfer_admin") return { ...state, transfers: applyTransferAdmin(state.transfers, event.command, event.actor, event.at, event.key) };
-  if (event.kind === "trading_admin") return applyTradingAdmin(state, event.catalog, event.customer, event.command, event.actor, event.at, event.key).state;
+  if (event.kind === "trading_admin") return applyTradingAdmin(state, event.catalog, event.customer, event.command, event.actor, event.at, event.key, event.processing_order_id).state;
   if (event.kind === "trading_migration") return importLegacyTrading(state, event.catalog, event.wallet, event.orders, event.customer);
   if (event.kind === "trading") return applyTrading(state, event.catalog, event.command, event.actor, event.at, event.key).state;
   if (event.kind === "submit") {

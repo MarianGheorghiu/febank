@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useSyncExternalStore } from "react";
-import { readWallet, walletCustomers, WALLET_EVENT } from "../wallet/store";
+import { readWalletForAudit, walletCustomers, WALLET_EVENT } from "../wallet/store";
 import type { AuditEvent } from "../types/admin/audit";
 let revision = 0;
 function subscribe(listener: () => void) {
@@ -9,7 +9,7 @@ function subscribe(listener: () => void) {
   return () => { window.removeEventListener(WALLET_EVENT, changed); window.removeEventListener("storage", changed); window.removeEventListener("focus", changed); };
 }
 export function readTransactionAudit(): AuditEvent[] {
-  return walletCustomers().flatMap(customer => readWallet(customer).state.transfers.transfers.flatMap(transfer => (transfer.admin_history ?? []).map(event => ({
+  return walletCustomers().flatMap(customer => readWalletForAudit(customer).state.transfers.transfers.flatMap(transfer => (transfer.admin_history ?? []).map(event => ({
     id: `transfers:${encodeURIComponent(customer)}:${event.id}`, timestamp: event.occurred_at,
     source: "TRANSACTIONS" as const, domain: transfer.kind === "fiat" ? "FIAT" as const : transfer.kind === "crypto" ? "CRYPTO" as const : "STOCK" as const,
     category: "FINANCIAL" as const, action: `TRANSFER_${event.action}`, severity: event.action === "REJECT" || event.action === "HOLD" ? "WARNING" as const : "INFO" as const,

@@ -1,0 +1,14 @@
+import type { AuditEvent, AuditNote } from '../types/admin/audit';
+const anchor=Date.parse('2026-10-28T07:00:00Z');
+/** Every trace contains one coherent synthetic business operation, not unrelated grouped events. */
+export const AUDIT_RECENT_EVENTS:AuditEvent[]=Array.from({length:15},(_,index)=>{
+ const trace=`DEMO-AUDIT-CASE-${3001+index}`,target=`DEMO-TRANSFER-${3001+index}`,blocked=index%4===0,failed=index%4===1;
+ const base={domain:'FIAT' as const,category:'FINANCIAL' as const,severity:'INFO' as const,outcome:'SUCCESS' as const,actor:'demo-payment-service',actorRole:'SYSTEM' as const,target,reason:'Demonstration transfer lifecycle; no payment was submitted.',correlationId:trace,requestId:null,sessionId:null,ip:null,durationMs:null,origin:'DEMO' as const,evidenceKind:'HISTORY' as const,before:null,after:null};
+ return [
+  {...base,source:'TRANSACTIONS' as const,action:'TRANSFER_REVIEW_STARTED',before:null,after:{status:'IN_REVIEW',amount_usd:(1200+index*350).toFixed(2)}},
+  {...base,source:'RISK' as const,category:'COMPLIANCE' as const,action:blocked?'RISK_GATE_BLOCKED':'RISK_GATE_PASSED',severity:blocked?'CRITICAL' as const:'INFO' as const,outcome:blocked?'DENIED' as const:'SUCCESS' as const,reason:blocked?'Simulated counterparty match requires compliance review.':'Simulated risk policy checks completed for this transfer.',before:{decision:'PENDING'},after:{decision:blocked?'BLOCK':'ALLOW',policy_revision:12}},
+  {...base,source:'TRANSACTIONS' as const,action:blocked?'TRANSFER_DENIED':failed?'PROVIDER_REQUEST_FAILED':'TRANSFER_SETTLED',severity:blocked||failed?'WARNING' as const:'INFO' as const,outcome:blocked?'DENIED' as const:failed?'FAILED' as const:'SUCCESS' as const,before:{status:'IN_REVIEW'},after:{status:blocked?'REJECTED':failed?'FAILED':'SETTLED'}},
+  {...base,source:'AUDIT' as const,category:'COMPLIANCE' as const,action:'EVIDENCE_REVIEWED',actor:'compliance@admin.com',actorRole:'ADMIN' as const,reason:'Demo analyst reviewed the transfer evidence under the matching case reference.',before:null,after:{case_reference:trace,outcome:blocked?'ESCALATED':'REVIEWED'}},
+ ].map((event,step)=>({...event,id:`demo:audit:recent:${index+1}:${step+1}`,timestamp:new Date(anchor-index*8*3600000+step*60000).toISOString(),requestId:`DEMO-AUDIT-REQ-${index+1}-${step+1}`}));
+}).flat();
+export const AUDIT_RECENT_NOTES:AuditNote[]=[{id:'demo:audit:note:1',eventId:'demo:audit:recent:1:2',actor:'compliance@admin.com',timestamp:'2026-10-28T07:04:00Z',text:'Demo case DEMO-AUDIT-CASE-3001: counterparty evidence retained for a second compliance review.'},{id:'demo:audit:note:2',eventId:'demo:audit:recent:2:3',actor:'operations@admin.com',timestamp:'2026-10-27T23:04:00Z',text:'Demo provider failure reviewed. Confirm the provider response before considering a retry.'}];

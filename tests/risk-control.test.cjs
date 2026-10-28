@@ -120,3 +120,96 @@ test('CSV quotes values and neutralizes spreadsheet formulas',()=>{
   const csv=csvRows([['=1+1','  @SUM(A1)','quoted "value"','line\nbreak']]);
   assert.ok(csv.includes("'=1+1"));assert.ok(csv.includes("'  @SUM(A1)"));assert.ok(csv.includes('"quoted ""value"""'));
 });
+
+test('risk command receipts replay once, bind the actor/payload and persist atomically',()=>{
+  const values=new Map();global.localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+  const command={action:'FREEZE',email:client.email,expectedRevision:0,reason};
+  const first=executeRiskCommand(command,admin,{key:'risk-once'});
+  assert.deepEqual(executeRiskCommand(command,admin,{key:'risk-once'}),first);
+  assert.equal(first.audit.length,1);assert.equal(first.restrictions.length,1);
+  assert.throws(()=>executeRiskCommand({...command,email:'other@example.test'},admin,{key:'risk-once'}),/Idempotency/);
+  assert.throws(()=>executeRiskCommand(command,second,{key:'risk-once'}),/Idempotency/);
+  assert.throws(()=>executeRiskCommand(command,client,{key:'risk-once'}),/Administrator/);
+  const raw=values.get(RISK_STORAGE_KEY);global.localStorage.setItem=()=>{throw new Error('quota')};
+  assert.throws(()=>executeRiskCommand({action:'NOTE',caseId:seed.cases[0].id,reason,expectedRevision:first.revision},admin,{key:'risk-failed'}),/No changes/);
+  assert.equal(values.get(RISK_STORAGE_KEY),raw);
+});
+test('additive risk fixtures preserve operator edits and never resurrect released restrictions',()=>{
+  const {enrichRiskDemo}=require('../app/lib/risk/demo.ts');
+  const source=structuredClone(seed);source.cases[0].notes.push({actor:admin.email,text:reason,timestamp:now});
+  const enriched=enrichRiskDemo(source);assert.ok(validRiskState(enriched));
+  assert.equal(enriched.cases.length,source.cases.length+12);assert.equal(enriched.restrictions.length,3);
+  assert.equal(enriched.cases[0].notes[0].text,reason);assert.equal(source.restrictions.length,0);
+  let released=mutate(enriched,{action:'APPROVE_RELEASE',email:'risk-demo-5@example.test'},admin);
+  assert.equal(released.restrictions.length,2);assert.strictEqual(enrichRiskDemo(released),released);
+  assert.ok(released.audit.some(a=>a.action==='RESOLVE'&&a.id.startsWith('RISK-SEED-')));
+});
+test('rejecting release preserves the restriction; exports capture exact scope and stale revisions fail',()=>{
+  let state=mutate(seed,{action:'FREEZE',email:client.email});
+  state=mutate(state,{action:'REQUEST_RELEASE',email:client.email});
+  state=mutate(state,{action:'REJECT_RELEASE',email:client.email},second);
+  assert.equal(state.restrictions[0].releaseRequestedBy,null);assert.equal(screen(state,input).decision,'BLOCK');
+  assert.throws(()=>mutate(state,{action:'APPROVE_RELEASE',email:client.email},second),/different administrator/);
+  assert.throws(()=>mutate(state,{action:'REJECT_RELEASE',email:client.email}),/No release/);
+  const exportState=mutate(state,{action:'EXPORT',kind:'cases',recordIds:[seed.cases[0].id]});
+  assert.deepEqual(exportState.audit[0].after.recordIds,[seed.cases[0].id]);
+  assert.deepEqual(exportState.cases,state.cases);assert.deepEqual(exportState.restrictions,state.restrictions);
+  assert.throws(()=>mutate(exportState,{action:'EXPORT',kind:'cases',recordIds:['missing']}),/scope/);
+  assert.throws(()=>mutate(exportState,{action:'EXPORT',kind:'audit',recordIds:[state.audit[0].id,state.audit[0].id]}),/scope/);
+  assert.throws(()=>mutate(exportState,{action:'NOTE',caseId:seed.cases[0].id,expectedRevision:state.revision}),/data changed/);
+});
+test('malformed operations and corrupt receipts cannot produce partial decisions',()=>{
+  assert.throws(()=>mutate(seed,{action:'BOGUS',caseId:seed.cases[0].id}),/Unknown/);
+  assert.throws(()=>mutate(seed,{action:'CREATE_CASE',domain:'FIAT',email:client.email,reference:'CHECK',amountUsd:1.001,score:70,signals:[]}),/valid customer/);
+  assert.throws(()=>mutate(seed,{action:'CREATE_CASE',domain:'FIAT',email:client.email,reference:'CHECK',amountUsd:1,score:70,signals:[null]}),/signals/);
+  assert.throws(()=>mutate(seed,{action:'POLICY',policy:{...seed.policies[0],reviewScore:60.5}}),/Invalid policy/);
+  assert.throws(()=>screen(seed,{...input,kycVerified:'yes'}),/valid customer/);
+  assert.equal(validRiskState({...seed,processedRequests:[{key:'x',payload:'a'},{key:'x',payload:'b'}]}),false);
+  assert.equal(validRiskState({...seed,audit:[{id:'x',actor:admin.email,action:'NOTE',target:'case',reason,timestamp:'2026-10-28T10:00:00' }]}),false);
+});
+test('risk HTTP adapter uses decimal contracts, session credentials, revisions and no local fallback',async()=>{
+  const {createRiskRepository}=require('../app/lib/risk/repository.ts');
+  const {riskWire,decodeRiskSnapshot}=require('../app/lib/risk/response.ts');
+  const oldMode=process.env.NEXT_PUBLIC_RISK_MODE,oldFetch=global.fetch;
+  try{
+    process.env.NEXT_PUBLIC_RISK_MODE='http';const calls=[];
+    const snapshot={schema_version:1,mode:'live',as_of:now,state:structuredClone(seed),customers:[],exposures:[]};
+    global.fetch=async(url,init)=>{calls.push({url,init});return {ok:true,json:async()=>riskWire(snapshot)};};
+    const repo=createRiskRepository(admin),abort=new AbortController();
+    const response=await repo.getSnapshot(abort.signal);assert.deepEqual(response,snapshot);
+    assert.equal(calls[0].init.signal,abort.signal);assert.equal(calls[0].init.credentials,'include');assert.equal(calls[0].init.cache,'no-store');
+    await repo.execute({action:'POLICY',policy:seed.policies[0],reason,expectedRevision:0},'risk-http');
+    const request=calls[1],payload=JSON.parse(request.init.body);
+    assert.equal(request.init.headers['Idempotency-Key'],'risk-http');assert.equal(payload.command.policy.maxTransactionUsd,'50000.00');assert.equal(payload.command.expectedRevision,0);assert.equal(payload.actor,undefined);
+    assert.throws(()=>decodeRiskSnapshot({...riskWire(snapshot),state:seed}),/decimal strings/);
+    assert.throws(()=>decodeRiskSnapshot({...riskWire(snapshot),state:{...riskWire(seed),processedRequests:[]}}),/local state/);
+    global.fetch=async()=>({ok:true,json:async()=>({...riskWire(snapshot),mode:'demo'})});await assert.rejects(()=>repo.getSnapshot(),/live/);
+    global.fetch=async()=>{throw new Error('offline')};await assert.rejects(()=>repo.getSnapshot(),/offline/);
+    const {readRiskForExecution}=require('../app/lib/risk/store.ts');assert.throws(()=>readRiskForExecution(),/server-side/);
+  }finally{global.fetch=oldFetch;if(oldMode===undefined)delete process.env.NEXT_PUBLIC_RISK_MODE;else process.env.NEXT_PUBLIC_RISK_MODE=oldMode;}
+});
+
+test('demo repository reads the global inventory and retains directory names after a manual case',async()=>{
+  const {createRiskRepository}=require('../app/lib/risk/repository.ts');
+  const values=new Map();global.localStorage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+  const repo=createRiskRepository(admin),first=await repo.getSnapshot();
+  assert.ok(first.exposures.some(e=>e.domain==='CRYPTO'&&e.source==='SHARED_INVENTORY'));
+  assert.ok(first.exposures.some(e=>e.domain==='FIAT'&&e.source==='TREASURY_FIXTURE'));
+  const result=await repo.execute({action:'CREATE_CASE',domain:'FIAT',email:'risk-demo-2@example.test',reference:'DEMO-MANUAL-DIRECTORY',amountUsd:1200,score:78,signals:[],reason,expectedRevision:first.state.revision},'directory-case');
+  assert.equal(result.customers.find(c=>c.email==='risk-demo-2@example.test').name,'Ștefan Dumitru');
+  assert.equal(result.state.cases.find(c=>c.reference==='DEMO-MANUAL-DIRECTORY').subject,'Ștefan Dumitru');
+  assert.equal([...values.keys()].some(key=>key.startsWith('mbank_wallet')),false);
+});
+
+
+test('demo evidence and command signals remain immutable after later decisions',()=>{
+  const {enrichRiskDemo}=require('../app/lib/risk/demo.ts');const enriched=enrichRiskDemo(seed);
+  const sample=enriched.cases.find(c=>c.id==='RSK-DEMO-2002'),prior=structuredClone(enriched.audit);
+  const next=mutate(enriched,{action:'NOTE',caseId:sample.id});
+  assert.deepEqual(next.audit.slice(1),prior);
+  const requested=mutate(enriched,{action:'REQUEST_RELEASE',email:'risk-demo-1@example.test'});
+  assert.equal(requested.audit.find(a=>a.id==='RISK-SEED-FREEZE-0').after.releaseRequestedBy,null);
+  const signals=['Documented test evidence'];const command={action:'CREATE_CASE',domain:'FIAT',email:client.email,reference:'IMMUTABLE-SIGNALS',amountUsd:120,score:65,signals};
+  const created=mutate(seed,command);signals.push('Later external mutation');
+  assert.deepEqual(created.cases[0].evidence,['Documented test evidence']);
+});

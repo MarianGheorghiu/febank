@@ -29,6 +29,14 @@ function legacyEvents(clientId: string, sourceId = clientId): WalletEvent[] {
   const events: WalletEvent[] = [...transfers, ...cash.map(entry => ({ kind: "overview", key: entry.operation?.id, at: entry.at, operation: entry.operation, legacy: true }))];
   return events.sort((a,b) => Date.parse(a.at) - Date.parse(b.at));
 }
+/** Audit observes saved journals without importing, normalizing or persisting business data. */
+export function readWalletForAudit(clientId: string) {
+  const email=clientId.trim().toLowerCase();
+  let events: WalletEvent[];
+  if(typeof window==="undefined")events=memory.get(email)??[];
+  else {const raw=sessionStorage.getItem(PREFIX+encodeURIComponent(email));events=raw?JSON.parse(raw):legacyEvents(email,clientId.trim());}
+  return {events:structuredClone(events),state:replay(events)};
+}
 export function readWallet(clientId: string) {
   const sourceId = clientId.trim();
   clientId = sourceId.toLowerCase();
@@ -142,6 +150,16 @@ export function transactionDemoWalletExists(clientId: string) {
 }
 export function initializeTransactionDemoWallet(clientId: string, events: WalletEvent[]) {
   if (!/^transactions-demo-[a-z]+@example\.test$/.test(clientId)) throw new Error("A dedicated transaction demo identity is required.");
+  const key = PREFIX + encodeURIComponent(clientId);
+  if (transactionDemoWalletExists(clientId)) return false;
+  replay(events);
+  sessionStorage.setItem(key, JSON.stringify(events));
+  return true;
+}
+
+/** Market examples own separate journals; never seed or replace a signed-in customer's funds. */
+export function initializeMarketDemoWallet(clientId: string, events: WalletEvent[]) {
+  if (!/^markets-demo-[a-z]+@example\.test$/.test(clientId)) throw new Error("A dedicated market demo identity is required.");
   const key = PREFIX + encodeURIComponent(clientId);
   if (transactionDemoWalletExists(clientId)) return false;
   replay(events);

@@ -3,10 +3,10 @@ import { RISK_DOMAINS } from "@/app/lib/types/admin/risk";
 import type { RiskActor, RiskCommand, RiskPolicy, RiskState, ScreeningInput, ScreeningResult } from "@/app/lib/types/admin/risk";
 import type { MarketsState } from "@/app/lib/types/admin/markets";
 export function validatePolicy(policy: RiskPolicy) {
-  if (!RISK_DOMAINS.includes(policy.domain) || typeof policy.paused !== "boolean" || ![policy.maxTransactionUsd, policy.exposureLimitUsd, policy.reviewScore, policy.blockScore].every(Number.isFinite) || policy.maxTransactionUsd <= 0 || policy.maxTransactionUsd > 1e9 || policy.exposureLimitUsd < policy.maxTransactionUsd || policy.exposureLimitUsd > 1e12 || policy.reviewScore < 1 || policy.reviewScore >= policy.blockScore || policy.blockScore > 100) throw new Error("Invalid policy: positive limits, exposure ≥ transaction limit and 1 ≤ review score < block score ≤ 100 are required.");
+  if (!RISK_DOMAINS.includes(policy.domain) || typeof policy.paused !== "boolean" || ![policy.maxTransactionUsd, policy.exposureLimitUsd, policy.reviewScore, policy.blockScore].every(Number.isFinite) || policy.maxTransactionUsd <= 0 || policy.maxTransactionUsd > 1e9 || policy.exposureLimitUsd < policy.maxTransactionUsd || policy.exposureLimitUsd > 1e12 || !Number.isInteger(policy.reviewScore) || !Number.isInteger(policy.blockScore) || Math.abs(policy.maxTransactionUsd * 100 - Math.round(policy.maxTransactionUsd * 100)) > 0.0001 || Math.abs(policy.exposureLimitUsd * 100 - Math.round(policy.exposureLimitUsd * 100)) > 0.0001 || policy.reviewScore < 1 || policy.reviewScore >= policy.blockScore || policy.blockScore > 100) throw new Error("Invalid policy: positive limits, exposure ≥ transaction limit and 1 ≤ review score < block score ≤ 100 are required.");
 }
 export function screenOperation(state: RiskState, input: ScreeningInput): ScreeningResult {
-  if (!RISK_DOMAINS.includes(input.domain) || !Number.isFinite(input.amountUsd) || input.amountUsd <= 0 || !Number.isFinite(input.score) || input.score < 0 || input.score > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error("Provide a valid customer email, positive USD amount and score from 0 to 100.");
+  if (!RISK_DOMAINS.includes(input.domain) || !Number.isFinite(input.amountUsd) || input.amountUsd <= 0 || input.amountUsd > 1e9 || Math.abs(input.amountUsd * 100 - Math.round(input.amountUsd * 100)) > 0.0001 || typeof input.sanctionsMatch !== "boolean" || typeof input.kycVerified !== "boolean" || !Number.isFinite(input.score) || input.score < 0 || input.score > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error("Provide a valid customer email, positive USD amount and score from 0 to 100.");
   const policy = state.policies.find(p => p.domain === input.domain);
   if (!policy) throw new Error("Risk policy unavailable.");
   const signals: string[] = [];
@@ -21,16 +21,22 @@ export function screenOperation(state: RiskState, input: ScreeningInput): Screen
   return { decision: "ALLOW", signals: ["Demo checks passed; external screening is not connected"] };
 }
 export function applyRiskCommand(state: RiskState, command: RiskCommand, actor: RiskActor, now: string, id: string): RiskState {
-  if (actor.role !== "admin") throw new Error("Administrator access required.");
+  if (actor.role !== "admin" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(actor.email)) throw new Error("Administrator access required.");
   if (command.expectedRevision !== state.revision) throw new Error("Risk data changed. Close this dialog and review the latest state.");
+  if (!Number.isFinite(Date.parse(now)) || !id || state.audit.some(entry => entry.id === id) || state.cases.some(item => item.id === id)) throw new Error("Invalid operation identifier or timestamp.");
+  if (typeof command.reason !== "string") throw new Error("An audit reason is required.");
   const reason = command.reason.trim();
   if (reason.length < 10 || reason.length > 500) throw new Error("An audit reason of 10–500 characters is required.");
   const next = structuredClone(state); let before: unknown = null; let after: unknown = null; let target = "";
-  if (command.action === "POLICY") {
+  if (command.action === "EXPORT") {
+    const records=command.kind==='cases'?state.cases:command.kind==='audit'?state.audit:null;
+    if(!records||!Array.isArray(command.recordIds)||!command.recordIds.length||new Set(command.recordIds).size!==command.recordIds.length||command.recordIds.some(recordId=>!records.some(record=>record.id===recordId)))throw new Error("Invalid export scope.");
+    target=`risk-${command.kind}`;after={kind:command.kind,recordIds:[...command.recordIds],count:command.recordIds.length};
+  } else if (command.action === "POLICY") {
     validatePolicy(command.policy); target = command.policy.domain;
     before = state.policies.find(p => p.domain === target); after = { ...command.policy };
     next.policies = next.policies.map(p => p.domain === target ? { ...command.policy } : p);
-  } else if (command.action === "FREEZE" || command.action === "REQUEST_RELEASE" || command.action === "APPROVE_RELEASE") {
+  } else if (command.action === "FREEZE" || command.action === "REQUEST_RELEASE" || command.action === "APPROVE_RELEASE" || command.action === "REJECT_RELEASE") {
     target = command.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) throw new Error("Enter a valid customer email.");
     const existing = next.restrictions.find(r => r.email === target); before = existing ? { ...existing } : null;
@@ -42,6 +48,9 @@ export function applyRiskCommand(state: RiskState, command: RiskCommand, actor: 
       if (command.action === "REQUEST_RELEASE") {
         if (existing.releaseRequestedBy) throw new Error("Release approval is already pending.");
         existing.releaseRequestedBy = actor.email;
+      } else if (command.action === "REJECT_RELEASE") {
+        if(!existing.releaseRequestedBy)throw new Error("No release request is pending.");
+        existing.releaseRequestedBy=null;
       } else {
         if (!existing.releaseRequestedBy || existing.releaseRequestedBy.toLowerCase() === actor.email.toLowerCase()) throw new Error("A different administrator must approve a pending release request.");
         next.restrictions = next.restrictions.filter(r => r.email !== target);
@@ -51,12 +60,14 @@ export function applyRiskCommand(state: RiskState, command: RiskCommand, actor: 
   } else if (command.action === "CREATE_CASE") {
     screenOperation(state, { ...command, sanctionsMatch: false, kycVerified: true });
     if (command.reference.trim().length < 3 || command.reference.length > 100) throw new Error("A reference of 3–100 characters is required.");
+    if (!Array.isArray(command.signals) || command.signals.length > 30 || command.signals.some(signal => typeof signal !== "string" || signal.length > 1000)) throw new Error("Provide at most 30 valid evidence signals.");
     target = id;
     if (next.cases.some(c => c.reference === command.reference.trim() && c.domain === command.domain && c.status !== "RESOLVED")) throw new Error("An active case already exists for this reference.");
     const email = command.email.trim().toLowerCase();
-    const item = { id, domain: command.domain, subject: email, email, category: "Manual review", reference: command.reference.trim(), amountUsd: command.amountUsd, score: command.score, severity: command.score >= 85 ? "CRITICAL" as const : command.score >= 65 ? "HIGH" as const : command.score >= 40 ? "MEDIUM" as const : "LOW" as const, status: "OPEN" as const, owner: null, createdAt: now, dueAt: new Date(Date.parse(now) + (command.score >= 85 ? 2 : 24) * 3600000).toISOString(), evidence: command.signals.length ? command.signals : ["Manually opened by an administrator."], notes: [{ actor: actor.email, text: reason, timestamp: now }], resolution: null };
+    const item = { id, domain: command.domain, subject: email, email, category: "Manual review", reference: command.reference.trim(), amountUsd: command.amountUsd, score: command.score, severity: command.score >= 85 ? "CRITICAL" as const : command.score >= 65 ? "HIGH" as const : command.score >= 40 ? "MEDIUM" as const : "LOW" as const, status: "OPEN" as const, owner: null, createdAt: now, dueAt: new Date(Date.parse(now) + (command.score >= 85 ? 2 : 24) * 3600000).toISOString(), evidence: command.signals.length ? [...command.signals] : ["Manually opened by an administrator."], notes: [{ actor: actor.email, text: reason, timestamp: now }], resolution: null };
     next.cases.unshift(item); after = item;
   } else {
+    if (!["ASSIGN", "ESCALATE", "NOTE", "RESOLVE"].includes(command.action)) throw new Error("Unknown risk command.");
     if (!("caseId" in command)) throw new Error("Unknown risk command.");
     const item = next.cases.find(c => c.id === command.caseId);
     if (!item) throw new Error("Case unavailable.");

@@ -1,34 +1,18 @@
-"use client";
-import { useRatesSource } from "../rates/use-rates";
-import { useSubscriptions, subscriptionStorageWarning } from "@/app/lib/subscriptions/store";
-import { useUserRegistry, usersStorageWarning } from "../user-management/store";
-import { useMemo } from "react";
-import { useFlagsConfig, configStorageWarning } from "@/app/lib/flags-config/repository";
-import { configAuditEvents } from "@/app/lib/flags-config/audit";
-import { useIssuingSource } from "../card-issuing/use-issuing-source";
-import { marketStorageWarning } from "@/app/lib/markets/store";
-import { useMarketsState } from "@/app/lib/markets/use-markets";
-import { useRiskState, riskStorageWarning } from "@/app/lib/risk/store";
-import { initialLogs } from "@/app/lib/mock/admin/users";
-import { MOCK_AUDIT_EVENTS } from "@/app/lib/mock/admin/audit";
-import { AUDIT_SOURCES, type AuditSourceHealth } from "@/app/lib/types/admin/audit";
-import { useAuditJournal, auditJournalWarning } from "./store";
-import { useTransactionAudit } from "../transactions/audit";
-import { mergeAudit } from "./engine";
-import { cardAuditEvents, marketAuditEvents, marketOrderEvents, riskAuditEvents, userAuditEvent } from "./adapters";
-export function useAuditEvents() {
-  const rates = useRatesSource();
-  const transactions = useTransactionAudit();
-  const users = useUserRegistry(); const usersWarning = usersStorageWarning();
-  const config=useFlagsConfig(); const configWarning=configStorageWarning();
-  const subscriptions=useSubscriptions(); const subscriptionsWarning=subscriptionStorageWarning();
-  const cards=useIssuingSource(); const markets=useMarketsState(); const risk=useRiskState(); const journal=useAuditJournal();
-  const cardWarning=cards.warning; const marketsWarning=marketStorageWarning(); const riskWarning=riskStorageWarning(); const journalWarning=auditJournalWarning();
-  const events=useMemo(() => mergeAudit(rates.warning?[]:rates.snapshot.audit,transactions.events,usersWarning?[]:users.audit,configWarning?[]:configAuditEvents(config),subscriptionsWarning?[]:subscriptions.audit,MOCK_AUDIT_EVENTS,initialLogs.map(e => userAuditEvent(e)),journalWarning?[]:journal.events,cardWarning?[]:cardAuditEvents(cards.snapshot?.audit??[]),marketsWarning?[]:[...marketAuditEvents(markets.audit),...marketOrderEvents(markets.orders)],riskWarning?[]:riskAuditEvents(risk.audit)),[rates,transactions,users,usersWarning,config,configWarning,subscriptions,subscriptionsWarning,cards,markets,risk,journal,cardWarning,marketsWarning,riskWarning,journalWarning]);
-  const health: AuditSourceHealth[]=AUDIT_SOURCES.map(source => {
-    const error=source==="RATES"?rates.warning:source==="TRANSACTIONS"?transactions.warning??journalWarning:source==="USERS"?usersWarning??journalWarning:source==="SYSTEM"?configWarning??journalWarning:source==="SUBSCRIPTIONS"?subscriptionsWarning:source==="CARDS"?cardWarning:source==="MARKETS"?marketsWarning:source==="RISK"?riskWarning:["USERS","TRANSACTIONS","RATES","AUDIT","ANALYTICS"].includes(source)?journalWarning:null;
-    const connected=["SYSTEM","CARDS","MARKETS","RISK","USERS","TRANSACTIONS","RATES","AUDIT","SUBSCRIPTIONS","ANALYTICS"].includes(source);
-    return {source,status:error?"ERROR":connected?"CONNECTED":"DEMO_ONLY",localCount:events.filter(e => e.source===source && e.origin==="LOCAL").length,message:error??(connected ? source==="SYSTEM"?"Local configuration releases and health acknowledgements; no server telemetry.":source==="MARKETS"?"Admin history + latest order snapshots; not a complete order lifecycle.":"Local demo operations; no server ingestion.":"Fixtures only; no live authentication or system telemetry feed.")};
-  });
-  return {events,journal,health,warnings:[rates.warning,transactions.warning,usersWarning,configWarning,subscriptionsWarning,cardWarning,marketsWarning,riskWarning,journalWarning].filter((v): v is string => !!v)};
+'use client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useUser } from '../../context/UserContext';
+import { createAuditRepository } from './repository';
+import type { AuditSnapshot } from './contracts';
+export function useAuditEvents(){
+ const {user}=useUser(),email=user?.email??'',role=user?.role;
+ const repository=useMemo(()=>role==='admin'?createAuditRepository({email,role}):null,[email,role]);
+ const [snapshot,setSnapshot]=useState<AuditSnapshot|null>(null),[error,setError]=useState<string|null>(null),[loading,setLoading]=useState(true);
+ const generation=useRef(0),accessKey=useRef<{actor:string;key:string}|null>(null);
+ const refresh=useCallback(async()=>{if(!repository)return;const current=++generation.current;setLoading(true);try{const next=await repository.getSnapshot();if(current===generation.current){setSnapshot(next);setError(null);}}catch(cause){if(current===generation.current)setError(cause instanceof Error?cause.message:'Audit evidence unavailable.');}finally{if(current===generation.current)setLoading(false);}},[repository]);
+ const invalidate=useCallback(()=>{generation.current++;},[]);
+ useEffect(()=>{if(!repository)return;let stopped=false,timer:number|undefined;const schedule=()=>{window.clearTimeout(timer);timer=window.setTimeout(()=>void refresh(),100);};const storage=(e:StorageEvent)=>{if(e.key===null||e.key.startsWith('mbank_'))schedule();};const events=['mbank:audit-updated','mbank:cards-updated','mbank:risk-updated','mbank:wallet-updated','mbank:rates-updated','mbank:users-updated','mbank:config-updated','focus'];events.forEach(e=>window.addEventListener(e,schedule));window.addEventListener('storage',storage);
+  if(accessKey.current?.actor!==email)accessKey.current={actor:email,key:crypto.randomUUID()};void repository.recordAccess(accessKey.current.key).then(()=>{if(!stopped)void refresh();},cause=>{if(!stopped){setError(cause instanceof Error?cause.message:'Console access could not be recorded.');setLoading(false);}});
+  return()=>{stopped=true;invalidate();window.clearTimeout(timer);events.forEach(e=>window.removeEventListener(e,schedule));window.removeEventListener('storage',storage);};
+ },[repository,refresh,invalidate,email]);
+ return {snapshot,events:snapshot?.events??[],journal:{revision:snapshot?.revision??0,notes:snapshot?.notes??[]},health:snapshot?.health??[],warnings:snapshot?.warnings??[],error,loading,refresh,repository};
 }

@@ -5,6 +5,7 @@ import { readRiskForExecution } from "@/app/lib/risk/store";
 import { enforceMarketRisk } from "@/app/lib/risk/engine";
 import { MOCK_MARKETS_STATE } from "@/app/lib/markets/seed";
 import { applyMarketAdminCommand } from "./engine";
+import { projectInventory, unprojectInventory } from "./inventory";
 import type { MarketActor, MarketAdminCommand, MarketsState, TradeRequest } from "@/app/lib/types/admin/markets";
 import { commitWallet, readWallet, walletCustomers, WALLET_EVENT } from "../wallet/store";
 import { applyTrading, applyTradingAdmin, projectTrading, type TradingCommand } from "../wallet/trading";
@@ -16,9 +17,9 @@ const object = (value: unknown): value is Record<string, unknown> => typeof valu
 const number = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0;
 const date = (value: unknown) => typeof value === "string" && Number.isFinite(Date.parse(value));
 const numbers = (value: unknown) => object(value) && Object.values(value).every(number);
-function valid(data: unknown): data is MarketsState {
+export function validateMarketState(data: unknown, allowJournalOffsets = false): data is MarketsState {
   if (!object(data) || !number(data.revision) || !Number.isInteger(data.revision) || !Array.isArray(data.instruments) || !object(data.routing) || !object(data.wallets) || !Array.isArray(data.orders) || !Array.isArray(data.audit)) return false;
-  const instruments = data.instruments.every(item => object(item) && typeof item.symbol === "string" && /^[A-Z][A-Z0-9.-]{0,11}$/.test(item.symbol) && typeof item.name === "string" && typeof item.venue === "string" && ["CRYPTO", "STOCK"].includes(String(item.domain)) && ["ACTIVE", "SELL_ONLY", "HALTED"].includes(String(item.status)) && ["HEALTHY", "STALE"].includes(String(item.quoteStatus)) && [item.priceUsd, item.feeBps, item.spreadBps, item.minOrderUsd, item.maxOrderUsd, item.reserveUnits, item.reserveUsd, item.lowLiquidityUsd].every(number) && Number(item.priceUsd) > 0 && Number(item.minOrderUsd) > 0 && Number(item.minOrderUsd) <= Number(item.maxOrderUsd) && Number(item.feeBps) <= 500 && Number(item.spreadBps) <= 500 && typeof item.fractional === "boolean" && Number.isInteger(item.version) && Number(item.version) > 0 && date(item.updatedAt));
+  const instruments = data.instruments.every(item => object(item) && typeof item.symbol === "string" && /^[A-Z][A-Z0-9.-]{0,11}$/.test(item.symbol) && typeof item.name === "string" && typeof item.venue === "string" && ["CRYPTO", "STOCK"].includes(String(item.domain)) && ["ACTIVE", "SELL_ONLY", "HALTED"].includes(String(item.status)) && ["HEALTHY", "STALE"].includes(String(item.quoteStatus)) && [item.priceUsd, item.feeBps, item.spreadBps, item.minOrderUsd, item.maxOrderUsd, item.lowLiquidityUsd].every(number) && [item.reserveUnits, item.reserveUsd].every(value => typeof value === "number" && Number.isFinite(value) && (allowJournalOffsets || value >= 0)) && Number(item.priceUsd) > 0 && Number(item.minOrderUsd) > 0 && Number(item.minOrderUsd) <= Number(item.maxOrderUsd) && Number(item.feeBps) <= 500 && Number(item.spreadBps) <= 500 && typeof item.fractional === "boolean" && Number.isInteger(item.version) && Number(item.version) > 0 && date(item.updatedAt));
   return instruments && new Set(data.instruments.map(item => item.symbol)).size === data.instruments.length
     && ["CRYPTO", "STOCK"].every(domain => { const item = (data.routing as Record<string, unknown>)[domain]; return object(item) && ["ACTIVE", "SELL_ONLY", "HALTED"].includes(String(item.status)) && Number.isInteger(item.version) && Number(item.version) > 0 && date(item.updatedAt); })
     && Object.values(data.wallets).every(wallet => object(wallet) && numbers(wallet.cash) && numbers(wallet.units) && numbers(wallet.costBasis))
@@ -28,13 +29,15 @@ function valid(data: unknown): data is MarketsState {
 }
 function read(): MarketsState {
   warning = null;
-  try { const raw = localStorage.getItem(KEY); if (!raw) return MOCK_MARKETS_STATE; const data: unknown = JSON.parse(raw); if (!valid(data)) throw new Error("Invalid market data"); return data; }
+  try { const raw = localStorage.getItem(KEY); if (!raw) return MOCK_MARKETS_STATE; const data: unknown = JSON.parse(raw); if (!validateMarketState(data, true)) throw new Error("Invalid market data"); return data; }
   catch { warning = "Saved market data could not be restored. Demo defaults are shown and operations are blocked until browser storage is repaired."; return MOCK_MARKETS_STATE; }
 }
+export function readBaseMarketCatalog(): MarketsState { const catalog = read(); if (warning) throw new Error(warning); return catalog; }
 export function readMarketCatalog(customer?: string): MarketsState {
   const catalog = read();
   if (warning) throw new Error(warning);
-  return customer ? priceMarkets(catalog, customer) : structuredClone(catalog);
+  const inventory = projectOtherCustomers(catalog, customer);
+  return customer ? priceMarkets(inventory, customer) : inventory;
 }
 function getSnapshot() { if (typeof window === "undefined") return MOCK_MARKETS_STATE; return snapshot ??= read(); }
 function subscribe(listener: () => void) {
@@ -48,7 +51,7 @@ export function marketStorageWarning() { return warning; }
 function mutate(operation: (state: MarketsState, now: string, id: string) => MarketsState, checkRisk = false) {
   const latest = read(); if (warning) throw new Error(warning);
   const next = operation(latest, new Date().toISOString(), crypto.randomUUID());
-  if (!valid(next)) throw new Error("Invalid market result. No changes were saved.");
+  if (!validateMarketState(next, true)) throw new Error("Invalid market result. No changes were saved.");
   if (checkRisk) enforceMarketRisk(readRiskForExecution(), latest, next);
   try { localStorage.setItem(KEY, JSON.stringify(next)); }
   catch { throw new Error("Browser storage is unavailable or full. No changes were applied."); }
@@ -59,9 +62,13 @@ function mutate(operation: (state: MarketsState, now: string, id: string) => Mar
 function customers(catalog: MarketsState) {
   return [...new Set([...walletCustomers(), ...Object.keys(catalog.wallets), ...catalog.orders.map(order => order.userEmail)])];
 }
+/** Exclude the current owner: projectTrading adds that journal exactly once. */
+export function projectOtherCustomers(catalog: MarketsState, owner?: string): MarketsState {
+  return projectInventory(catalog, customers(catalog).filter(email => email.toLowerCase() !== owner?.toLowerCase()).map(email => readWallet(email).state.trading));
+}
 /** Admin reads customer orders from their owner journal; never saves a second wallet. */
 export function projectAllCustomers(catalog: MarketsState): MarketsState {
-  const result = { ...catalog, wallets: {}, orders: [], audit: [...catalog.audit] } as MarketsState;
+  const result = { ...projectOtherCustomers(catalog), wallets: {}, orders: [], audit: [...catalog.audit] } as MarketsState;
   for (const customer of customers(catalog)) {
     const view = projectTrading(readWallet(customer).state, catalog, customer);
     Object.assign(result.wallets, view.wallets);
@@ -74,31 +81,36 @@ export function projectAllCustomers(catalog: MarketsState): MarketsState {
 export function executeMarketAdmin(command: MarketAdminCommand, actor: MarketActor) {
   if (actor.role !== "admin") throw new Error("Administrator access required.");
   if (command.action !== "PROCESS" && command.action !== "CANCEL") return mutate((catalog, now, id) => {
-    const next = applyMarketAdminCommand(projectAllCustomers(catalog), command, actor, now, id);
+    const projected = projectAllCustomers(catalog);
+    const next = unprojectInventory(catalog, projected, applyMarketAdminCommand(projected, command, actor, now, id));
     return { ...next, wallets: catalog.wallets, orders: catalog.orders };
   });
   const catalog = read(); if (warning) throw new Error(warning);
   const all = projectAllCustomers(catalog);
-  const targets = command.action === "CANCEL" ? [all.orders.find(order => order.id === command.orderId)?.userEmail].filter((email): email is string => !!email)
-    : [...new Set(all.orders.filter(order => order.domain === command.domain && order.status === "PENDING").map(order => order.userEmail))];
+  const targets = command.action === "CANCEL" ? all.orders.filter(order => order.id === command.orderId)
+    : all.orders.filter(order => order.domain === command.domain && order.status === "PENDING").sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id));
   if (!targets.length) {
     if (command.action === "CANCEL") throw new Error("Only pending orders can be cancelled.");
     // Preserve validation and operational audit even for an empty queue.
     return mutate((state, now, id) => ({ ...applyMarketAdminCommand({ ...state, orders: [] }, command, actor, now, id), orders: state.orders }));
   }
-  for (const customer of targets) {
+  const wallets = new Map(customers(catalog).map(customer => [customer, readWallet(customer).state]));
+  for (const order of targets) {
+    const customer = order.userEmail;
+    const processingOrderId = command.action === "PROCESS" ? order.id : undefined;
     const at = new Date().toISOString(), key = crypto.randomUUID();
-    const executionCatalog = command.action === "PROCESS" ? priceMarkets(catalog, customer) : catalog;
-    const execution = applyTradingAdmin(readWallet(customer).state, executionCatalog, customer, command, actor, at, key);
+    const inventory = projectInventory(catalog, [...wallets].filter(([owner]) => owner !== customer).map(([, wallet]) => wallet.trading));
+    const executionCatalog = command.action === "PROCESS" ? priceMarkets(inventory, customer) : inventory;
+    const execution = applyTradingAdmin(wallets.get(customer)!, executionCatalog, customer, command, actor, at, key, processingOrderId);
     enforceMarketRisk(readRiskForExecution(), execution.before, execution.after);
-    commitWallet(customer, { kind: "trading_admin", key, at, catalog: executionCatalog, command, actor, customer });
+    wallets.set(customer, commitWallet(customer, { kind: "trading_admin", key, at, catalog: executionCatalog, command, actor, customer, processing_order_id: processingOrderId }));
   }
   return projectAllCustomers(catalog);
 }
 /** One canonical journal commit; never write a second balance to market localStorage. */
 export function executeCustomerCommand(command: TradingCommand, actor: MarketActor, key = crypto.randomUUID()) {
   if ((process.env.NEXT_PUBLIC_TRANSFERS_MODE ?? "demo") !== "demo") throw new Error("Customer trading requires the shared wallet service adapter in HTTP mode.");
-  const catalog = command.type === "cancel_order" ? readMarketCatalog() : readMarketCatalog(actor.email);
+  const catalog = readMarketCatalog(actor.email);
   const at = new Date().toISOString();
   const { state, events } = readWallet(actor.email);
   if (events.some(event => event.key === key)) return projectTrading(commitWallet(actor.email, { kind: "trading", key, at, catalog, command, actor }), catalog, actor.email);

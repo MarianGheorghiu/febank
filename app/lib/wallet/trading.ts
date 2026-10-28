@@ -109,9 +109,9 @@ export function importLegacyTrading(state: WalletState, catalog: MarketsState, l
   return settleTrading(state, before, after, email);
 }
 
-export function applyTradingAdmin(state: WalletState, catalog: MarketsState, customer: string, command: MarketAdminCommand, actor: MarketActor, at: string, key: string) {
+export function applyTradingAdmin(state: WalletState, catalog: MarketsState, customer: string, command: MarketAdminCommand, actor: MarketActor, at: string, key: string, processingOrderId?: string) {
   if (command.action !== "PROCESS" && command.action !== "CANCEL") throw new Error("Only order processing/cancellation may mutate customer execution state.");
   const before = projectTrading(state, catalog, customer);
-  const after = applyMarketAdminCommand(before, command, actor, at, key);
+  const after = applyMarketAdminCommand(before, command, actor, at, key, processingOrderId);
   return { before, after, state: settleTrading(state, before, after, customer) };
 }

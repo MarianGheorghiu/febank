@@ -56,3 +56,33 @@ test('customer CSV isolates account/domain and escapes spreadsheet formulas',()=
 test('new listings cannot collide with settlement currency symbols',()=>{
   assert.throws(()=>mutate(seed,{action:'CREATE',instrument:{...asset(seed,'BTC'),symbol:'USD',status:'HALTED',reserveUnits:0,reserveUsd:0}}),/Settlement currency/);
 });
+
+test('Go operations transport uses decimal strings, authenticated requests and no local fallback',async()=>{
+  const {marketWire,parseMarketSnapshot}=require('../app/lib/markets/response.ts');
+  const {createMarketOperationsRepository}=require('../app/lib/markets/repository.ts');
+  const wire={schema_version:1,as_of:now,state:marketWire(seed)};
+  assert.equal(typeof wire.state.instruments[0].priceUsd,'string');
+  assert.deepEqual(parseMarketSnapshot(wire).state,seed);
+  assert.equal(marketWire({quantity:0.00000001}).quantity,'0.00000001');
+  const bad=structuredClone(wire);bad.state.instruments[0].reserveUsd='NaN';
+  assert.throws(()=>parseMarketSnapshot(bad),/decimal/);
+  assert.throws(()=>parseMarketSnapshot({...wire,schema_version:2}),/Unsupported/);
+  const oldMode=process.env.NEXT_PUBLIC_TRANSFERS_MODE,oldFetch=global.fetch;
+  process.env.NEXT_PUBLIC_TRANSFERS_MODE='http';
+  const requests=[];
+  global.fetch=async(url,init)=>{requests.push({url,init});return {ok:true,json:async()=>wire};};
+  try {
+    const repository=createMarketOperationsRepository(admin);
+    await repository.getSnapshot();
+    await repository.execute({action:'LIQUIDITY',symbol:'BTC',expectedVersion:1,unitsDelta:0.00000001,usdDelta:100,reason},'pool-operation-key');
+    assert.ok(requests[0].url.endsWith('/v1/admin/markets/snapshot'));
+    assert.equal(requests[1].init.credentials,'include');
+    assert.equal(requests[1].init.headers['Idempotency-Key'],'pool-operation-key');
+    const body=JSON.parse(requests[1].init.body);
+    assert.equal(body.command.unitsDelta,'0.00000001');
+    assert.equal(body.command.usdDelta,'100');
+    assert.equal(body.actor,undefined);
+    global.fetch=async()=>({ok:false,status:409,json:async()=>({error:{message:'Version conflict'}})});
+    await assert.rejects(repository.getSnapshot(),/Version conflict/);
+  } finally {global.fetch=oldFetch;if(oldMode===undefined)delete process.env.NEXT_PUBLIC_TRANSFERS_MODE;else process.env.NEXT_PUBLIC_TRANSFERS_MODE=oldMode;}
+});
