@@ -288,7 +288,6 @@ export default function Sidenav({ user }: { user: UserProps }) {
                     <button type="button" onClick={logout} className={`${styles.navItem} ${styles.logout}`} aria-label="Secure Exit" title={isCollapsed ? "Secure Exit" : undefined}>
                         <span className={styles.icon}><LogOut size={18} aria-hidden="true" /></span><span className={styles.label}>Secure Exit</span>
                     </button>
-                    {user.role === "admin" && <div className={styles.footerNote}><span className={styles.statusDot} aria-hidden="true" /><span className={styles.label}>Admin mode</span></div>}
                 </footer>
             </aside>
         </>

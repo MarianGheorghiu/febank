@@ -1,115 +1,75 @@
-"use client";
-import { useState } from "react";
-import Link from "next/link";
-import { Activity, ArrowDownRight, ArrowUpRight, BellRing, CalendarClock, CheckCheck, Clock, Download, RefreshCw, Server, ShieldAlert } from "lucide-react";
-import { useUser } from "@/app/context/UserContext";
-import PageHeader from "@/app/components/ui/PageHeader";
-import MetricCard from "@/app/components/ui/MetricCard";
-import { notifyOperation } from "@/app/components/ui/OperationNotification";
-import { appendAuditEvent, auditJournalWarning, useAuditJournal } from "@/app/lib/audit/store";
-import { MOCK_SYSTEM_HEALTH } from "@/app/lib/mock/admin/system-health";
-import { controlStatus, effectiveStatus, healthSummary } from "@/app/lib/system-health/engine";
-import { mockSystemHealthRepository } from "@/app/lib/system-health/repository";
-import type { AuditActor } from "@/app/lib/types/admin/audit";
-import type { HealthDomain, HealthIncident } from "@/app/lib/types/admin/system-health";
-import { AuditPanel, AuditSelect, auditBadge, auditDate, auditFieldClass, auditTextareaClass } from "../audit/presentation";
-import { analyticsButton as button } from "../business-analytics/presentation";
-import LatencyChart from "./LatencyChart";
-import ServiceRegistry, { domainLabels } from "./ServiceRegistry";
-import { percent, Status, statusTone } from "./presentation";
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { Activity, ArrowRight, Clock, Download, RefreshCw, Server, ShieldAlert } from 'lucide-react';
+import { useUser } from '@/app/context/UserContext';
+import PageHeader from '@/app/components/ui/PageHeader';
+import MetricCard from '@/app/components/ui/MetricCard';
+import CardSurface from '@/app/components/ui/CardSurface';
+import { ActionButton } from '../../dashboard/ActionButton';
+import { controlStatus, domainHealth, healthSummary } from '@/app/lib/system-health/engine';
+import { useHealthSource } from '@/app/lib/system-health/use-health-source';
+import type { AuditActor } from '@/app/lib/types/admin/audit';
+import type { HealthDomain, HealthIncident, SystemHealthReport } from '@/app/lib/types/admin/system-health';
+import { AuditPanel, AuditSelect, auditBadge, auditDate, auditFieldClass } from '../audit/presentation';
+import LatencyChart from './LatencyChart';
+import ServiceRegistry, { domainLabels } from './ServiceRegistry';
+import HealthActions from './HealthActions';
+import IncidentList from './IncidentList';
+import Infrastructure from './Infrastructure';
+import { percent, Status, statusTone, HealthSearch, healthMatches, healthScrollClass, healthOverviewPanelClass } from './presentation';
 
+type View = 'OVERVIEW' | 'SERVICES' | 'CONTROLS' | 'INCIDENTS' | 'INFRASTRUCTURE';
+const views: [View, string][] = [['OVERVIEW', 'Overview'], ['SERVICES', 'Services'], ['CONTROLS', 'Operational controls'], ['INCIDENTS', 'Incidents'], ['INFRASTRUCTURE', 'Infrastructure']];
 export default function SystemHealthWorkspace() {
-  const { user, loading } = useUser();
+  const {user, loading} = useUser();
   if (loading || !user) return null;
-  if (user.role !== "admin") return <div className="rounded-xl border border-rose-500/30 p-8 text-center"><ShieldAlert className="mx-auto mb-3 text-rose-400"/><h1>Administrator access required</h1><Link className={`${button} mt-4`} href="/dashboard">Return to dashboard</Link></div>;
-  return <Workspace actor={user}/>;
+  if (user.role !== 'admin') return <div className="rounded-xl border border-rose-500/30 p-8 text-center"><ShieldAlert className="mx-auto mb-3 text-rose-300"/><h1>Administrator access required</h1><Link className="mt-4 inline-block text-cyan-200" href="/dashboard">Return to dashboard</Link></div>;
+  return <Workspace key={user.email} actor={user}/>;
 }
-function Workspace({ actor }: { actor: AuditActor }) {
-  const [report, setReport] = useState(MOCK_SYSTEM_HEALTH);
-  const [domain, setDomain] = useState<HealthDomain | "ALL">("ALL");
-  const [busy, setBusy] = useState(false);
-  const journal = useAuditJournal();
-  const journalError = auditJournalWarning();
-  const summary = healthSummary(report);
-  const controls = report.controls.filter(c => domain === "ALL" || c.domain === domain).sort((a,b) => Number(controlStatus(b, report.as_of) !== "OPERATIONAL") - Number(controlStatus(a, report.as_of) !== "OPERATIONAL"));
-  const breaches = report.controls.filter(c => controlStatus(c, report.as_of) === "DEGRADED").length;
-  const incidents = [...report.incidents].sort((a, b) => Number(b.severity === "CRITICAL") - Number(a.severity === "CRITICAL") || Date.parse(a.started_at) - Date.parse(b.started_at));
-  const refresh = async () => {
-    if (busy) return;
-    setBusy(true);
-    try { setReport(await mockSystemHealthRepository.getSnapshot()); notifyOperation("Health snapshot reloaded", "The fixed demo snapshot has been reloaded. Snapshot time remains unchanged.", false, "System Health"); }
-    catch (cause) { notifyOperation("Health snapshot unavailable", cause instanceof Error ? cause.message : "Could not reload telemetry.", true, "System Health"); }
-    finally { setBusy(false); }
-  };
-  const exportSnapshot = () => {
-    let url: string | undefined;
-    try {
-      const content = { generated_at: new Date().toISOString(), generated_by: actor.email, scope: "All services and 24-hour telemetry; independent synthetic snapshot", report, acknowledgements: journal.events.filter(e => e.source === "SYSTEM" && e.action === "HEALTH_INCIDENT_ACKNOWLEDGED" && report.incidents.some(i => i.id === e.target)) };
-      url = URL.createObjectURL(new Blob([JSON.stringify(content, null, 2)], { type: "application/json" }));
-      appendAuditEvent({ source: "SYSTEM", category: "DATA_ACCESS", action: "HEALTH_SNAPSHOT_EXPORT_REQUESTED", target: report.snapshot_id, reason: "Administrator requested the full operational diagnostic snapshot.", before: null, after: { snapshot_id: report.snapshot_id, as_of: report.as_of, format: "JSON" } }, actor);
-      const anchor = document.createElement("a"); anchor.href = url; anchor.download = `mbank-${report.snapshot_id}.json`; anchor.click();
-      notifyOperation("Diagnostic snapshot prepared", "All services, incidents and 24-hour samples are included. Export request recorded in Audit Logs.", false, "System Health");
-    } catch (cause) { notifyOperation("Diagnostic export blocked", cause instanceof Error ? cause.message : "Could not record the export request.", true, "System Health"); }
-    finally { if (url) { const objectUrl = url; window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000); } }
-  };
-  return <div className="@container w-full min-w-0 font-mono text-white [overflow-wrap:anywhere] [&_button]:cursor-pointer [&_button]:disabled:cursor-not-allowed [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-4 [&_button]:focus-visible:outline-cyan-300 [&_summary]:focus-visible:outline-2 [&_summary]:focus-visible:outline-cyan-300">
-    <div className="space-y-5 @min-[800px]:space-y-6">
-      <div className="min-w-0 [&>div]:flex-wrap">
-        <PageHeader compact sessionId={actor.email} systemDate={auditDate(report.as_of, "UTC")} statusText="ADMINISTRATOR · SYSTEM HEALTH">
-          <button className={button} disabled={busy} onClick={refresh}><RefreshCw size={13} className={busy ? "animate-spin" : ""}/>{busy ? "Reloading…" : "Refresh snapshot"}</button>
-          <button className={button} disabled={busy || !!journalError} onClick={exportSnapshot}><Download size={13}/>Export diagnostics</button>
-        </PageHeader>
-      </div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0"><h1 className="text-2xl font-black uppercase tracking-widest">System Health</h1><p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-400">Service reliability, financial operations and incident response.</p></div>
-        <span className={auditBadge("DEMO")}>DEMO SNAPSHOT</span>
-      </div>
-      <section aria-label="Overall system status" className={`rounded-xl border p-4 @min-[700px]:p-5 ${statusTone[summary.status]}`}>
-        <div className="flex flex-wrap items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-3"><ShieldAlert size={20} className="mt-0.5 shrink-0"/><div><h2 className="text-sm font-bold">{summary.status === "DEGRADED" ? "Partial service degradation" : summary.status === "OPERATIONAL" ? "All services operational" : summary.status === "OUTAGE" ? "Service interruption detected" : "Telemetry coverage incomplete"}</h2><p className="mt-1 text-xs leading-relaxed text-slate-300">{summary.healthy}/{summary.total} services operational · {report.incidents.length} active incidents · {breaches} control breaches</p></div></div><a href="#health-incidents" className={`${button} shrink-0`}><BellRing size={14}/>Review incidents</a></div>
-        <div className="mt-4 flex flex-col gap-2 border-t border-current/10 pt-3 text-[10px] leading-relaxed text-slate-400 @min-[700px]:flex-row @min-[700px]:justify-between"><p>{report.region} · Snapshot {auditDate(report.as_of, "UTC")} UTC</p><p>Fixed demo data · Live monitoring disconnected</p></div>
+function Workspace({actor}: {actor: AuditActor}) {
+  const source = useHealthSource(actor), {report} = source;
+  const [view, setView] = useState<View>('OVERVIEW'), [domain, setDomain] = useState<HealthDomain | 'ALL'>('ALL');
+  const [action, setAction] = useState<{report: SystemHealthReport; incident?: HealthIncident} | null>(null);
+  const summary = report ? healthSummary(report) : null;
+  const blocked = source.loading || !!source.error || source.stale;
+  const openIncident = (incident: HealthIncident) => {if (report) setAction({report: structuredClone(report), incident: structuredClone(incident)});};
+  return <div className="@container w-full min-w-0 space-y-5 font-mono text-white [overflow-wrap:anywhere] [&_header_p]:text-slate-300 [&_button]:cursor-pointer [&_button]:disabled:cursor-not-allowed [&_summary]:focus-visible:outline-2 [&_summary]:focus-visible:outline-cyan-300">
+    <h1 className="sr-only">System Health</h1>
+    <PageHeader statusText="System Health" wrapActions><ActionButton variant="blue" autoWidth disabled={source.loading} icon={<RefreshCw size={14} className={source.loading ? 'animate-spin' : ''}/>} onClick={() => void source.refresh()}>Refresh</ActionButton><ActionButton variant="cyan" autoWidth disabled={!report || blocked} icon={<Download size={14}/>} onClick={() => report && setAction({report: structuredClone(report)})}>Export diagnostics</ActionButton></PageHeader>
+    {source.error && <div role="alert" className="rounded-xl border border-rose-400/25 bg-rose-400/5 p-4 text-xs leading-relaxed text-rose-200">{source.error} {report ? 'The last successful snapshot remains visible. Actions are blocked until refresh succeeds.' : 'No monitoring snapshot is available.'}</div>}
+    {!report && <div role="status" className="rounded-2xl border border-white/10 p-12 text-center text-sm text-slate-300">{source.loading ? 'Loading global monitoring telemetry…' : 'Use Refresh to retry the monitoring connection.'}</div>}
+    {report && summary && <>
+      <div className="flex flex-wrap justify-between gap-2 text-xs text-slate-300"><span>Global coverage · <strong className="text-white">{report.region}</strong> · {report.environment.toLowerCase()}</span><span>Captured {auditDate(report.as_of, 'UTC')} UTC · {report.mode === 'demo' ? 'Mock telemetry' : 'Live monitoring'}</span></div>
+      {source.stale && <p role="alert" className="rounded-xl border border-amber-400/25 bg-amber-400/5 p-4 text-xs text-amber-200">Monitoring snapshot is outside the freshness window. Current health is unknown; the readings below are historical. Reviews and exports are blocked.</p>}
+      <section aria-label="Overall system status" className={`rounded-2xl border p-5 ${statusTone[source.stale || source.error ? 'UNKNOWN' : summary.status]}`}>
+        <div className="flex flex-wrap items-start justify-between gap-4"><div className="flex min-w-0 items-start gap-3"><Activity size={22} className="mt-1 shrink-0"/><div><h2 className="text-base font-semibold">{source.stale || source.error ? 'Current health unavailable' : summary.status === 'DEGRADED' ? 'Some services need attention' : summary.status === 'OPERATIONAL' ? 'All services operational' : summary.status === 'OUTAGE' ? 'Service interruption detected' : 'Telemetry coverage incomplete'}</h2><p className="mt-2 text-xs leading-relaxed text-slate-200">{summary.healthy} of {summary.total} services operational at capture · {report.incidents.length} open incidents · {report.controls.filter(c => controlStatus(c, report.as_of) === 'DEGRADED').length} control breaches</p></div></div><ActionButton variant="amber" autoWidth icon={<ArrowRight size={14}/>} onClick={() => setView('INCIDENTS')}>Review incidents</ActionButton></div>
       </section>
-      {journalError && <p role="alert" className="rounded-lg border border-rose-500/30 p-3 text-xs text-rose-300">{journalError}</p>}
-      <div className="grid gap-3 @min-[300px]:grid-cols-2 @min-[900px]:grid-cols-4">
-        <MetricCard compact title="Synthetic availability · 24h" value={percent(summary.availability)} icon={Server} subtext={<span>Target {report.availability_target_pct}% · {summary.budgetRemainingPct === null ? "N/A" : `${summary.budgetRemainingPct.toFixed(1)}%`} probe budget left</span>}/>
-        <MetricCard compact title="API response · p95" value={`${report.api_p95_ms} ms`} icon={Clock} subtext="Platform request histogram · last hour"/>
-        <MetricCard compact title="Server error rate · 24h" value={percent(summary.errorRate)} icon={Activity} subtext={`${summary.errors.toLocaleString("en-GB")} HTTP 5xx / ${summary.requests.toLocaleString("en-GB")} requests`}/>
-        <MetricCard compact title="Processing backlog" value={summary.queued} icon={ShieldAlert} iconColor={summary.breachedQueues ? "text-amber-300" : "text-cyan-300"} subtext={`${summary.breachedQueues} queue above age target · all domains`}/>
+      <div className="grid auto-rows-fr grid-cols-1 gap-3 @min-[420px]:grid-cols-2 @min-[1050px]:grid-cols-4">
+        <MetricCard readable compact tone="cyan" title="Availability · 24h" value={percent(summary.availability)} icon={Server} subtext={`Target ${report.availability_target_pct}% · ${summary.budgetRemainingPct === null ? 'Unavailable' : `${summary.budgetRemainingPct.toFixed(1)}%`} probe budget left`}/>
+        <MetricCard readable compact tone="blue" title="API latency · p95" value={report.api_p95_ms === null ? 'Unavailable' : `${report.api_p95_ms} ms`} icon={Clock} subtext="Platform histogram · last hour"/>
+        <MetricCard readable compact tone="purple" title="Server errors · 24h" value={percent(summary.errorRate)} icon={Activity} subtext={`${summary.errors.toLocaleString('en-GB')} HTTP 5xx / ${summary.requests.toLocaleString('en-GB')} requests`}/>
+        <MetricCard readable compact tone="amber" title="Processing backlog" value={summary.queued} icon={ShieldAlert} subtext={`${summary.breachedQueues} queue${summary.breachedQueues === 1 ? '' : 's'} above age target · global`}/>
       </div>
-      <div className="grid items-start gap-5 @min-[1100px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <section id="health-incidents" className="min-w-0 scroll-mt-20 @min-[1100px]:col-start-2 @min-[1100px]:row-start-1"><AuditPanel title="Incident desk" subtitle="Customer impact, accountable owner and next action." action={<span className={auditBadge(report.incidents.length ? "WARNING" : "SUCCESS")}>{report.incidents.length} OPEN</span>}>
-          {incidents.length ? incidents.map(incident => {
-            const acknowledged = journalError ? undefined : journal.events.find(e => e.source === "SYSTEM" && e.action === "HEALTH_INCIDENT_ACKNOWLEDGED" && e.target === incident.id && e.outcome === "SUCCESS");
-            const service = report.services.find(s => s.id === incident.service_id);
-            return <Incident key={incident.id} incident={incident} actor={actor} owner={service?.owner ?? "Unassigned"} domain={service?.domain ?? "PLATFORM"} acknowledgement={acknowledged ? `${acknowledged.actor} · ${auditDate(acknowledged.timestamp, "UTC")} UTC` : undefined} blocked={!!journalError}/>;
-          }) : <p role="status" className="p-6 text-xs text-emerald-300">No active incidents in this snapshot.</p>}
-        </AuditPanel></section>
-        <div className="min-w-0 @min-[1100px]:col-start-1 @min-[1100px]:row-start-1"><LatencyChart data={report.samples}/><div className="mt-3 rounded-lg border border-cyan-500/10 bg-cyan-950/10 p-3 text-[10px] leading-relaxed text-slate-500">Availability uses synthetic probe counts. Error rate uses request counts. Domain p95 values come from separate histograms and are never averaged into platform p95.</div></div>
+      <nav aria-label="System health views" className="scrollbar-thin flex min-w-0 gap-2 overflow-x-auto pb-1">{views.map(([key, label]) => <ActionButton key={key} variant={view === key ? 'cyan' : 'blue'} autoWidth aria-pressed={view === key} aria-controls="health-view-panel" className="shrink-0" labelClassName="whitespace-nowrap" onClick={() => setView(key)}>{label}{key === 'INCIDENTS' && <span className="ml-2 rounded bg-white/10 px-1.5">{report.incidents.length}</span>}</ActionButton>)}</nav>
+      <div id="health-view-panel" className="min-w-0 space-y-5">
+        {view === 'OVERVIEW' && <>
+          <div className="grid auto-rows-fr gap-3 @min-[400px]:grid-cols-2 @min-[1100px]:grid-cols-4">{(Object.keys(domainLabels) as HealthDomain[]).map(key => {const state = domainHealth(report, key); return <CardSurface key={key} tone={key === 'CRYPTO' ? 'purple' : 'blue'} className="flex h-full flex-col p-3"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">{domainLabels[key]}</h2><Status value={state.status}/></div><p className="mt-2 text-lg font-semibold">{state.healthy} / {state.services.length}<span className="ml-2 text-[11px] font-normal text-slate-300">operational</span></p><p className="mb-2 mt-1 text-[11px] text-slate-300">{state.incidents} incidents · {state.queued} queued</p><ActionButton variant="blue" size="small" autoWidth className="mt-auto self-start" icon={<ArrowRight size={12}/>} onClick={() => {setDomain(key); setView('SERVICES');}}>Inspect domain</ActionButton></CardSurface>;})}</div>
+          <div className="grid items-start gap-5 @min-[1100px]:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"><LatencyChart asOf={report.as_of} data={report.samples} threshold={report.latency_target_ms}/><AuditPanel className={healthOverviewPanelClass} title="Needs attention" subtitle="Open incidents ordered by severity and start time." action={<Status value={summary.status}/>}><IncidentList report={report} blocked={blocked} onOpen={openIncident} compact/></AuditPanel></div>
+          <AuditPanel title="Monitoring coverage" subtitle="One global operational snapshot, independent of customer accounts and table filters."><div className="grid gap-4 p-5 text-xs leading-relaxed text-slate-300 @min-[700px]:grid-cols-3"><div><h3 className="mb-2 font-semibold text-white">Availability & error budget</h3><p>Successful synthetic probes / total probes over the same 24-hour window. Budget reflects the configured availability target.</p></div><div><h3 className="mb-2 font-semibold text-white">Latency & server errors</h3><p>Request-weighted HTTP 5xx rate. Platform and domain p95 values use separate histograms.</p></div><div><h3 className="mb-2 font-semibold text-white">Freshness & source</h3><p>Probe freshness limit: 2 minutes at capture. {report.mode === 'demo' ? 'The mock observation time stays fixed when refreshed.' : 'Snapshots refresh every 30 seconds. Missing and stale probes remain unknown.'}</p></div></div></AuditPanel>
+        </>}
+        {view === 'SERVICES' && <ServiceRegistry report={report} domain={domain} setDomain={setDomain}/>}
+        {view === 'CONTROLS' && <Controls report={report} domain={domain} setDomain={setDomain}/>}
+        {view === 'INCIDENTS' && <AuditPanel title="Incident desk" subtitle="Customer impact, accountable team and recorded reviews. Acknowledgement keeps the incident open." action={<span className={auditBadge(report.incidents.length ? 'WARNING' : 'SUCCESS')}>{report.incidents.length} OPEN</span>}><IncidentList report={report} blocked={blocked} onOpen={openIncident}/></AuditPanel>}
+        {view === 'INFRASTRUCTURE' && <Infrastructure report={report}/>}
       </div>
-      <AuditPanel title="Financial & platform controls" subtitle={`${domain === "ALL" ? "All domains" : domainLabels[domain]} · Observed values against explicit operational targets. Evaluated at snapshot time.`} action={<div className="flex flex-wrap items-end gap-3"><span className="pb-2 text-[10px] text-slate-400">{controls.filter(c => controlStatus(c, report.as_of) === "DEGRADED").length} breaches in view</span><label className={`${auditFieldClass} w-full @min-[400px]:w-44`}>Operational domain<AuditSelect value={domain} onChange={e => setDomain(e.target.value as HealthDomain | "ALL")}><option value="ALL">All domains</option>{Object.entries(domainLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</AuditSelect></label></div>}>
-        <div className="grid gap-3 p-4 @min-[600px]:grid-cols-2 @min-[1100px]:grid-cols-3">{controls.map(control => {
-          const status = controlStatus(control, report.as_of), Direction = control.direction === "MAX" ? ArrowDownRight : ArrowUpRight;
-          return <details key={control.id} className={`min-w-0 rounded-lg border p-3 ${statusTone[status]}`}><summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[9px] uppercase tracking-wider text-slate-500">{domainLabels[control.domain]}</span><span className="text-[10px]">{status === "OPERATIONAL" ? "Within target" : status === "UNKNOWN" ? "No fresh signal" : "Target breached"}</span></div><h3 className="mt-2 text-[11px] font-medium leading-relaxed text-slate-200">{control.name}</h3><div className="mt-3 flex flex-wrap items-baseline justify-between gap-2"><p className="text-lg font-bold">{control.value ?? "N/A"} <span className="text-[10px] font-normal text-slate-400">{control.unit}</span></p><span className="flex items-center gap-1 text-[10px] text-slate-400"><Direction size={12}/>Target {control.direction === "MAX" ? "≤" : "≥"} {control.threshold} {control.unit}</span></div><span className="mt-3 block text-[9px] text-slate-500">Inspect check +</span></summary><p className="mt-3 border-t border-current/10 pt-3 text-[11px] leading-relaxed text-slate-400">{control.detail}</p></details>;
-        })}</div>
-      </AuditPanel>
-      <ServiceRegistry report={report} domain={domain} setDomain={setDomain}/>
-      <div className="grid items-start gap-5 @min-[1000px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <AuditPanel title="Infrastructure & resilience" subtitle="Capacity, replication, recovery evidence and secure delivery."><div className="grid gap-3 p-4 @min-[650px]:grid-cols-2">{report.resources.map(r => <details key={r.id} className="min-w-0 rounded-lg border border-cyan-500/15 bg-[#03091e]/50 p-4 text-[11px]"><summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-slate-300">{r.name}</h3><Status value={effectiveStatus(r.status, r.checked_at, report.as_of)}/></div><p className="mt-3 font-bold text-cyan-300">{r.value}</p><span className="mt-3 block text-[9px] text-slate-500">Inspect recovery evidence +</span></summary><p className="mt-3 leading-relaxed text-slate-400">{r.detail}</p></details>)}</div></AuditPanel>
-        <AuditPanel title="Maintenance & handover"><div className="space-y-4 p-4 text-[11px]"><div className="flex items-start gap-3"><CalendarClock size={18} className="shrink-0 text-cyan-400"/><div><p className="text-[9px] uppercase tracking-wider text-slate-500">Scheduled after snapshot</p><h3 className="mt-1 font-bold text-slate-200">{report.maintenance.title}</h3></div></div><dl className="space-y-2 text-slate-400"><div><dt className="text-[9px] uppercase text-slate-500">Window · UTC</dt><dd className="mt-1 leading-relaxed">{auditDate(report.maintenance.starts_at, "UTC")}<br/>to {auditDate(report.maintenance.ends_at, "UTC")}</dd></div></dl><p className="leading-relaxed text-slate-400">{report.maintenance.impact}</p><Link className={`${button} w-full`} href="/dashboard/admin/audit-logs">Open Audit Logs</Link><p className="border-t border-cyan-500/15 pt-3 text-[10px] leading-relaxed text-slate-500">Incident reviews are saved locally and do not resolve incidents or page an on-call team. Refresh reloads the same demo snapshot.</p></div></AuditPanel>
-      </div>
-      <footer className="flex flex-col gap-2 border-t border-cyan-500/15 pt-4 text-[9px] leading-relaxed text-slate-500 @min-[700px]:flex-row @min-[700px]:justify-between"><p>Synthetic monitoring · {report.snapshot_id} · Schema v{report.schema_version}</p><p className="break-all">Operator: {actor.email} · All times UTC</p></footer>
-    </div>
+      <footer className="flex flex-wrap justify-between gap-2 border-t border-white/10 pt-4 text-[11px] leading-relaxed text-slate-300"><span>{report.mode === 'demo' ? 'Illustrative monitoring data · shared browser audit records' : 'Global operational monitoring · server audit records'}</span><span>{report.snapshot_id} · UTC</span></footer>
+    </>}
+    {action && <HealthActions report={action.report} incident={action.incident} repository={source.repository} blocked={blocked} onClose={() => setAction(null)} onSaved={source.refresh}/>}
   </div>;
 }
-function Incident({ incident: i, actor, owner, domain, acknowledgement, blocked }: { incident: HealthIncident; actor: AuditActor; owner: string; domain: HealthDomain; acknowledgement?: string; blocked: boolean }) {
-  const [note, setNote] = useState("");
-  const [error, setError] = useState("");
-  const acknowledge = () => {
-    setError("");
-    try {
-      if (note.trim().length < 10 || note.trim().length > 500) throw new Error("Add a review note of 10–500 characters.");
-      appendAuditEvent({ source: "SYSTEM", category: "SYSTEM", action: "HEALTH_INCIDENT_ACKNOWLEDGED", target: i.id, reason: note.trim(), domain, before: { acknowledged: false }, after: { acknowledged: true, incident_state: i.state } }, actor);
-      notifyOperation("Incident review recorded", `${i.id} acknowledgement saved locally in Audit Logs. Incident remains ${i.state.toLowerCase()}.`, false, "System Health");
-    } catch (cause) { const message = cause instanceof Error ? cause.message : "Review could not be saved."; setError(message); notifyOperation("Acknowledgement blocked", message, true, "System Health"); }
-  };
-  return <article className="space-y-3 border-b border-cyan-500/15 p-4 last:border-b-0"><div className="flex flex-wrap items-center gap-2"><span className={auditBadge(i.severity)}>{i.severity}</span><span className="text-[9px] text-slate-400">{i.id} · {i.state}</span></div><h3 className="text-sm font-bold leading-relaxed">{i.title}</h3><p className="text-[10px] text-cyan-300">{owner} · {domainLabels[domain]}</p><p className="text-[11px] leading-relaxed text-slate-400">{i.impact}</p><p className="text-[11px] leading-relaxed text-slate-300"><span className="text-slate-500">Next action: </span>{i.next_step}</p><details className="text-[11px] leading-relaxed text-slate-400"><summary className="cursor-pointer text-cyan-300">Updates & review</summary><div className="mt-3 space-y-3"><p>Started {auditDate(i.started_at, "UTC")} UTC<br/>Updated {auditDate(i.updated_at, "UTC")} UTC</p><p>{i.update}</p>{!acknowledgement && <form className="space-y-3" onSubmit={e => { e.preventDefault(); acknowledge(); }}><label className={auditFieldClass}>Review note / ticket reference<textarea className={auditTextareaClass} required minLength={10} maxLength={500} rows={2} value={note} onChange={e => setNote(e.target.value)} disabled={blocked} placeholder="Review findings and escalation reference…"/></label><button className={button} disabled={blocked} type="submit"><CheckCheck size={13}/>Acknowledge locally</button>{error && <p role="alert" className="text-rose-300">{error}</p>}</form>}</div></details>{acknowledgement && <p className="flex items-start gap-2 break-words text-[10px] leading-relaxed text-teal-300"><CheckCheck size={13} className="mt-0.5 shrink-0"/><span>Reviewed locally by {acknowledgement}</span></p>}</article>;
+function Controls({report, domain, setDomain}: {report: SystemHealthReport; domain: HealthDomain | 'ALL'; setDomain: (domain: HealthDomain | 'ALL') => void}) {
+  const [query, setQuery] = useState('');
+  const controls = report.controls.filter(c => (domain === 'ALL' || c.domain === domain) && healthMatches(query, c.id, c.name, c.detail, domainLabels[c.domain], controlStatus(c, report.as_of))).sort((a,b) => Number(controlStatus(b, report.as_of) !== 'OPERATIONAL') - Number(controlStatus(a, report.as_of) !== 'OPERATIONAL'));
+  return <AuditPanel title="Financial & platform controls" subtitle="Observed values against inclusive operational targets. Checks are evaluated at capture time." ><div className="grid items-end gap-3 border-b border-white/10 p-4 @min-[600px]:grid-cols-[minmax(0,1fr)_200px]"><HealthSearch label="Search controls" placeholder="Control, service, domain or status…" value={query} onChange={setQuery}/><label className={auditFieldClass}>Control domain<AuditSelect aria-label="Control domain" value={domain} onChange={e => setDomain(e.target.value as HealthDomain | 'ALL')}><option value="ALL">All domains</option>{Object.entries(domainLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</AuditSelect></label></div><p className="px-4 pt-3 text-[11px] text-slate-300">{controls.length} / {report.controls.length} controls · {controls.filter(c => controlStatus(c, report.as_of) === 'DEGRADED').length} breaches in view</p><div role="region" aria-label="Control results" tabIndex={0} className={`${healthScrollClass} h-[min(38rem,70dvh)]`}><div className="grid auto-rows-fr gap-3 p-4 @min-[650px]:grid-cols-2 @min-[1100px]:grid-cols-3">{controls.map(c => {const status = controlStatus(c, report.as_of); return <details key={c.id} className="min-w-0 rounded-xl border border-white/10 bg-white/[0.02] p-4"><summary className="flex min-h-52 cursor-pointer list-none flex-col [&::-webkit-details-marker]:hidden"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[11px] text-slate-300">{domainLabels[c.domain]}</span><Status value={status}/></div><h3 className="mt-4 min-h-10 text-xs font-semibold leading-relaxed">{c.name}</h3><p className={`mt-3 text-2xl font-semibold ${status === 'DEGRADED' ? 'text-amber-200' : 'text-white'}`}>{c.value ?? 'N/A'} <span className="text-xs font-normal text-slate-300">{c.unit}</span></p><p className="mt-2 text-xs text-slate-300">Target {c.direction === 'MAX' ? '≤' : '≥'} {c.threshold} {c.unit}</p><span className="mt-auto block pt-4 text-[11px] text-cyan-200">Check details +</span></summary><p className="mt-auto border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-300">{c.detail}</p></details>;})}</div>{!controls.length && <p role="status" className="p-8 text-center text-xs text-slate-300">No controls match this search and domain.</p>}</div></AuditPanel>;
 }

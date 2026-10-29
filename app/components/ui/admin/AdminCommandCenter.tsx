@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { Download, RefreshCw, ShieldAlert, Users, Wallet, Activity } from "lucide-react";
+import { Download, RefreshCw, ShieldAlert, Users, Wallet, Activity, ArrowLeftRight, HeartPulse, ScrollText } from "lucide-react";
 import { useUser } from "@/app/context/UserContext";
 import { useSessionMetadata } from "@/app/lib/session/use-session-metadata";
 import { createControlRepository } from "@/app/lib/admin-control/repository";
@@ -14,6 +13,7 @@ import CardSurface from "../CardSurface";
 import MetricCard from "../MetricCard";
 import PageHeader from "../PageHeader";
 import { ActionButton } from "../dashboard/ActionButton";
+import { ControlLink } from "./ControlActions";
 import ControlMonitoring from "./ControlMonitoring";
 import ControlPolicyDialog from "./ControlPolicyDialog";
 import { ControlDomainCard, ControlQueues } from "./ControlPanels";
@@ -65,9 +65,9 @@ export default function AdminCommandCenter() {
       </div>
       <ControlMonitoring snapshot={snapshot}/>
       <div className="grid min-w-0 gap-3 xl:grid-cols-3">{snapshot.domains.map(item => <ControlDomainCard key={item.domain} item={item} disabled={busy || !!error} onManage={() => setPolicy({ value: item.policy, revision: snapshot.risk_revision })}/>)}</div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div role="group" aria-label="Filter operational details by domain" className="flex flex-wrap gap-2">{(["ALL", ...DOMAINS] as const).map(value => <ActionButton key={value} autoWidth size="medium" variant={domain === value ? "cyan" : "blue"} aria-pressed={domain === value} onClick={() => setDomain(value)}>{value === "ALL" ? "All domains" : value}</ActionButton>)}</div><p className="text-xs text-slate-500">Global metrics remain unfiltered</p></div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div role="group" aria-label="Filter operational details by domain" className="flex flex-wrap gap-2">{(["ALL", ...DOMAINS] as const).map(value => <ActionButton key={value} variant={domain === value ? "cyan" : "blue"} autoWidth size="medium" className="min-w-24 min-h-8! px-4! py-1!" labelClassName="whitespace-nowrap" aria-pressed={domain === value} onClick={() => setDomain(value)}>{value === "ALL" ? "All domains" : value}</ActionButton>)}</div><p className="text-xs text-slate-500">Global metrics remain unfiltered</p></div>
       <ControlQueues key={domain} snapshot={snapshot} domain={domain}/>
-      <div className="flex flex-wrap gap-4 text-xs text-cyan-300"><Link href="/dashboard/admin/transactions" className="underline underline-offset-4">Transactions</Link><Link href="/dashboard/admin/system-health" className="underline underline-offset-4">System health</Link><Link href="/dashboard/admin/audit-logs" className="underline underline-offset-4">Full audit logs</Link></div>
+      <nav aria-label="Related admin pages" className="flex flex-wrap gap-2"><ControlLink href="/dashboard/admin/transactions" icon={<ArrowLeftRight size={16}/>}>Transactions</ControlLink><ControlLink href="/dashboard/admin/system-health" icon={<HeartPulse size={16}/>}>System health</ControlLink><ControlLink href="/dashboard/admin/audit-logs" icon={<ScrollText size={16}/>}>Full audit logs</ControlLink></nav>
       {policy && <ControlPolicyDialog policy={policy.value} revision={policy.revision} onClose={() => setPolicy(null)} onSave={async (body, key) => { if (error) throw new Error("Refresh global data before changing controls."); await repository.updatePolicy(body, key); setNotice(`${body.policy.domain} policy saved. New operations use the updated controls.`); await load(); }}/ >}
     </>}
   </div>;

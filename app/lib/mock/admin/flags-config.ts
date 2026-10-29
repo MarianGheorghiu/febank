@@ -1,76 +1,6 @@
-import type { ConfigState, ConfigPayload, SettingDefinition, FlagDefinition } from "@/app/lib/types/admin/flags-config";
-
-// JSON-compatible catalog; units are explicit and monetary limits use minor units.
-export const CONFIG_SETTINGS: SettingDefinition[] = [
-  { key:"platform.maintenance", module:"platform", name:"Maintenance mode", description:"Pause customer write operations while keeping account visibility available.", type:"boolean", default_value:false, critical:true },
-  { key:"platform.base_currency", module:"platform", name:"Reporting currency", description:"Reference currency for consolidated platform reports.", type:"select", options:["EUR","RON","USD"], default_value:"EUR" },
-  { key:"platform.timezone", module:"platform", name:"Reporting timezone", description:"Calendar boundaries for operational reporting.", type:"select", options:["UTC","Europe/Bucharest","Europe/London"], default_value:"UTC", advanced:true },
-  { key:"platform.registration", module:"platform", name:"New registrations", description:"Allow new customers to begin onboarding.", type:"boolean", default_value:true, advanced:true },
-  { key:"identity.admin_mfa", module:"identity", name:"Require administrator MFA", description:"Require a second factor for privileged access.", type:"boolean", default_value:true, critical:true },
-  { key:"identity.session_minutes", module:"identity", name:"Session timeout", description:"Expire inactive customer sessions.", type:"number", default_value:30, min:5, max:120, unit:"minutes" },
-  { key:"identity.login_attempts", module:"identity", name:"Failed login threshold", description:"Lock sign-in temporarily after repeated failures.", type:"number", default_value:5, min:3, max:10, advanced:true },
-  { key:"identity.lockout_minutes", module:"identity", name:"Sign-in lockout", description:"Wait time before sign-in can be retried.", type:"number", default_value:15, min:5, max:1440, unit:"minutes", advanced:true },
-  { key:"accounts.max_accounts", module:"accounts", name:"Accounts per customer", description:"Maximum active fiat accounts per customer.", type:"number", default_value:8, min:1, max:30 },
-  { key:"accounts.kyc_required", module:"accounts", name:"Verified identity required", description:"Require completed KYC before enabling financial operations.", type:"boolean", default_value:true, critical:true },
-  { key:"accounts.inactive_days", module:"accounts", name:"Dormancy threshold", description:"Flag inactive accounts for review; does not automatically close them.", type:"number", default_value:365, min:90, max:1095, unit:"days", advanced:true },
-  { key:"transfers.daily_limit_minor", module:"transfers", name:"Daily transfer limit", description:"Default customer daily limit in EUR cents; individual limits remain authoritative.", type:"number", default_value:2500000, min:10000, max:100000000, unit:"EUR cents", critical:true },
-  { key:"transfers.review_minor", module:"transfers", name:"Manual review threshold", description:"Transfers at or above this value require additional review.", type:"number", default_value:1000000, min:10000, max:100000000, unit:"EUR cents", advanced:true },
-  { key:"transfers.beneficiary_cooling_hours", module:"transfers", name:"New beneficiary cooling period", description:"Delay the first transfer to a new external beneficiary.", type:"number", default_value:4, min:0, max:72, unit:"hours", advanced:true },
-  { key:"cards.issuing_enabled", module:"cards", name:"Card issuing", description:"Accept new physical and virtual card requests.", type:"boolean", default_value:true, critical:true },
-  { key:"cards.max_virtual", module:"cards", name:"Virtual cards per customer", description:"Maximum simultaneously active virtual cards.", type:"number", default_value:5, min:1, max:25 },
-  { key:"cards.online_default", module:"cards", name:"Online payments by default", description:"Initial online-payment permission for newly issued cards.", type:"boolean", default_value:true, advanced:true },
-  { key:"cards.atm_daily_minor", module:"cards", name:"Daily ATM limit", description:"Default ATM cash withdrawal ceiling in EUR cents.", type:"number", default_value:50000, min:1000, max:500000, unit:"EUR cents", advanced:true },
-  { key:"crypto.trading_enabled", module:"crypto", name:"Crypto trading", description:"Master control for new crypto orders.", type:"boolean", default_value:true, critical:true },
-  { key:"crypto.quote_age_seconds", module:"crypto", name:"Maximum quote age", description:"Reject execution using a stale crypto quote.", type:"number", default_value:30, min:5, max:120, unit:"seconds" },
-  { key:"crypto.withdrawals_enabled", module:"crypto", name:"External withdrawals", description:"Allow requests to external blockchain addresses.", type:"boolean", default_value:false, critical:true, advanced:true },
-  { key:"crypto.confirmations", module:"crypto", name:"Deposit confirmations", description:"Fallback confirmation threshold; chain-specific rules take precedence.", type:"number", default_value:6, min:1, max:100, advanced:true },
-  { key:"stocks.trading_enabled", module:"stocks", name:"Stock trading", description:"Master control for accepting equity orders.", type:"boolean", default_value:true, critical:true },
-  { key:"stocks.quote_age_seconds", module:"stocks", name:"Maximum stock quote age", description:"Maximum age of a quote used for order validation.", type:"number", default_value:15, min:1, max:60, unit:"seconds", advanced:true },
-  { key:"stocks.order_ttl_minutes", module:"stocks", name:"Pending order lifetime", description:"Default expiry for unexecuted demo orders.", type:"number", default_value:60, min:1, max:1440, unit:"minutes", advanced:true },
-  { key:"loans.applications_enabled", module:"loans", name:"Loan applications", description:"Accept new retail and business credit applications.", type:"boolean", default_value:true, critical:true },
-  { key:"loans.max_ltv_pct", module:"loans", name:"Maximum collateral LTV", description:"Platform ceiling; product and risk policies may impose lower limits.", type:"number", default_value:65, min:10, max:80, unit:"%", critical:true },
-  { key:"loans.offer_validity_days", module:"loans", name:"Credit offer validity", description:"Default time available to accept an approved credit offer.", type:"number", default_value:14, min:1, max:60, unit:"days", advanced:true },
-  { key:"subscriptions.grace_days", module:"subscriptions", name:"Payment grace period", description:"Days before unpaid subscriptions enter the overdue workflow.", type:"number", default_value:7, min:0, max:30, unit:"days" },
-  { key:"subscriptions.retry_count", module:"subscriptions", name:"Collection retries", description:"Maximum automatic attempts per unpaid invoice.", type:"number", default_value:3, min:0, max:5, advanced:true },
-  { key:"subscriptions.trial_days", module:"subscriptions", name:"Premium trial length", description:"Default trial for eligible new subscribers.", type:"number", default_value:14, min:0, max:90, unit:"days", advanced:true },
-  { key:"growth.referral_reward_minor", module:"growth", name:"Referral reward", description:"Reward per qualified referral in EUR cents.", type:"number", default_value:1000, min:0, max:10000, unit:"EUR cents" },
-  { key:"growth.cashback_cap_minor", module:"growth", name:"Monthly cashback cap", description:"Default maximum cashback per customer in EUR cents.", type:"number", default_value:5000, min:0, max:100000, unit:"EUR cents", advanced:true },
-  { key:"growth.referral_expiry_days", module:"growth", name:"Referral qualification window", description:"Time allowed for an invitee to meet eligibility criteria.", type:"number", default_value:30, min:1, max:180, unit:"days", advanced:true },
-  { key:"communications.transactional_email", module:"communications", name:"Transactional email", description:"Deliver account and operation notices by email.", type:"boolean", default_value:true },
-  { key:"communications.digest", module:"communications", name:"Activity digest", description:"Default schedule for optional customer summaries.", type:"select", options:["daily","weekly","disabled"], default_value:"weekly", advanced:true },
-  { key:"communications.rate_limit", module:"communications", name:"Optional messages per day", description:"Cap promotional messages; security alerts are exempt.", type:"number", default_value:3, min:0, max:10, advanced:true },
-  { key:"operations.audit_retention_days", module:"operations", name:"Audit retention target", description:"Operational retention target; legal holds override deletion policies.", type:"number", default_value:2555, min:365, max:3650, unit:"days", critical:true },
-  { key:"operations.api_rate_limit", module:"operations", name:"API requests per minute", description:"Default authenticated request budget per customer.", type:"number", default_value:120, min:10, max:5000, unit:"req/min", advanced:true },
-  { key:"operations.webhook_retries", module:"operations", name:"Webhook retries", description:"Retry budget for failed integration deliveries.", type:"number", default_value:5, min:0, max:20, advanced:true },
-  { key:"operations.reconciliation_minutes", module:"operations", name:"Reconciliation interval", description:"Target cadence for balance and ledger reconciliation.", type:"number", default_value:15, min:1, max:60, unit:"minutes", advanced:true },
-];
-
-export const CONFIG_FLAGS: FlagDefinition[] = [
-  {key:"instant_transfers",module:"transfers",name:"Instant transfers",description:"Enable the instant payment rail for eligible customers.",default_enabled:true,critical:true},
-  {key:"virtual_cards",module:"cards",name:"Virtual cards",description:"Let customers issue and manage virtual cards.",default_enabled:true},
-  {key:"crypto_recurring",module:"crypto",name:"Recurring crypto buys",description:"Scheduled investing in supported digital assets.",default_enabled:true},
-  {key:"fractional_shares",module:"stocks",name:"Fractional shares",description:"Allow eligible equity purchases by monetary amount.",default_enabled:true},
-  {key:"business_credit",module:"loans",name:"Business credit",description:"Expose capital matching and business financing products.",default_enabled:true},
-  {key:"premium_offers",module:"growth",name:"Premium experiences",description:"Travel, concierge and partner experiences for premium members.",default_enabled:true},
-  {key:"referral_program",module:"growth",name:"Referral program",description:"Accept new invitations and qualifying referral events.",default_enabled:true},
-  {key:"new_onboarding",module:"identity",name:"Guided onboarding",description:"Gradually introduce the redesigned identity verification journey.",default_enabled:true},
-  {key:"multi_currency",module:"accounts",name:"Multi-currency accounts",description:"Enable additional fiat accounts for eligible customers.",default_enabled:true,advanced:true},
-  {key:"scheduled_transfers",module:"transfers",name:"Scheduled transfers",description:"Create future-dated payment instructions.",default_enabled:true,advanced:true},
-  {key:"split_bills",module:"transfers",name:"Split bills",description:"Share expenses and payment requests with friends.",default_enabled:true,advanced:true},
-  {key:"disposable_cards",module:"cards",name:"Disposable cards",description:"Single-use card details for online purchases.",default_enabled:false,advanced:true,depends_on:"virtual_cards"},
-  {key:"crypto_limit_orders",module:"crypto",name:"Crypto limit orders",description:"Price-triggered orders for supported crypto pairs.",default_enabled:false,advanced:true},
-  {key:"stock_recurring",module:"stocks",name:"Recurring stock buys",description:"Scheduled investments in supported equities.",default_enabled:true,advanced:true},
-  {key:"extended_hours",module:"stocks",name:"Extended trading hours",description:"Eligible orders outside regular market hours.",default_enabled:false,advanced:true,critical:true},
-  {key:"revenue_financing",module:"loans",name:"Revenue financing",description:"Revenue-based funding for eligible business customers.",default_enabled:true,advanced:true,depends_on:"business_credit"},
-  {key:"lombard_credit",module:"loans",name:"Lombard credit",description:"Applications secured against eligible investments.",default_enabled:true,advanced:true,critical:true},
-  {key:"subscription_trials",module:"subscriptions",name:"Subscription trials",description:"Offer trial plans to qualifying new members.",default_enabled:true,advanced:true},
-  {key:"self_service_upgrades",module:"subscriptions",name:"Self-service upgrades",description:"Allow customers to upgrade their subscription plan.",default_enabled:true,advanced:true},
-  {key:"cashback",module:"growth",name:"Partner cashback",description:"Accrue cashback on qualifying partner activity.",default_enabled:true,advanced:true},
-  {key:"push_notifications",module:"communications",name:"Push notifications",description:"Deliver optional notifications to enrolled devices.",default_enabled:true,advanced:true},
-  {key:"assistant",module:"communications",name:"Financial assistant",description:"Pilot the customer financial insights assistant.",default_enabled:false,advanced:true},
-  {key:"analytics_export",module:"operations",name:"Customer analytics export",description:"Allow customers to export their own portfolio reports.",default_enabled:true,advanced:true},
-  {key:"new_dashboard",module:"platform",name:"Dashboard preview",description:"Internal preview of the next dashboard experience.",default_enabled:true,advanced:true},
-];
+import type { ConfigState, ConfigPayload } from "@/app/lib/types/admin/flags-config";
+import { CONFIG_FLAGS, CONFIG_SETTINGS } from "../../flags-config/catalog";
+export { CONFIG_FLAGS, CONFIG_SETTINGS } from "../../flags-config/catalog";
 
 function payload(): ConfigPayload {
   return {
@@ -86,3 +16,28 @@ export const MOCK_FLAGS_CONFIG: ConfigState = {
     sandbox:{revision:1,published:payload(),releases:[]},
   },
 };
+
+// Versioned, illustrative release history; final production values match the baseline.
+function seedRelease(environment: 'production' | 'staging', id: number, day: number, reason: string, update: (payload: ConfigPayload) => void) {
+  const current = MOCK_FLAGS_CONFIG.environments[environment], before = structuredClone(current.published);
+  update(current.published); current.revision++;
+  current.releases.unshift({id: `config-demo-${environment}-${id}`, revision: current.revision, timestamp: `2026-10-${day}T09:00:00Z`, actor: 'platform-ops@example.test', reason, restored_from: null, before, after: structuredClone(current.published)});
+}
+for (let day = 10; day <= 21; day++) {
+  seedRelease('production', 100 + day * 2, day, 'Test optional-message capacity in an illustrative release.', p => {p.settings['communications.rate_limit'] = 4;});
+  seedRelease('production', 101 + day * 2, day, 'Restore the normal optional-message capacity after observation.', p => {p.settings['communications.rate_limit'] = 3;});
+  if (day % 2 === 0) {
+    seedRelease('staging', 200 + day * 2, day, 'Increase the staging request budget during a capacity exercise.', p => {p.settings['operations.api_rate_limit'] = 180;});
+    seedRelease('staging', 201 + day * 2, day, 'Restore the standard staging request budget after the exercise.', p => {p.settings['operations.api_rate_limit'] = 120;});
+  }
+}
+seedRelease('production', 1, 22, 'Trial a longer customer inactivity window.', p => {p.settings['identity.session_minutes'] = 45;});
+seedRelease('production', 2, 23, 'Restore the standard customer session window after review.', p => {p.settings['identity.session_minutes'] = 30;});
+seedRelease('production', 3, 24, 'Start guided onboarding with a ten-percent cohort.', p => {p.flags.new_onboarding.rollout_pct = 10;});
+seedRelease('production', 4, 25, 'Expand the guided onboarding cohort after the pilot.', p => {p.flags.new_onboarding.rollout_pct = 25;});
+seedRelease('production', 5, 26, 'Adjust the payment ceiling after an operational review.', p => {p.settings['transfers.daily_limit_minor'] = 3000000;});
+seedRelease('production', 6, 28, 'Restore the default payment ceiling after the observation.', p => {p.settings['transfers.daily_limit_minor'] = 2500000;});
+seedRelease('staging', 1, 23, 'Expand the onboarding cohort in the staging environment.', p => {p.flags.new_onboarding.rollout_pct = 50;});
+seedRelease('staging', 2, 24, 'Enable crypto limit orders for staging validation.', p => {p.flags.crypto_limit_orders.enabled = true;});
+seedRelease('staging', 3, 26, 'Complete the staging onboarding rollout.', p => {p.flags.new_onboarding.rollout_pct = 100;});
+seedRelease('staging', 4, 28, 'Pause staging limit orders after validation completes.', p => {p.flags.crypto_limit_orders.enabled = false;});

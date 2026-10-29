@@ -40,8 +40,6 @@
 .footer { flex: none; padding: 10px 12px 12px; border-top: 1px solid rgb(255 255 255 / .07); }
 .logout { color: #fda4af; border-color: rgb(244 63 94 / .12); background: linear-gradient(135deg, rgb(244 63 94 / .07), rgb(244 63 94 / .015)); }
 .logout:hover { color: #fda4af; background-color: rgb(244 63 94 / .08); border-color: rgb(244 63 94 / .15); }
-.footerNote { display: flex; align-items: center; gap: 20px; height: 28px; padding-inline: 22px; color: #64748b; font-size: 10px; white-space: nowrap; overflow: hidden; }
-.statusDot { flex: 0 0 5px; height: 5px; border-radius: 50%; background: #34d399; }
 /* Preserve row heights, padding and icon positions in both states. */
 .sidebar[data-collapsed="true"] :is(.brand, .profileText, .label, .sectionLabel > span) { display: none; }
 .sidebar[data-collapsed="true"] .brandRow { justify-content: center; }

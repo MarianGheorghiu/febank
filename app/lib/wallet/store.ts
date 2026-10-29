@@ -1,3 +1,4 @@
+import { assertWalletConfig } from "../flags-config/runtime";
 import { MOCK_MARKETS_STATE, MOCK_TRADING_WALLET } from "../markets/seed";
 import type { MarketsState } from "../types/admin/markets";
 import { applyWalletEvent, initialWallet, type WalletEvent, type WalletState } from "./engine";
@@ -107,6 +108,7 @@ export function commitWallet(clientId: string, event: WalletEvent): WalletState 
     if (!sameCommand(previous, event)) throw new Error("Idempotency key already used for another request.");
     return state;
   }
+  assertWalletConfig(event, clientId);
   const cancellingTrade = event.kind === "trading" && event.command.type === "cancel_order";
   if (["submit", "overview", "trading", "rewards", "credit"].includes(event.kind) && !cancellingTrade) assertManagedAccess(clientId);
   event = { ...event, prices: Object.fromEntries(state.transfers.accounts.map(a => [a.asset, a.usd_price])) };

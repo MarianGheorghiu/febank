@@ -11,3 +11,10 @@ export function Status({ value }: { value: ServiceStatus }) {
 }
 export const percent = (n: number | null) => n === null ? "N/A" : `${n.toFixed(2)}%`;
 export const time = (s: string) => Number.isFinite(Date.parse(s)) ? new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(s)) : "Unavailable";
+
+/** Bound large collections to the workspace; controls stay outside the scroll area. */
+export const healthScrollClass = 'scrollbar-thin max-h-[min(38rem,70dvh)] overflow-y-auto overscroll-contain [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-cyan-300';
+export function healthMatches(query: string, ...values: string[]) { return values.join(' ').toLowerCase().includes(query.trim().toLowerCase()); }
+export {default as HealthSearch} from '../../SearchField';
+
+export const healthOverviewPanelClass = 'flex h-[32rem] min-h-0 flex-col [&>header]:shrink-0';

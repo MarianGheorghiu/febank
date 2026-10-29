@@ -4,6 +4,7 @@
 import "./dashboard-layout.css";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import GlobalConfigNotice from "@/app/components/ui/GlobalConfigNotice";
 import Sidenav from "@/app/components/ui/Sidenav";
 import { usePreferences } from "@/app/context/PreferencesContext";
 import { useUser } from "@/app/context/UserContext";
@@ -46,6 +47,7 @@ export default function DashboardShell({
 
             <main className={`flex-1 min-w-0 pt-16 md:pt-0 ${isMailbox ? "min-h-0 overflow-hidden" : ""}`}>
                 <div data-dashboard-inset className={`w-full h-full flex flex-col p-4 md:p-6 ${isMailbox ? "min-h-0 overflow-hidden" : ""}`}>
+                    <GlobalConfigNotice admin={user.role === "admin"}/>
                     {children}
                 </div>
             </main>

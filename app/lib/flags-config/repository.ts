@@ -1,43 +1,49 @@
-"use client";
-import { useSyncExternalStore } from "react";
-import { MOCK_FLAGS_CONFIG } from "@/app/lib/mock/admin/flags-config";
-import type { ConfigState, ConfigRepository } from "@/app/lib/types/admin/flags-config";
-import { publishConfig, validConfigState } from "./engine";
+import { CONFIG_ENVIRONMENTS } from "../types/admin/flags-config";
+import type { AuditActor } from '../types/admin/audit';
+import type { ConfigAdminRepository, ConfigExportCommand, ConfigPublishCommand, ConfigSnapshot } from '../types/admin/flags-config';
+import { validatePayload } from './engine';
+import { parseConfigExportReceipt, parseConfigSnapshot, parsePublication } from './response';
+export { mockConfigRepository, CONFIG_STORAGE_KEY, configStorageWarning, useFlagsConfig } from './store';
 
-export const CONFIG_STORAGE_KEY="mbank_flags_config_v1";
-let cached:ConfigState | null=null;
-let warning:string | null=null;
-const listeners=new Set<()=>void>();
-function read():ConfigState {
-  const raw=localStorage.getItem(CONFIG_STORAGE_KEY);
-  if (!raw) return structuredClone(MOCK_FLAGS_CONFIG);
-  const parsed:unknown=JSON.parse(raw);
-  if (!validConfigState(parsed)) throw new Error("Saved configuration is invalid. Preserve browser storage for recovery; publishing is blocked.");
-  return parsed;
+export function createConfigRepository(actor: AuditActor): ConfigAdminRepository {
+  if (actor.role !== 'admin' || !actor.email.trim()) throw new Error('Administrator access required.');
+  const mode = process.env.NEXT_PUBLIC_FLAGS_CONFIG_MODE ?? 'demo';
+  function validate(command: ConfigPublishCommand) {
+    if (!CONFIG_ENVIRONMENTS.includes(command.environment) || (command.restored_from !== null && typeof command.restored_from !== 'string') || !command.request_id.trim() || command.catalog_version !== 1 || !Number.isSafeInteger(command.expected_revision) || command.expected_revision < 1 || command.reason.trim().length < 10 || command.reason.trim().length > 500 || validatePayload(command.payload).length) throw new Error('Invalid configuration release. Review all values and the change reason.');
+  }
+  if (mode === 'demo') {
+    const snapshots = new Map<string, ConfigSnapshot>();
+    async function capture(): Promise<ConfigSnapshot> {
+      const {mockConfigRepository} = await import('./store');
+      const state = await mockConfigRepository.getSnapshot(); delete state.receipts;
+      const snapshot = parseConfigSnapshot({schema_version: 2, catalog_version: 1, scope: 'GLOBAL', mode: 'demo', snapshot_id: `config-${crypto.randomUUID()}`, as_of: new Date().toISOString(), state, permissions: {publish: true, export: true}});
+      snapshots.set(snapshot.snapshot_id, structuredClone(snapshot));
+      while (snapshots.size > 20) snapshots.delete(snapshots.keys().next().value!);
+      return snapshot;
+    }
+    return {
+      getSnapshot: capture,
+      async publish(command) {validate(command); const {mockConfigRepository} = await import('./store'); await mockConfigRepository.publish({...command, restored_from: command.restored_from ?? undefined, actor}); return parsePublication(await capture(), command);},
+      async recordExport(command) {
+        const snapshot = snapshots.get(command.snapshot_id);
+        if (!snapshot || snapshot.state.environments[command.environment]?.revision !== command.revision || !command.request_id.trim() || command.reason.trim().length < 10 || command.reason.trim().length > 500 || !/^[a-f0-9]{64}$/.test(command.content_sha256)) throw new Error('Invalid or expired export snapshot. Refresh and open export again.');
+        const {appendAuditEvent} = await import('../audit/store');
+        const event = appendAuditEvent({source: 'SYSTEM', category: 'DATA_ACCESS', action: 'CONFIG_EXPORTED', target: `flags-config:${command.environment}`, reason: command.reason.trim(), before: null, after: command}, actor, command.request_id);
+        return parseConfigExportReceipt({...command, audit_event_id: event.id, recorded_at: event.timestamp}, command);
+      },
+    };
+  }
+  if (mode !== 'http') throw new Error('Unknown Flags & Config service mode.');
+  const base = (process.env.NEXT_PUBLIC_FLAGS_CONFIG_API_URL ?? '').replace(/\/$/, '');
+  async function request(path: string, body?: ConfigPublishCommand | ConfigExportCommand, signal?: AbortSignal) {
+    const response = await fetch(`${base}/v1/admin/config${path}`, {method: body ? 'POST' : 'GET', signal, credentials: 'include', cache: 'no-store', headers: {Accept: 'application/json', ...(body ? {'Content-Type': 'application/json', 'Idempotency-Key': body.request_id} : {})}, ...(body ? {body: JSON.stringify({schema_version: 2, ...body})} : {})});
+    if (!response.ok) throw new Error(response.status === 409 ? 'A newer revision exists or the reviewed snapshot expired. Refresh and review again.' : `Configuration service unavailable (${response.status}).`);
+    return response.json();
+  }
+  function live(snapshot: ConfigSnapshot) {if (snapshot.mode !== 'live') throw new Error('Expected live global configuration.'); return snapshot;}
+  return {
+    async getSnapshot(signal) {return live(parseConfigSnapshot(await request('/snapshot', undefined, signal)));},
+    async publish(command) {validate(command); return live(parsePublication(await request(`/${command.environment}/releases`, command), command));},
+    async recordExport(command) {if (!command.request_id.trim() || command.reason.trim().length < 10 || command.reason.trim().length > 500 || !/^[a-f0-9]{64}$/.test(command.content_sha256)) throw new Error('Invalid export request.'); return parseConfigExportReceipt(await request('/exports', command), command);},
+  };
 }
-function refresh() {
-  try { cached=read(); warning=null; }
-  catch { cached=MOCK_FLAGS_CONFIG; warning="Saved configuration is unavailable or invalid. Showing defaults; publishing is blocked. Preserve browser storage for recovery."; }
-  listeners.forEach(fn=>fn());
-}
-function snapshot() { if (typeof window==="undefined") return MOCK_FLAGS_CONFIG; if (!cached) refresh(); return cached!; }
-function subscribe(listener:()=>void) {
-  listeners.add(listener);
-  const changed=(event:StorageEvent)=>{ if (event.key===CONFIG_STORAGE_KEY || event.key===null) refresh(); };
-  window.addEventListener("storage",changed);
-  return ()=>{listeners.delete(listener);window.removeEventListener("storage",changed);};
-}
-export function useFlagsConfig() { return useSyncExternalStore(subscribe,snapshot,()=>MOCK_FLAGS_CONFIG); }
-export function configStorageWarning() { return warning; }
-export const mockConfigRepository:ConfigRepository={
-  async getSnapshot() { refresh(); if (warning) throw new Error(warning); return structuredClone(cached!); },
-  async publish(request) {
-    // Read just before committing to catch edits from another open tab.
-    const next=publishConfig(read(),request,crypto.randomUUID(),new Date().toISOString());
-    try { localStorage.setItem(CONFIG_STORAGE_KEY,JSON.stringify(next)); }
-    catch { throw new Error("Browser storage is unavailable or full. Configuration was not published."); }
-    cached=next; warning=null; listeners.forEach(fn=>fn());
-    if (typeof window!=="undefined") window.dispatchEvent(new Event("mbank:config-updated"));
-    return structuredClone(next);
-  },
-};

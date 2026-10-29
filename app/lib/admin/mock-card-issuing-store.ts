@@ -1,4 +1,5 @@
 "use client";
+import { assertGlobalConfig } from "../flags-config/runtime";
 
 import { assertManagedAccess, findManagedUser, readManagedUsers, USERS_EVENT, USERS_KEY } from "../user-management/store";
 import { validIssuedCard } from "../card-issuing/response";
@@ -92,7 +93,10 @@ export function executeCustomerCardCommand(command: import("../cards/contracts")
     if (previous.actor.toLowerCase() !== email.trim().toLowerCase() || previous.reason !== reason || (command.action === "ISSUE" ? previous.after?.type !== command.type || previous.after?.network !== command.network || previous.after?.currency !== command.currency : previous.cardId !== command.card_id || previous.before?.version !== command.expected_version || (command.action === "UPDATE_CONTROLS" && (JSON.stringify(previous.after?.limits) !== JSON.stringify(command.limits) || JSON.stringify(previous.after?.channels) !== JSON.stringify(command.channels))))) throw new Error("Operation key already used for another request.");
     return latest;
   }
-  if (!["FREEZE", "TERMINATE"].includes(command.action)) assertManagedAccess(email);
+  if (!["FREEZE", "TERMINATE"].includes(command.action)) {
+    assertGlobalConfig(command.action === "ISSUE" ? "cards" : undefined, command.action === "ISSUE" && command.type === "VIRTUAL" ? "virtual_cards" : undefined, email);
+    assertManagedAccess(email);
+  }
   const next = applyCustomerCardCommand(latest, cardCustomers(latest), command, email, MOCK_ISSUING_POLICY, new Date().toISOString(), prefix => prefix === "CAU" ? `CCU-${key}` : `${prefix}-${crypto.randomUUID()}`);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
   catch { throw new Error("The operation could not be saved. No card changes were applied."); }
