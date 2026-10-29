@@ -30,12 +30,14 @@ function subscribe(listener:()=>void) {
 export function useFlagsConfig() { return useSyncExternalStore(subscribe,snapshot,()=>MOCK_FLAGS_CONFIG); }
 export function configStorageWarning() { return warning; }
 export const mockConfigRepository:ConfigRepository={
-  async getSnapshot() { refresh(); if (warning) throw new Error(warning); return structuredClone(snapshot()); },
+  async getSnapshot() { refresh(); if (warning) throw new Error(warning); return structuredClone(cached!); },
   async publish(request) {
     // Read just before committing to catch edits from another open tab.
     const next=publishConfig(read(),request,crypto.randomUUID(),new Date().toISOString());
     try { localStorage.setItem(CONFIG_STORAGE_KEY,JSON.stringify(next)); }
     catch { throw new Error("Browser storage is unavailable or full. Configuration was not published."); }
-    cached=next; warning=null; listeners.forEach(fn=>fn()); return structuredClone(next);
+    cached=next; warning=null; listeners.forEach(fn=>fn());
+    if (typeof window!=="undefined") window.dispatchEvent(new Event("mbank:config-updated"));
+    return structuredClone(next);
   },
 };

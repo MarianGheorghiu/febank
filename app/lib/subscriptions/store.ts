@@ -3,16 +3,13 @@ import { useSyncExternalStore } from "react";
 import { MOCK_SUBSCRIPTIONS } from "@/app/lib/mock/admin/subscriptions";
 import type { SubscriptionState, SubscriptionsRepository } from "@/app/lib/types/admin/subscriptions";
 import { applySubscriptionCommand, validSubscriptionState } from "./engine";
-export const SUBSCRIPTIONS_STORAGE_KEY = "mbank_subscriptions_v1";
+import { readSubscriptions, SUBSCRIPTIONS_STORAGE_KEY, SUBSCRIPTIONS_EVENT } from './registry';
+export { SUBSCRIPTIONS_STORAGE_KEY } from './registry';
 let cached: SubscriptionState | null = null;
 let warning: string | null = null;
 const listeners = new Set<() => void>();
 function read() {
-  const raw = localStorage.getItem(SUBSCRIPTIONS_STORAGE_KEY);
-  if (!raw) return MOCK_SUBSCRIPTIONS;
-  const state: unknown = JSON.parse(raw);
-  if (!validSubscriptionState(state)) throw new Error("Invalid subscription storage. Preserve stored data for recovery.");
-  return state;
+  return readSubscriptions();
 }
 function snapshot() {
   if (typeof window === "undefined") return MOCK_SUBSCRIPTIONS;
@@ -42,7 +39,10 @@ export const mockSubscriptionsRepository: SubscriptionsRepository = {
     try { localStorage.setItem(SUBSCRIPTIONS_STORAGE_KEY, JSON.stringify(next)); }
     catch { throw new Error("Subscription storage is unavailable or full. No changes saved."); }
     cached = next; warning = null; listeners.forEach(fn => fn());
-    if (typeof window !== "undefined") window.dispatchEvent(new Event("mbank:wallet-updated"));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(SUBSCRIPTIONS_EVENT));
+      window.dispatchEvent(new Event("mbank:wallet-updated"));
+    }
     return next;
   },
 };

@@ -1,4 +1,4 @@
-// Read-only wire DTOs for the future Go reporting API.
+// Reporting DTOs shared by the operational referral registry and the Go boundary.
 export const REFERRAL_STATUSES = ["INVITED", "SIGNED_UP", "KYC_PENDING", "QUALIFIED", "REJECTED"] as const;
 export type ReferralStatus = typeof REFERRAL_STATUSES[number];
 export interface ReferralReferrer {
@@ -20,7 +20,7 @@ export interface ReferralRecord {
   qualified_at: string | null;
   reward_minor: number;
   reward_currency: "EUR";
-  reward_status: "NONE" | "PENDING" | "PAID" | "HELD";
+  reward_status: "NONE" | "PENDING" | "PAID" | "HELD" | "QUEUED";
   rejection_reason: string | null;
 }
 export interface ReferralReport {
@@ -40,6 +40,7 @@ export interface ReferralLeaderboardRow {
   paid_minor: number;
   pending_minor: number;
   held_minor: number;
+  queued_minor: number;
   latest_invited_at: string | null;
 }
 export interface ReferralsRepository { getReport(): Promise<ReferralReport> }

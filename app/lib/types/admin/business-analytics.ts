@@ -14,6 +14,8 @@ export interface BusinessDay {
   date: string; segment: BusinessSegment;
   payroll_minor: number; infrastructure_minor: number; compliance_minor: number; acquisition_minor: number; credit_provision_minor: number;
   external_inflow_minor: number; external_outflow_minor: number;
+  /** Signed deposit-liability effect of other ledger postings, e.g. interest, fees, loan credits or corrections. Missing means explicit legacy zero. */
+  deposit_adjustments_minor?: number;
   registered_customers: number; verified_customers: number; funded_customers: number; active_customers_30d: number; paying_subscriptions: number;
   client_deposits_minor: number; liquid_assets_minor: number; loan_book_minor: number; nonperforming_loans_minor: number; other_assets_minor: number; other_liabilities_minor: number; equity_minor: number;
 }

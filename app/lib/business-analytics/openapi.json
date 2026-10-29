@@ -1,0 +1,1843 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MBANK Business Analytics reporting contract",
+    "version": "1.0.0",
+    "description": "Administrator management reporting, aggregate-only snapshots and audited exports. This contract prepares a future Go service; it does not implement a ledger, warehouse ingestion or payment processing."
+  },
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "paths": {
+    "/v1/admin/business-analytics": {
+      "get": {
+        "operationId": "getBusinessAnalyticsSnapshot",
+        "summary": "Read aggregate financial and operational reporting snapshot",
+        "responses": {
+          "200": {
+            "description": "Immutable aggregate snapshot with explicit source coverage.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessSnapshot"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator access denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Snapshot expired or request-key conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid scope, incomplete coverage or invalid reporting data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Reporting infrastructure unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/business-analytics/exports": {
+      "post": {
+        "operationId": "recordBusinessAnalyticsExport",
+        "summary": "Authorize and durably audit an export of the reviewed snapshot",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Must equal request_id and be bound to authenticated actor, snapshot, scope, format, purpose and checksum."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Durable audit request receipt; does not attest browser download completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessExportReceipt"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Administrator access denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Snapshot expired or request-key conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid scope, incomplete coverage or invalid reporting data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Reporting infrastructure unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportingError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session",
+        "description": "Authenticated Go session cookie; deployment name is configurable. Frontend requests use credentials: include. Mock browser role checks are not server authorization."
+      }
+    },
+    "schemas": {
+      "BusinessDay": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "segment",
+          "payroll_minor",
+          "infrastructure_minor",
+          "compliance_minor",
+          "acquisition_minor",
+          "credit_provision_minor",
+          "external_inflow_minor",
+          "external_outflow_minor",
+          "registered_customers",
+          "verified_customers",
+          "funded_customers",
+          "active_customers_30d",
+          "paying_subscriptions",
+          "client_deposits_minor",
+          "liquid_assets_minor",
+          "loan_book_minor",
+          "nonperforming_loans_minor",
+          "other_assets_minor",
+          "other_liabilities_minor",
+          "equity_minor"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "RETAIL",
+              "BUSINESS"
+            ]
+          },
+          "payroll_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "infrastructure_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "compliance_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "acquisition_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "credit_provision_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "external_inflow_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "external_outflow_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "registered_customers": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "verified_customers": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "funded_customers": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "active_customers_30d": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "paying_subscriptions": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "client_deposits_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "liquid_assets_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "loan_book_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "nonperforming_loans_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "other_assets_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "other_liabilities_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "equity_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "deposit_adjustments_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Signed effect of other customer deposit ledger postings, including interest, fees, loan credits and corrections. Legacy absence is zero."
+          }
+        },
+        "description": "Closing stocks and daily flows. Stocks must not be summed over days. Assets equal liabilities plus equity. Deposits reconcile opening + external inflow - external outflow + other ledger postings."
+      },
+      "BusinessProductDay": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "segment",
+          "product",
+          "gross_revenue_minor",
+          "refunds_minor",
+          "direct_cost_minor",
+          "settled_volume_minor",
+          "completed_operations",
+          "failed_operations",
+          "pending_operations"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "RETAIL",
+              "BUSINESS"
+            ]
+          },
+          "product": {
+            "type": "string",
+            "enum": [
+              "PAYMENTS",
+              "CARDS",
+              "FX",
+              "INVESTMENTS",
+              "LENDING",
+              "SUBSCRIPTIONS"
+            ]
+          },
+          "gross_revenue_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "refunds_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "direct_cost_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "settled_volume_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "completed_operations": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "failed_operations": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pending_operations": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "description": "Disjoint product operation cohorts, with outcomes at the report cutoff. Subscription recognition has zero settled payment notional."
+      },
+      "BusinessAcquisitionCohort": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "segment",
+          "channel",
+          "registered",
+          "verified",
+          "funded",
+          "active",
+          "acquisition_spend_minor"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "RETAIL",
+              "BUSINESS"
+            ]
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "ORGANIC",
+              "REFERRAL",
+              "PAID",
+              "PARTNER"
+            ]
+          },
+          "registered": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "verified": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "funded": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "active": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "acquisition_spend_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          }
+        },
+        "description": "One attributed channel per registration. Outcomes are measured at report cutoff and are overlapping subsets, not same-day funding events."
+      },
+      "BusinessAnalyticsReport": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "report_id",
+          "as_of",
+          "complete_through",
+          "reporting_currency",
+          "days",
+          "products",
+          "cohorts"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "report_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+          },
+          "complete_through": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "reporting_currency": {
+            "const": "EUR"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessDay"
+            }
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessProductDay"
+            }
+          },
+          "cohorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusinessAcquisitionCohort"
+            }
+          }
+        },
+        "description": "Daily reporting rollups sized by bounded date/category dimensions, independent of total customer count. Include complete current/comparison periods and opening balances; never return individual user profiles."
+      },
+      "BusinessFilters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to",
+          "segment"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "ALL",
+              "RETAIL",
+              "BUSINESS"
+            ]
+          }
+        },
+        "description": "Inclusive complete UTC days, at most 90 selected days within the latest 90 report days. Adjacent equal-length comparison and opening balances must be available."
+      },
+      "ObservedPosition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "asset",
+          "kind",
+          "decimals",
+          "available",
+          "reserved"
+        ],
+        "properties": {
+          "asset": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "fiat",
+              "crypto",
+              "stock"
+            ]
+          },
+          "decimals": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 36
+          },
+          "available": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)(\\.\\d+)?$",
+            "description": "Exact nonnegative asset units. Fraction digits must not exceed decimals. Never convert to IEEE-754 for aggregation."
+          },
+          "reserved": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)(\\.\\d+)?$",
+            "description": "Exact nonnegative asset units. Fraction digits must not exceed decimals. Never convert to IEEE-754 for aggregation."
+          }
+        }
+      },
+      "ObservedSettlement": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "asset",
+          "decimals",
+          "incoming",
+          "outgoing",
+          "completed"
+        ],
+        "properties": {
+          "asset": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decimals": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 36
+          },
+          "incoming": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)(\\.\\d+)?$",
+            "description": "Exact nonnegative asset units. Fraction digits must not exceed decimals. Never convert to IEEE-754 for aggregation."
+          },
+          "outgoing": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)(\\.\\d+)?$",
+            "description": "Exact nonnegative asset units. Fraction digits must not exceed decimals. Never convert to IEEE-754 for aggregation."
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "UsersAggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "clients",
+          "active",
+          "blocked",
+          "verified",
+          "seen_30d"
+        ],
+        "properties": {
+          "clients": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "active": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blocked": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "verified": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "seen_30d": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "description": "Aggregate values only. No customer identities, emails, referral details or wallet-owner records. Registered source populations may overlap with other sources and must not be added together."
+      },
+      "UsersSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "READY"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "null"
+              },
+              "data": {
+                "$ref": "#/components/schemas/UsersAggregate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "ERROR"
+              },
+              "as_of": {
+                "type": "null"
+              },
+              "revision": {
+                "type": "null"
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "data": {
+                "type": "null"
+              }
+            }
+          }
+        ],
+        "description": "Unavailable data is explicit null with an error, never an inferred zero."
+      },
+      "SubscriptionsAggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "open",
+          "active",
+          "past_due",
+          "suspended",
+          "canceling",
+          "contracted_mrr_minor",
+          "overdue_minor",
+          "overdue_invoices",
+          "renewals_7d",
+          "plans"
+        ],
+        "properties": {
+          "open": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "active": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "past_due": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "suspended": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "canceling": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "contracted_mrr_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "overdue_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "overdue_invoices": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "renewals_7d": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "plan",
+                "count"
+              ],
+              "properties": {
+                "plan": {
+                  "type": "string",
+                  "enum": [
+                    "STANDARD",
+                    "PREMIUM",
+                    "METAL"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              }
+            }
+          }
+        },
+        "description": "Aggregate values only. No customer identities, emails, referral details or wallet-owner records. Registered source populations may overlap with other sources and must not be added together."
+      },
+      "SubscriptionsSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "READY"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "null"
+              },
+              "data": {
+                "$ref": "#/components/schemas/SubscriptionsAggregate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "ERROR"
+              },
+              "as_of": {
+                "type": "null"
+              },
+              "revision": {
+                "type": "null"
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "data": {
+                "type": "null"
+              }
+            }
+          }
+        ],
+        "description": "Unavailable data is explicit null with an error, never an inferred zero."
+      },
+      "ReferralsAggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invited",
+          "registered",
+          "qualified",
+          "pending_minor",
+          "held_minor",
+          "queued_minor",
+          "paid_history_minor"
+        ],
+        "properties": {
+          "invited": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "registered": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "qualified": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pending_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "held_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "queued_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          },
+          "paid_history_minor": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Booked EUR minor units; never a current FX valuation."
+          }
+        },
+        "description": "Aggregate values only. No customer identities, emails, referral details or wallet-owner records. Registered source populations may overlap with other sources and must not be added together."
+      },
+      "ReferralsSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "READY"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "null"
+              },
+              "data": {
+                "$ref": "#/components/schemas/ReferralsAggregate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "ERROR"
+              },
+              "as_of": {
+                "type": "null"
+              },
+              "revision": {
+                "type": "null"
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "data": {
+                "type": "null"
+              }
+            }
+          }
+        ],
+        "description": "Unavailable data is explicit null with an error, never an inferred zero."
+      },
+      "WalletsAggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "observed_wallets",
+          "transfers",
+          "completed",
+          "pending",
+          "processing",
+          "rejected",
+          "cancelled",
+          "pending_orders",
+          "credit_applications",
+          "positions",
+          "settlements"
+        ],
+        "properties": {
+          "observed_wallets": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "transfers": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pending": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "processing": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "cancelled": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pending_orders": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "credit_applications": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ObservedPosition"
+            }
+          },
+          "settlements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ObservedSettlement"
+            }
+          }
+        },
+        "description": "Aggregate values only. No customer identities, emails, referral details or wallet-owner records. Registered source populations may overlap with other sources and must not be added together."
+      },
+      "WalletsSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "READY"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "null"
+              },
+              "data": {
+                "$ref": "#/components/schemas/WalletsAggregate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "ERROR"
+              },
+              "as_of": {
+                "type": "null"
+              },
+              "revision": {
+                "type": "null"
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "data": {
+                "type": "null"
+              }
+            }
+          }
+        ],
+        "description": "Unavailable data is explicit null with an error, never an inferred zero."
+      },
+      "CardsAggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "total",
+          "active",
+          "pending",
+          "frozen",
+          "blocked",
+          "terminated"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "active": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pending": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "frozen": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "blocked": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "terminated": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "description": "Aggregate values only. No customer identities, emails, referral details or wallet-owner records. Registered source populations may overlap with other sources and must not be added together."
+      },
+      "CardsSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "READY"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "null"
+              },
+              "data": {
+                "$ref": "#/components/schemas/CardsAggregate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "ERROR"
+              },
+              "as_of": {
+                "type": "null"
+              },
+              "revision": {
+                "type": "null"
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "data": {
+                "type": "null"
+              }
+            }
+          }
+        ],
+        "description": "Unavailable data is explicit null with an error, never an inferred zero."
+      },
+      "RiskAggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "open_cases",
+          "critical_cases",
+          "overdue_cases",
+          "restricted_accounts"
+        ],
+        "properties": {
+          "open_cases": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "critical_cases": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "overdue_cases": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "restricted_accounts": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "description": "Aggregate values only. No customer identities, emails, referral details or wallet-owner records. Registered source populations may overlap with other sources and must not be added together."
+      },
+      "RiskSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "READY"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "null"
+              },
+              "data": {
+                "$ref": "#/components/schemas/RiskAggregate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "ERROR"
+              },
+              "as_of": {
+                "type": "null"
+              },
+              "revision": {
+                "type": "null"
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "data": {
+                "type": "null"
+              }
+            }
+          }
+        ],
+        "description": "Unavailable data is explicit null with an error, never an inferred zero."
+      },
+      "RatesAggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "enabled_products",
+          "paused_products",
+          "pending_releases"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "enabled_products": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "paused_products": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pending_releases": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "description": "Aggregate values only. No customer identities, emails, referral details or wallet-owner records. Registered source populations may overlap with other sources and must not be added together."
+      },
+      "RatesSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "READY"
+              },
+              "as_of": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "null"
+              },
+              "data": {
+                "$ref": "#/components/schemas/RatesAggregate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "as_of",
+              "revision",
+              "scope",
+              "error",
+              "data"
+            ],
+            "properties": {
+              "status": {
+                "const": "ERROR"
+              },
+              "as_of": {
+                "type": "null"
+              },
+              "revision": {
+                "type": "null"
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "error": {
+                "type": "string",
+                "minLength": 1
+              },
+              "data": {
+                "type": "null"
+              }
+            }
+          }
+        ],
+        "description": "Unavailable data is explicit null with an error, never an inferred zero."
+      },
+      "OperationalSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "as_of",
+          "window_from",
+          "window_to",
+          "sources"
+        ],
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+          },
+          "window_from": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+          },
+          "window_to": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+          },
+          "sources": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "users",
+              "subscriptions",
+              "referrals",
+              "wallets",
+              "cards",
+              "risk",
+              "rates"
+            ],
+            "properties": {
+              "users": {
+                "$ref": "#/components/schemas/UsersSource"
+              },
+              "subscriptions": {
+                "$ref": "#/components/schemas/SubscriptionsSource"
+              },
+              "referrals": {
+                "$ref": "#/components/schemas/ReferralsSource"
+              },
+              "wallets": {
+                "$ref": "#/components/schemas/WalletsSource"
+              },
+              "cards": {
+                "$ref": "#/components/schemas/CardsSource"
+              },
+              "risk": {
+                "$ref": "#/components/schemas/RiskSource"
+              },
+              "rates": {
+                "$ref": "#/components/schemas/RatesSource"
+              }
+            }
+          }
+        },
+        "description": "Current operational aggregates, separate from warehouse financial cutoffs. Wallet transfer activity uses the stated trailing initiation window; monetary positions retain their own units."
+      },
+      "BusinessSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "snapshot_id",
+          "mode",
+          "as_of",
+          "financial_basis",
+          "consistency",
+          "report",
+          "operations"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "snapshot_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "live"
+            ]
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+          },
+          "financial_basis": {
+            "type": "string",
+            "enum": [
+              "ILLUSTRATIVE_WAREHOUSE",
+              "BOOKED_WAREHOUSE"
+            ]
+          },
+          "consistency": {
+            "type": "string",
+            "enum": [
+              "BEST_EFFORT",
+              "CONSISTENT_CUTOFF"
+            ]
+          },
+          "report": {
+            "$ref": "#/components/schemas/BusinessAnalyticsReport"
+          },
+          "operations": {
+            "$ref": "#/components/schemas/OperationalSnapshot"
+          }
+        },
+        "description": "Immutable reporting snapshot. The HTTP service must return mode=live and financial_basis=BOOKED_WAREHOUSE. Source observation/report cutoffs cannot exceed snapshot as_of. Only declare CONSISTENT_CUTOFF when guaranteed by backend data authorities."
+      },
+      "BusinessExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "request_id",
+          "snapshot_id",
+          "report_id",
+          "filters",
+          "format",
+          "reason",
+          "content_sha256"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "snapshot_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "report_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "filters": {
+            "$ref": "#/components/schemas/BusinessFilters"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "CSV",
+              "JSON"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "content_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "description": "Export the reviewed snapshot. Actor comes exclusively from the authenticated server session. Content checksum identifies prepared client content, not an independent audit opinion or proof of download completion."
+      },
+      "BusinessExportReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "request_id",
+          "snapshot_id",
+          "report_id",
+          "audit_event_id",
+          "requested_at",
+          "content_sha256"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "snapshot_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "report_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "audit_event_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T.*Z$"
+          },
+          "content_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "description": "Return only after durable audit evidence and payload-bound idempotency receipt are saved in one transaction. All echoed identifiers and checksum must match the request."
+      },
+      "ReportingError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "message"
+            ],
+            "properties": {
+              "message": {
+                "type": "string",
+                "minLength": 1
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

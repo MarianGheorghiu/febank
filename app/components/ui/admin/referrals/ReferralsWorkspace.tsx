@@ -1,93 +1,89 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, CheckCircle2, Gift, RefreshCw, Search, ShieldAlert, Trophy, UserPlus, Users, X } from "lucide-react";
-import { useUser } from "@/app/context/UserContext";
-import PageHeader from "@/app/components/ui/PageHeader";
-import MetricCard from "@/app/components/ui/MetricCard";
-import { notifyOperation } from "@/app/components/ui/OperationNotification";
-import { MOCK_REFERRAL_REPORT } from "@/app/lib/mock/admin/referrals";
-import { REFERRAL_STATUSES, type ReferralFilters } from "@/app/lib/types/admin/referrals";
-import { filterReferrals, referralLeaderboard, referralMoney } from "@/app/lib/referrals/engine";
-import { mockReferralsRepository } from "@/app/lib/referrals/repository";
-import { AuditPanel, AuditSelect, EmptyAudit, auditBadge, auditDate, auditFieldClass, auditInputClass } from "../audit/presentation";
-import { buttonClass } from "../cards/presentation";
-import ReferralCharts from "./ReferralCharts";
+import { useRef, useState } from 'react';
+import Link from 'next/link';
+import { CheckCircle2, Download, Gift, Plus, RefreshCw, ShieldAlert, UserPlus, Users, X } from 'lucide-react';
+import { useUser } from '@/app/context/UserContext';
+import { useReferrals } from '@/app/lib/referrals/use-referrals';
+import type { ReferralCommand } from '@/app/lib/referrals/contracts';
+import { REFERRAL_STATUSES, type ReferralFilters } from '@/app/lib/types/admin/referrals';
+import { filterReferrals, referralLeaderboard, referralMoney, searchReferralRecords } from '@/app/lib/referrals/engine';
+import PageHeader from '../../PageHeader';
+import CardSurface from '../../CardSurface';
+import MetricCard from '../../MetricCard';
+import { ActionButton } from '../../dashboard/ActionButton';
+import { SocialPagination, SocialSearch } from '../../friends/SocialListControls';
+import { notifyOperation } from '../../OperationNotification';
+import { AuditPanel, AuditSelect, EmptyAudit, auditBadge, auditDate, auditFieldClass } from '../audit/presentation';
+import { buttonClass } from '../risk/RiskUI';
+import ReferralCharts from './ReferralCharts';
+import ReferralLedger from './ReferralLedger';
+import ReferrerLeaderboard from './ReferrerLeaderboard';
+import ReferralInsights from './ReferralInsights';
+import ReferralOperationDialog, { type ReferralIntent } from './ReferralOperationDialog';
+import { referralActionLabels, referralStatusLabels } from './presentation';
 
-const button = `${buttonClass} min-h-9 leading-none [&>svg]:shrink-0`;
-const statusLabels = { INVITED: "Invited", SIGNED_UP: "Signed up", KYC_PENDING: "KYC pending", QUALIFIED: "Qualified", REJECTED: "Rejected" };
-const statusBadge = (status: string) => auditBadge(status === "QUALIFIED" || status === "PAID" ? "SUCCESS" : status === "REJECTED" || status === "HELD" ? "FAILED" : status === "KYC_PENDING" || status === "PENDING" ? "WARNING" : status);
-const date = (value: string | null) => value ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "Europe/Bucharest" }).format(new Date(value)) : "—";
-const defaultFilters: ReferralFilters = { query: "", status: "ALL", range: "90D" };
-
+const defaults: ReferralFilters = {query: '', status: 'ALL', range: '90D'};
 export default function ReferralsWorkspace() {
-  const { user, loading } = useUser();
+  const {user, loading} = useUser();
   if (loading || !user) return null;
-  if (user.role !== "admin") return <div className="rounded-xl border border-rose-500/30 p-8 text-center"><ShieldAlert className="mx-auto mb-3 text-rose-400"/><h1>Administrator access required</h1><Link href="/dashboard" className={`${button} mt-4`}>Return to dashboard</Link></div>;
-  return <Workspace email={user.email}/>;
+  if (user.role !== 'admin') return <CardSurface className="p-8 text-center"><ShieldAlert className="mx-auto mb-3 text-rose-300"/><h1>Administrator access required</h1><Link href="/dashboard" className={`${buttonClass} mt-4`}>Return to dashboard</Link></CardSurface>;
+  return <Workspace actor={user}/>;
 }
-function Workspace({ email }: { email: string }) {
-  const [report, setReport] = useState(MOCK_REFERRAL_REPORT);
-  const [filters, setFilters] = useState<ReferralFilters>(defaultFilters);
-  const [sort, setSort] = useState("REGISTERED");
-  const [page, setPage] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const detailsRef = useRef<HTMLDivElement>(null);
-  const records = filterReferrals(report, filters);
-  const leaderboard = referralLeaderboard(report, records);
-  const ranked = [...leaderboard].sort((a, b) => sort === "QUALIFIED" ? b.qualified - a.qualified || b.registered - a.registered : sort === "CONVERSION" ? b.conversion - a.conversion || b.invited - a.invited : 0);
-  const registered = records.filter(r => r.registered_at !== null).length;
-  const qualified = records.filter(r => r.status === "QUALIFIED").length;
-  const reward = (status: string) => records.filter(r => r.reward_status === status).reduce((sum, r) => sum + r.reward_minor, 0);
-  const pages = Math.max(1, Math.ceil(ranked.length / 8));
-  const currentPage = Math.min(page, pages - 1);
-  const selected = leaderboard.find(row => row.referrer.id === selectedId);
-  const selectedRecords = records.filter(r => r.referrer_id === selectedId).sort((a, b) => b.invited_at.localeCompare(a.invited_at));
-  const detailsId = selected?.referrer.id;
-  useEffect(() => { if (detailsId) detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [detailsId]);
-  const update = <K extends keyof ReferralFilters>(key: K, value: ReferralFilters[K]) => { setFilters(prev => ({ ...prev, [key]: value })); setPage(0); };
-  const reset = () => { setFilters(defaultFilters); setSort("REGISTERED"); setPage(0); setSelectedId(null); };
-  const refresh = async () => {
-    if (busy) return;
-    setBusy(true);
-    try { setReport(await mockReferralsRepository.getReport()); notifyOperation("Referrals refreshed", "Demo reporting data reloaded. No rewards were issued or changed.", false, "Referrals"); }
-    catch (cause) { notifyOperation("Referral report unavailable", cause instanceof Error ? cause.message : "Could not load the report.", true, "Referrals"); }
-    finally { setBusy(false); }
-  };
-  return <div className="w-full min-w-0 space-y-4 font-mono text-white">
-    <PageHeader compact sessionId={email} systemDate={date(report.as_of)} statusText="ADMINISTRATOR · REFERRALS"><button className={button} disabled={busy} onClick={refresh}><RefreshCw size={13} className={busy ? "animate-spin" : ""}/>{busy ? "Refreshing…" : "Refresh report"}</button></PageHeader>
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-black uppercase tracking-widest">Referrals</h1><p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-400">Discover who brings new customers to the bank, follow referral quality and track campaign rewards.</p></div><span className={auditBadge("DEMO")}>DEMO · READ ONLY</span></div>
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-      <MetricCard compact title="Invitations" value={records.length} icon={UserPlus} subtext={`${leaderboard.length} referrers in the selected scope`}/>
-      <MetricCard compact title="Users registered" value={registered} icon={Users} subtext={`${records.length ? (registered / records.length * 100).toFixed(1) : "0.0"}% of scoped invitations`}/>
-      <MetricCard compact title="Qualified referrals" value={qualified} icon={CheckCircle2} iconColor="text-teal-300" subtext={`${records.length ? (qualified / records.length * 100).toFixed(1) : "0.0"}% qualified · KYC + campaign criteria`}/>
-      <MetricCard compact title="Rewards paid" value={referralMoney(reward("PAID"))} icon={Gift} subtext={`${referralMoney(reward("PENDING"))} pending · ${referralMoney(reward("HELD"))} held`}/>
-    </div>
-    <AuditPanel title="Referral scope" subtitle="Filters apply to every metric, chart and table. The period uses invitation date; registration and qualification reflect the report snapshot." action={<button className={button} onClick={reset}><X size={12}/>Reset filters</button>}>
-      <div className="grid items-end gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <label className={`${auditFieldClass} lg:col-span-2`}>Search referrers<span className="relative block"><Search size={13} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"/><input className={`${auditInputClass} pl-9`} value={filters.query} onChange={e => update("query", e.target.value)} placeholder="Name, email, user ID or referral code…"/></span></label>
-        <label className={auditFieldClass}>Invitation period<AuditSelect value={filters.range} onChange={e => update("range", e.target.value as ReferralFilters["range"])}><option value="30D">Last 30 days</option><option value="90D">Last 90 days</option><option value="ALL">All available history</option></AuditSelect></label>
-        <label className={auditFieldClass}>Referral status<AuditSelect value={filters.status} onChange={e => update("status", e.target.value)}><option value="ALL">All statuses</option>{REFERRAL_STATUSES.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}</AuditSelect></label>
-      </div>
+function Workspace({actor}: {actor: {email: string; role: 'admin' | 'client'}}) {
+  const source = useReferrals(actor);
+  if (!source.snapshot) return <div className="space-y-5"><PageHeader statusText="Referrals"/><CardSurface className="p-6"><p role={source.warning ? 'alert' : 'status'} className="text-sm text-slate-300">{source.warning ?? 'Loading the referral registry…'}</p><ActionButton className="mt-4" autoWidth variant="blue" disabled={source.loading} onClick={() => void source.refresh()}>Retry loading</ActionButton></CardSurface></div>;
+  return <Portfolio source={source}/>;
+}
+function Portfolio({source}: {source: ReturnType<typeof useReferrals>}) {
+  const snapshot = source.snapshot!, {state, policy} = snapshot, report = state.report;
+  const [filters, setFilters] = useState<ReferralFilters>(defaults), [tab, setTab] = useState('overview');
+  const [selectedReferrer, setSelectedReferrer] = useState('ALL'), [rewardStatus, setRewardStatus] = useState('ALL');
+  const [ledgerQuery, setLedgerQuery] = useState(''), [auditQuery, setAuditQuery] = useState(''), [auditPage, setAuditPage] = useState(1);
+  const [intent, setIntent] = useState<ReferralIntent | null>(null), [exporting, setExporting] = useState(false);
+  const exportLock = useRef(false);
+  const blocked = !!source.warning || source.loading;
+  const records = filterReferrals(report, filters), leaders = referralLeaderboard(report, records);
+  const registered = records.filter(r => !!r.registered_at).length, qualified = records.filter(r => r.status === 'QUALIFIED').length;
+  const total = (status: string) => records.filter(r => r.reward_status === status).reduce((n, r) => n + r.reward_minor, 0);
+  const registry = records.filter(r => selectedReferrer === 'ALL' || r.referrer_id === selectedReferrer);
+  const rewardRecords = registry.filter(r => r.reward_status !== 'NONE' && (rewardStatus === 'ALL' || r.reward_status === rewardStatus));
+  const exportRecords = searchReferralRecords(tab === 'rewards' ? rewardRecords : registry, report, ledgerQuery);
+  const history = state.audit.filter(e => `${e.action} ${e.actor} ${e.reason} ${e.target}`.toLowerCase().includes(auditQuery.trim().toLowerCase()));
+  const currentAudit = Math.min(auditPage, Math.max(1, Math.ceil(history.length / 8)));
+  const update = <K extends keyof ReferralFilters>(key: K, value: ReferralFilters[K]) => setFilters(previous => ({...previous, [key]: value}));
+  const reset = () => {setFilters(defaults); setSelectedReferrer('ALL'); setRewardStatus('ALL'); setLedgerQuery('');};
+  async function confirm(command: ReferralCommand) {
+    try {await source.execute(command); notifyOperation(referralActionLabels[command.action], command.action === 'REQUEST_PAYOUT' ? 'Payout request recorded. The reward remains queued until payment processing confirms settlement.' : 'The shared referral registry and audit evidence have been updated.', false, 'Referrals');}
+    catch (cause) {notifyOperation('Referral operation failed', cause instanceof Error ? cause.message : 'Unable to save the operation.', true, 'Referrals'); throw cause;}
+  }
+  async function exportReport() {
+    if (blocked || exportLock.current) return; exportLock.current = true; setExporting(true);
+    const leaderboard = tab === 'leaders';
+    const rows = leaderboard ? [['Referrer', 'User ID', 'Code', 'Invited', 'Registered', 'Qualified', 'Paid EUR minor', 'Pending EUR minor', 'Held EUR minor', 'Queued EUR minor'], ...leaders.map(r => [r.referrer.name, r.referrer.user_id, r.referrer.referral_code, r.invited, r.registered, r.qualified, r.paid_minor, r.pending_minor, r.held_minor, r.queued_minor])] : [['Referral', 'Referrer', 'Invitee', 'Invitee email', 'Status', 'Invited UTC', 'Registered UTC', 'Reward EUR minor', 'Reward status'], ...exportRecords.map(r => [r.id, r.referrer_id, r.invitee_name, r.invitee_email, r.status, r.invited_at, r.registered_at, r.reward_minor, r.reward_status])];
+    try {
+      await source.execute({request_id: crypto.randomUUID(), action: 'EXPORT', expected_revision: state.revision, reason: 'Export filtered referral records for campaign operations review.', kind: leaderboard ? 'leaderboard' : 'referrals', record_ids: leaderboard ? leaders.map(r => r.referrer.id) : exportRecords.map(r => r.id)});
+      const cell = (v: unknown) => {let s = String(v ?? ''); if (/^\s*[=+@-]/.test(s)) s = `'${s}`; return `"${s.replaceAll('"', '""')}"`;};
+      const url = URL.createObjectURL(new Blob([rows.map(row => row.map(cell).join(',')).join('\r\n')], {type: 'text/csv;charset=utf-8'}));
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `referrals-${leaderboard ? 'leaderboard' : 'registry'}.csv`; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notifyOperation('Report exported', `${rows.length - 1} records exported with audit evidence.`, false, 'Referrals');
+    } catch (cause) {notifyOperation('Export failed', cause instanceof Error ? cause.message : 'Unable to prepare the report.', true, 'Referrals');}
+    finally {exportLock.current = false; setExporting(false);}
+  }
+  return <div className="w-full min-w-0 space-y-5 font-mono text-white">
+    <h1 className="sr-only">Referrals</h1>
+    <PageHeader statusText="Referrals" wrapActions><ActionButton autoWidth variant="blue" disabled={source.loading} icon={<RefreshCw size={14} className={source.loading ? 'animate-spin' : ''}/>} onClick={() => void source.refresh()}>Refresh</ActionButton><ActionButton autoWidth variant="blue" disabled={blocked || exporting || !(tab === 'leaders' ? leaders.length : exportRecords.length)} icon={<Download size={14}/>} onClick={() => void exportReport()}>{exporting ? 'Preparing…' : tab === 'leaders' ? 'Export leaderboard' : 'Export referrals'}</ActionButton><ActionButton autoWidth variant="cyan" disabled={blocked || !policy.program_enabled || !snapshot.eligible_referrer_ids.length} icon={<Plus size={14}/>} onClick={() => setIntent({action: 'INVITE'})}>Record invitation</ActionButton></PageHeader>
+    {source.warning && <p role="alert" className="rounded-xl border border-rose-400/20 p-4 text-xs text-rose-200">{source.warning}</p>}
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4"><MetricCard compact tone="blue" title="Invitations" value={records.length} icon={UserPlus} subtext={`${leaders.length} referrers in this cohort`}/><MetricCard compact tone="cyan" title="Registered customers" value={registered} icon={Users} subtext={`${records.length ? (registered / records.length * 100).toFixed(1) : '0.0'}% of scoped invitations`}/><MetricCard compact tone="purple" title="Qualified referrals" value={qualified} icon={CheckCircle2} subtext={`${records.length ? (qualified / records.length * 100).toFixed(1) : '0.0'}% qualified · campaign criteria met`}/><MetricCard compact tone="amber" title="Rewards paid" value={referralMoney(total('PAID'))} icon={Gift} subtext={`${referralMoney(total('PENDING'))} pending · ${referralMoney(total('QUEUED'))} queued`}/></div>
+    <AuditPanel title="Referral scope" subtitle="Portfolio filters apply to metrics, charts and leaderboard. Referrer and reward filters below refine ledger rows and exports." action={<ActionButton autoWidth variant="blue" icon={<X size={13}/>} onClick={reset}>Reset filters</ActionButton>}>
+      <div className="grid items-end gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4"><div className="space-y-2 sm:col-span-2 [&>div]:max-w-none"><label className={auditFieldClass}>Search referral portfolio</label><SocialSearch label="Search referral portfolio" placeholder="Name, email, customer ID or referral code…" value={filters.query} onChange={value => update('query', value)}/></div><label className={auditFieldClass}>Invitation period<AuditSelect aria-label="Invitation period" value={filters.range} onChange={e => update('range', e.target.value as ReferralFilters['range'])}><option value="30D">Last 30 days</option><option value="90D">Last 90 days</option><option value="ALL">All available history</option></AuditSelect></label><label className={auditFieldClass}>Referral status<AuditSelect aria-label="Referral status" value={filters.status} onChange={e => update('status', e.target.value)}><option value="ALL">All statuses</option>{REFERRAL_STATUSES.map(s => <option key={s} value={s}>{referralStatusLabels[s]}</option>)}</AuditSelect></label></div>
     </AuditPanel>
-    <ReferralCharts report={report} records={records} leaderboard={leaderboard} range={filters.range}/>
-    {leaderboard[0] && <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300"><Trophy size={18}/></span><div className="min-w-0"><p className="text-[9px] uppercase tracking-wider text-cyan-300">Most users brought to the bank</p><p className="mt-1 break-words text-sm font-bold">{leaderboard[0].referrer.name}<span className="ml-2 text-[10px] font-normal text-slate-400">{leaderboard[0].registered} registered · {leaderboard[0].qualified} qualified</span></p></div></div><button className={button} onClick={() => setSelectedId(leaderboard[0].referrer.id)}>View referrals<ArrowRight size={12}/></button></div>}
-    <AuditPanel title="Referrer leaderboard" subtitle={`${ranked.length} matching referrers · Ranked by ${sort === "REGISTERED" ? "registered users" : sort === "QUALIFIED" ? "qualified referrals" : "qualification rate"}. Rewards shown are for the referrer, in EUR.`} action={<label className={`${auditFieldClass} min-w-44`}>Rank by<AuditSelect value={sort} onChange={e => { setSort(e.target.value); setPage(0); }}><option value="REGISTERED">Users registered</option><option value="QUALIFIED">Qualified referrals</option><option value="CONVERSION">Qualification rate</option></AuditSelect></label>}>
-      <div tabIndex={0} role="region" aria-label="Scrollable referrer leaderboard" className="scrollbar-thin hidden max-h-[360px] overflow-auto overscroll-contain md:block">
-        <table className="w-full min-w-[900px] text-left text-[11px]"><caption className="sr-only">Referrers and attributed customer registrations for the selected invitation cohort.</caption><thead className="sticky top-0 z-10 bg-[#061528] text-[9px] uppercase text-cyan-300"><tr>{["Rank", "Referrer / code", "Invited", "Registered", "Qualified", "Qualification", "Paid / pending", "Details"].map(label => <th key={label} scope="col" className="px-3 py-2.5">{label}</th>)}</tr></thead>
-          <tbody className="divide-y divide-cyan-500/10">{ranked.slice(currentPage * 8, currentPage * 8 + 8).map((row, i) => <tr key={row.referrer.id} className="hover:bg-cyan-500/5"><td className="px-3 py-2.5 align-middle"><span className={`inline-flex h-7 w-7 items-center justify-center rounded-lg border text-xs font-bold ${currentPage === 0 && i === 0 ? "border-amber-500/30 bg-amber-500/10 text-amber-300" : "border-cyan-500/20 text-slate-400"}`}>{currentPage * 8 + i + 1}</span></td><td className="px-3 py-2.5 align-middle"><p className="font-bold">{row.referrer.name}</p><p className="mt-1 text-[10px] text-slate-400">{row.referrer.email}</p><p className="mt-1 text-[9px] text-cyan-400">{row.referrer.referral_code}</p></td><td className="px-3 py-2.5 align-middle text-slate-400">{row.invited}</td><td className="px-3 py-2.5 align-middle font-bold text-white">{row.registered}</td><td className="px-3 py-2.5 align-middle text-teal-300">{row.qualified}</td><td className="px-3 py-2.5 align-middle"><div className="min-w-20"><p>{row.conversion.toFixed(1)}%</p><div aria-hidden="true" className="mt-2 h-1 rounded-full bg-white/5"><div className="h-full rounded-full bg-teal-400" style={{ width: `${row.conversion}%` }}/></div></div></td><td className="whitespace-nowrap px-3 py-2.5 align-middle"><p>{referralMoney(row.paid_minor)}</p><p className="mt-1 text-[9px] text-slate-400">{referralMoney(row.pending_minor)} pending</p>{row.held_minor > 0 && <p className="mt-1 text-[9px] text-amber-300">{referralMoney(row.held_minor)} held</p>}</td><td className="px-3 py-2.5 align-middle"><button className={button} aria-label={`View referrals from ${row.referrer.name}`} onClick={() => setSelectedId(row.referrer.id)}>View<ArrowRight size={12}/></button></td></tr>)}</tbody>
-        </table>
-      </div>
-      <div tabIndex={0} role="region" aria-label="Scrollable referrer cards" className="scrollbar-thin max-h-[360px] overflow-y-auto overscroll-contain divide-y divide-cyan-500/15 md:hidden">{ranked.slice(currentPage * 8, currentPage * 8 + 8).map((row, i) => <article key={row.referrer.id} className="space-y-3 p-4 text-xs"><div className="flex items-center gap-2"><span className="text-cyan-400">#{currentPage * 8 + i + 1}</span><h3 className="font-bold">{row.referrer.name}</h3></div><p className="break-all text-[10px] text-slate-400">{row.referrer.email} · {row.referrer.referral_code}</p><dl className="grid grid-cols-3 gap-2"><div><dt className="text-[9px] text-slate-500">Invited</dt><dd className="mt-1">{row.invited}</dd></div><div><dt className="text-[9px] text-slate-500">Registered</dt><dd className="mt-1 font-bold">{row.registered}</dd></div><div><dt className="text-[9px] text-slate-500">Qualified</dt><dd className="mt-1 text-teal-300">{row.qualified}</dd></div></dl><p className="text-[10px] text-slate-400">{referralMoney(row.paid_minor)} paid · {row.conversion.toFixed(1)}% qualified</p><button className={`${button} w-full`} onClick={() => setSelectedId(row.referrer.id)}>View referrals<ArrowRight size={12}/></button></article>)}</div>
-      {!ranked.length && <EmptyAudit text="No referrals match this scope. Adjust the search, period or status."/>}
-    </AuditPanel>
-    <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] text-slate-400"><span>Page {currentPage + 1} of {pages} · 8 referrers per page</span><div className="flex gap-2"><button className={button} disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Previous</button><button className={button} disabled={currentPage + 1 >= pages} onClick={() => setPage(currentPage + 1)}>Next</button></div></div>
-    {selected && <div ref={detailsRef} className="scroll-mt-4"><AuditPanel title={`Referrals from ${selected.referrer.name}`} subtitle={`${selected.referrer.user_id} · ${selected.referrer.referral_code} · ${selectedRecords.length} invitations under the current filters.`} action={<button className={button} onClick={() => setSelectedId(null)}><X size={12}/>Close details</button>}>
-      <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-cyan-500/15 p-4 text-[10px] text-slate-400"><span><strong className="text-white">{selected.registered}</strong> registered users</span><span><strong className="text-teal-300">{selected.qualified}</strong> qualified</span><span>{selected.rejected} rejected</span><span>Latest invitation {date(selected.latest_invited_at)}</span></div>
-      <div tabIndex={0} role="region" aria-label="Scrollable referred users" className="scrollbar-thin hidden max-h-[360px] overflow-auto overscroll-contain md:block"><table className="w-full min-w-[820px] text-left text-[11px]"><thead className="sticky top-0 z-10 bg-[#061528] text-[9px] uppercase text-cyan-300"><tr>{["Invited customer", "Invitation / registration", "Status", "Qualification / reason", "Referrer reward"].map(label => <th key={label} scope="col" className="px-3 py-2.5">{label}</th>)}</tr></thead><tbody className="divide-y divide-cyan-500/10">{selectedRecords.map(r => <tr key={r.id}><td className="px-3 py-2.5 align-middle"><p className="font-bold">{r.invitee_name}</p><p className="mt-1 text-[10px] text-slate-400">{r.invitee_email}</p><p className="mt-1 text-[9px] text-slate-500">{r.invitee_id ?? "Not registered"} · {r.id}</p></td><td className="px-3 py-2.5 align-middle"><p>{date(r.invited_at)}</p><p className="mt-1 text-[9px] text-slate-400">Joined {date(r.registered_at)}</p></td><td className="px-3 py-2.5 align-middle"><span className={statusBadge(r.status)}>{statusLabels[r.status]}</span></td><td className="max-w-52 px-3 py-2.5 align-middle text-[10px] text-slate-400">{r.rejection_reason ?? (r.qualified_at ? `Qualified ${date(r.qualified_at)}` : "Awaiting campaign requirements")}</td><td className="px-3 py-2.5 align-middle">{r.reward_status === "NONE" ? <span className="text-slate-500">Not earned</span> : <div className="flex flex-wrap items-center gap-2"><span>{referralMoney(r.reward_minor)}</span><span className={statusBadge(r.reward_status)}>{r.reward_status}</span></div>}</td></tr>)}</tbody></table></div>
-      <div tabIndex={0} role="region" aria-label="Scrollable referred customer cards" className="scrollbar-thin max-h-[360px] overflow-y-auto overscroll-contain divide-y divide-cyan-500/15 md:hidden">{selectedRecords.map(r => <article key={r.id} className="space-y-2 p-4 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">{r.invitee_name}</h3><span className={statusBadge(r.status)}>{statusLabels[r.status]}</span></div><p className="break-all text-[10px] text-slate-400">{r.invitee_email}</p><p className="text-[10px] text-slate-500">{r.invitee_id ?? "Not registered"} · {r.id}</p><p className="text-[10px] text-slate-400">Invited {date(r.invited_at)} · Joined {date(r.registered_at)}</p>{r.rejection_reason && <p className="text-[10px] text-rose-300">{r.rejection_reason}</p>}{r.qualified_at && <p className="text-[10px] text-teal-300">Qualified {date(r.qualified_at)}</p>}<p className="text-[10px] text-cyan-300">{r.reward_status === "NONE" ? "Reward not earned" : `${referralMoney(r.reward_minor)} · ${r.reward_status}`}</p></article>)}</div>
-    </AuditPanel></div>}
-    <footer className="flex flex-wrap justify-between gap-2 border-t border-cyan-500/15 pt-3 text-[9px] leading-relaxed text-slate-500"><span>Demo campaign · reward €25 per qualified referral · reporting only</span><span>Snapshot {auditDate(report.as_of)} · Europe/Bucharest</span></footer>
+    <nav aria-label="Referral workspace views" className="scrollbar-thin flex min-w-0 gap-2 overflow-x-auto pb-1">{[['overview', 'Overview'], ['leaders', 'Referrer leaderboard'], ['registry', 'Referral registry'], ['rewards', 'Rewards & review'], ['analytics', 'Analytics'], ['audit', 'Operations audit']].map(([key, label]) => <ActionButton key={key} variant={tab === key ? 'cyan' : 'blue'} autoWidth className="shrink-0" labelClassName="whitespace-nowrap" aria-pressed={tab === key} onClick={() => {setTab(key); setLedgerQuery('');}}>{label}</ActionButton>)}</nav>
+    {tab === 'overview' && <ReferralInsights records={records} leaders={leaders} snapshot={snapshot} onReview={() => {setTab('rewards'); setRewardStatus('HELD'); setLedgerQuery('');}} onInspect={id => {setSelectedReferrer(id); setLedgerQuery(''); setTab('registry');}}/>}
+    {tab === 'leaders' && <ReferrerLeaderboard key={JSON.stringify(filters)} rows={leaders} onInspect={id => {setSelectedReferrer(id); setLedgerQuery(''); setTab('registry');}}/>}
+    {(tab === 'registry' || tab === 'rewards') && <><div className="grid items-end gap-3 sm:grid-cols-2"><label className={auditFieldClass}>Referrer<AuditSelect searchable aria-label="Filter referrer" value={selectedReferrer} onChange={e => {setSelectedReferrer(e.target.value); setLedgerQuery('');}}><option value="ALL">All referrers</option>{report.referrers.map(r => <option key={r.id} value={r.id}>{r.name} · {r.referral_code}</option>)}</AuditSelect></label>{tab === 'rewards' && <label className={auditFieldClass}>Reward state<AuditSelect aria-label="Reward state" value={rewardStatus} onChange={e => setRewardStatus(e.target.value)}><option value="ALL">All earned rewards</option>{['PENDING', 'HELD', 'QUEUED', 'PAID'].map(s => <option key={s} value={s}>{s}</option>)}</AuditSelect></label>}</div><ReferralLedger key={`${tab}:${selectedReferrer}:${rewardStatus}:${JSON.stringify(filters)}`} records={tab === 'rewards' ? rewardRecords : registry} report={report} terms={state.terms} blocked={blocked} eligible={snapshot.eligible_referrer_ids} rewardsOnly={tab === 'rewards'} query={ledgerQuery} onQueryChange={setLedgerQuery} onAction={setIntent}/></>}
+    {tab === 'analytics' && <ReferralCharts report={report} records={records} leaderboard={leaders} range={filters.range}/>}
+    {tab === 'audit' && <AuditPanel title="Referral operations audit" subtitle="Complete operational history across the registry. Portfolio cohort filters do not hide audit evidence."><div className="border-b border-white/10 p-4 [&>div]:max-w-none"><SocialSearch label="Search referral audit" placeholder="Action, operator, referral ID or reason…" value={auditQuery} onChange={value => {setAuditQuery(value); setAuditPage(1);}}/></div><div className="scrollbar-thin max-h-[32rem] divide-y divide-white/5 overflow-y-auto">{history.slice((currentAudit - 1) * 8, currentAudit * 8).map(e => <article key={e.id} className="space-y-2 p-4 text-xs"><div className="flex flex-wrap justify-between gap-2"><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-cyan-200">{e.action.replaceAll('_', ' ')}</h2><span className={auditBadge(e.origin)}>{e.origin === "DEMO" ? "DEMO" : e.origin === "SERVER" ? "SERVER" : "RECORDED"}</span>{e.evidenceKind === "SNAPSHOT" && <span className={auditBadge("SNAPSHOT")}>SNAPSHOT</span>}</div><span className="text-[10px] text-slate-400">{auditDate(e.timestamp)}</span></div><p className="break-all text-[10px] text-slate-400">{e.actor} · {e.target}</p><p className="break-words leading-relaxed text-slate-300">{e.reason}</p><details className="text-[10px] text-slate-400"><summary className="cursor-pointer text-cyan-300">Before / after evidence</summary><pre className="scrollbar-thin mt-2 max-h-64 overflow-auto rounded-lg bg-black/20 p-3">{JSON.stringify({before: e.before, after: e.after}, null, 2)}</pre></details></article>)}</div>{!history.length && <EmptyAudit text="No referral operations match this search."/>}<SocialPagination label="Referral audit" total={history.length} page={currentAudit} pageSize={8} onPageChange={setAuditPage}/></AuditPanel>}
+    <footer className="flex flex-wrap justify-between gap-2 border-t border-white/10 pt-3 text-[9px] leading-relaxed text-slate-500"><span>{snapshot.mode === 'demo' ? 'Shared demo registry · no emails sent or live payouts' : 'Connected referral service'} · {policy.program_enabled ? 'Campaign accepting invitations' : 'Campaign paused'}</span><span>Revision {state.revision} · {auditDate(snapshot.as_of)}</span></footer>
+    {intent && <ReferralOperationDialog key={`${intent.action}:${intent.record?.id ?? 'new'}`} intent={intent} snapshot={snapshot} onClose={() => setIntent(null)} onConfirm={confirm}/>}
   </div>;
 }

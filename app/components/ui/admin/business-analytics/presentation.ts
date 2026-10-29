@@ -1,4 +1,4 @@
-import { buttonClass, primaryButtonClass } from "../cards/presentation";
+import { buttonClass, primaryButtonClass } from "../risk/RiskUI";
 export const analyticsButton = `${buttonClass} min-h-9 leading-none [&>svg]:shrink-0`;
 export const analyticsPrimaryButton = `${primaryButtonClass} min-h-9 leading-none [&>svg]:shrink-0`;
 export const productLabels: Record<string, string> = { PAYMENTS: "Payments", CARDS: "Cards", FX: "Foreign exchange", INVESTMENTS: "Investments", LENDING: "Lending", SUBSCRIPTIONS: "Subscriptions" };

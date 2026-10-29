@@ -16,6 +16,8 @@ interface MetricCardProps {
   href?: string;
   compact?: boolean;
   tone?: CardTone;
+  /** Higher-contrast reporting typography for dense management dashboards. */
+  readable?: boolean;
 }
 
 export default function MetricCard({
@@ -28,11 +30,12 @@ export default function MetricCard({
   href,
   compact = false,
   tone,
+  readable = false,
 }: MetricCardProps) {
   const content = <>
       {/* HEADER: Titlu și Iconiță */}
       <div className={`relative z-10 flex justify-between ${compact ? "items-start gap-2 mb-1" : "items-center mb-2"}`}>
-        <h3 className={`${compact ? "text-[9px] sm:text-[10px] tracking-wider" : "text-[11px] tracking-widest"} font-bold font-mono text-blue-300/80 uppercase`}>
+        <h3 className={`${compact ? "text-[9px] sm:text-[10px] tracking-wider" : "text-[11px] tracking-widest"} ${readable ? "min-h-8" : ""} font-bold font-mono text-blue-300/80 uppercase`}>
           {title}
         </h3>
         <div
@@ -46,12 +49,12 @@ export default function MetricCard({
       </div>
 
       {/* BODY: Valoare și Subtext */}
-      <div className="relative z-10 mt-auto">
+      <div className={`relative z-10 ${readable ? "mt-2 flex flex-1 flex-col" : "mt-auto"}`}>
         <p className={`${compact ? "text-xl" : "text-xl sm:text-2xl"} font-black text-white tracking-tight mb-1 font-mono break-words`}>
           {value}
         </p>
         {subtext && (
-          <div className={`${compact ? "text-[9px] sm:text-[10px]" : "text-[10px] sm:text-[11px]"} text-gray-400/80 leading-normal`}>
+          <div className={`${readable ? "text-[11px] text-slate-300 leading-relaxed" : compact ? "text-[9px] sm:text-[10px] text-gray-400/80 leading-normal" : "text-[10px] sm:text-[11px] text-gray-400/80 leading-normal"}`}>
             {subtext}
           </div>
         )}

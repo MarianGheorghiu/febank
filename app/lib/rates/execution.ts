@@ -4,16 +4,10 @@ import { calculateRate } from './engine';
 import type { RatePolicy, RateTier } from './contracts';
 import type { MarketsState } from '../types/admin/markets';
 import type { TransferSnapshot } from '../transfers/contracts';
-import { MOCK_SUBSCRIPTIONS, SUBSCRIPTION_CUSTOMERS } from '../mock/admin/subscriptions';
-import { readManagedUsers } from '../user-management/store';
-import { validSubscriptionState } from '../subscriptions/engine';
+import { customerMembership } from '../subscriptions/registry';
 export interface ExecutionRate { policy: RatePolicy; tier: RateTier; weekend: boolean; version: number }
 export function customerRateTier(email:string):RateTier {
-  const raw=typeof localStorage==='undefined'?null:localStorage.getItem('mbank_subscriptions_v1');
-  const data:unknown=raw?JSON.parse(raw):MOCK_SUBSCRIPTIONS;
-  if(!validSubscriptionState(data))throw new Error('Subscription pricing unavailable.');
-  const id=SUBSCRIPTION_CUSTOMERS.find(c=>c.email.toLowerCase()===email.trim().toLowerCase())?.id??readManagedUsers().users.find(u=>u.login_email===email.trim().toLowerCase())?.id??email.trim().toLowerCase();
-  return data.subscriptions.find(s=>s.customer_id===id&&s.status==='ACTIVE')?.plan_id??'STANDARD';
+  return customerMembership(email).tier;
 }
 export function executionRates(customer:string,at=new Date().toISOString()){
   if((process.env.NEXT_PUBLIC_RATES_MODE??'demo')!=='demo')throw new Error('Live pricing must be quoted by the backend. Local financial execution is unavailable in HTTP rates mode.');
